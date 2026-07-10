@@ -32,6 +32,25 @@ let rangeRingLayers = []; // Stores range rings and labels
 
 // Initialize the Application
 document.addEventListener('DOMContentLoaded', () => {
+    // 1. Load map toggles & settings memory from localStorage first
+    loadMapSettings();
+    
+    // Set checkbox inputs to their corresponding state values
+    document.getElementById('toggle-rings').checked = showRings;
+    document.getElementById('toggle-labels').checked = showLabels;
+    document.getElementById('toggle-trails').checked = showTrails;
+    document.getElementById('toggle-low').checked = showLow;
+    document.getElementById('toggle-med').checked = showMed;
+    document.getElementById('toggle-high').checked = showHigh;
+    
+    // Sync initial plane labels display state
+    const mapContainer = document.getElementById('map-panel-container');
+    if (showLabels) {
+        mapContainer.classList.remove('hide-plane-labels');
+    } else {
+        mapContainer.classList.add('hide-plane-labels');
+    }
+    
     initClock();
     initMap();
     
@@ -72,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Map Controls Event Listeners
     document.getElementById('toggle-rings').addEventListener('change', (e) => {
         showRings = e.target.checked;
+        saveMapSettings();
         if (showRings) {
             map.addLayer(airfieldGroup);
         } else {
@@ -81,6 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('toggle-labels').addEventListener('change', (e) => {
         showLabels = e.target.checked;
+        saveMapSettings();
         const mapContainer = document.getElementById('map-panel-container');
         if (showLabels) {
             mapContainer.classList.remove('hide-plane-labels');
@@ -91,6 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('toggle-trails').addEventListener('change', (e) => {
         showTrails = e.target.checked;
+        saveMapSettings();
         // Redraw all markers to toggle active trails
         Object.keys(aircraftMarkers).forEach(hex => {
             const ac = aircraftCache[hex];
@@ -100,16 +122,19 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('toggle-low').addEventListener('change', (e) => {
         showLow = e.target.checked;
+        saveMapSettings();
         refreshAllAircraftLayers();
     });
     
     document.getElementById('toggle-med').addEventListener('change', (e) => {
         showMed = e.target.checked;
+        saveMapSettings();
         refreshAllAircraftLayers();
     });
     
     document.getElementById('toggle-high').addEventListener('change', (e) => {
         showHigh = e.target.checked;
+        saveMapSettings();
         refreshAllAircraftLayers();
     });
 });
@@ -171,16 +196,31 @@ function initMap() {
         maxZoom: 16
     });
 
-    // Center map around KVPZ, adding default darkMatter base layer
+    // 2. Define Layer Controls (Base & Overlays)
+    const baseMaps = {
+        "Dark Matter (Radar)": darkMatter,
+        "OpenStreetMap (Light)": osm,
+        "Voyager (Vector)": voyager,
+        "USGS Satellite": satellite
+    };
+
+    // Retrieve saved base layer from memory (default to Dark Matter)
+    const savedBaseLayerName = localStorage.getItem('kvpz_map_base_layer') || "Dark Matter (Radar)";
+    const initialBaseLayer = baseMaps[savedBaseLayerName] || darkMatter;
+
+    // Center map around KVPZ, adding selected base layer
     map = L.map('map', {
         center: KVPZ_COORDS,
         zoom: 10,
-        layers: [darkMatter],
+        layers: [initialBaseLayer],
         zoomControl: true
     });
     
-    // Create layer group for KVPZ reference elements
-    airfieldGroup = L.layerGroup().addTo(map);
+    // Create layer group for KVPZ reference elements (rings/beacons)
+    airfieldGroup = L.layerGroup();
+    if (showRings) {
+        airfieldGroup.addTo(map);
+    }
 
     // Custom Glow Style for KVPZ Airport Marker
     const kvpzIcon = L.divIcon({
@@ -229,21 +269,34 @@ function initMap() {
         rangeRingLayers.push(label);
     });
 
-    // 2. Define Layer Controls (Base & Overlays)
-    const baseMaps = {
-        "Dark Matter (Radar)": darkMatter,
-        "OpenStreetMap (Light)": osm,
-        "Voyager (Vector)": voyager,
-        "USGS Satellite": satellite
-    };
-    
     const overlayMaps = {
         "KVPZ Range Rings & Beacon": airfieldGroup
     };
     
     L.control.layers(baseMaps, overlayMaps, { collapsed: false }).addTo(map);
 
-    // 3. Listen to map movement/zoom to dynamically fetch flight data
+    // 3. Sync events to save configuration selections to localStorage
+    map.on('baselayerchange', (e) => {
+        localStorage.setItem('kvpz_map_base_layer', e.name);
+    });
+
+    map.on('overlayadd', (e) => {
+        if (e.name === "KVPZ Range Rings & Beacon") {
+            showRings = true;
+            document.getElementById('toggle-rings').checked = true;
+            saveMapSettings();
+        }
+    });
+
+    map.on('overlayremove', (e) => {
+        if (e.name === "KVPZ Range Rings & Beacon") {
+            showRings = false;
+            document.getElementById('toggle-rings').checked = false;
+            saveMapSettings();
+        }
+    });
+
+    // 4. Listen to map movement/zoom to dynamically fetch flight data
     map.on('moveend', () => {
         fetchAircraftData();
     });
@@ -949,3 +1002,31 @@ function handleSearch(e) {
     searchFilter = e.target.value;
     updateUI();
 }
+
+// 9. Map Configurations Storage Utilities
+function loadMapSettings() {
+    try {
+        const stored = localStorage.getItem('kvpz_map_settings');
+        if (stored) {
+            const settings = JSON.parse(stored);
+            showRings = settings.showRings !== undefined ? settings.showRings : true;
+            showLabels = settings.showLabels !== undefined ? settings.showLabels : true;
+            showTrails = settings.showTrails !== undefined ? settings.showTrails : true;
+            showLow = settings.showLow !== undefined ? settings.showLow : true;
+            showMed = settings.showMed !== undefined ? settings.showMed : true;
+            showHigh = settings.showHigh !== undefined ? settings.showHigh : true;
+        }
+    } catch (e) {
+        console.error("Error loading map settings from localStorage:", e);
+    }
+}
+
+function saveMapSettings() {
+    try {
+        const settings = { showRings, showLabels, showTrails, showLow, showMed, showHigh };
+        localStorage.setItem('kvpz_map_settings', JSON.stringify(settings));
+    } catch (e) {
+        console.error("Error saving map settings to localStorage:", e);
+    }
+}
+
