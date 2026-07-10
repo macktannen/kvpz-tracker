@@ -712,9 +712,9 @@ function logOperation(callsign, type, opType, description) {
     
     operationsLog.unshift(logItem); // Add to beginning of array
     
-    // Prune entries older than 30 days (1 month)
+    // Prune entries older than 30 days (1 month), keeping legacy entries that have no timestamp
     const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-    operationsLog = operationsLog.filter(log => log.timestamp && log.timestamp >= oneMonthAgo);
+    operationsLog = operationsLog.filter(log => !log || log.timestamp === undefined || log.timestamp >= oneMonthAgo);
     
     // Save to localStorage
     try {
@@ -760,8 +760,10 @@ function updateOpsLog() {
         
         const time = document.createElement('span');
         time.className = 'ops-time';
-        // Show Date and Time since logs persist across multiple days
-        time.textContent = `${log.dateStr} ${log.timeStr}`;
+        // Show Date and Time since logs persist across multiple days; fallback to legacy 'time' field if needed
+        const dateText = log.dateStr || '';
+        const timeText = log.timeStr || log.time || '---';
+        time.textContent = dateText ? `${dateText} ${timeText}` : timeText;
         
         item.appendChild(details);
         item.appendChild(time);
@@ -778,8 +780,8 @@ function loadOperationsLogMemory() {
             const allLogs = JSON.parse(stored);
             const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
             
-            // Filter out logs older than 30 days
-            operationsLog = allLogs.filter(log => log.timestamp && log.timestamp >= oneMonthAgo);
+            // Filter out logs older than 30 days, preserving legacy logs with undefined timestamps
+            operationsLog = allLogs.filter(log => !log || log.timestamp === undefined || log.timestamp >= oneMonthAgo);
             
             // Re-save pruned list
             localStorage.setItem('kvpz_operations_log', JSON.stringify(operationsLog));
