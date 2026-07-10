@@ -3,7 +3,7 @@
 // Configurations
 const KVPZ_COORDS = [41.4542, -87.0068];
 const UPDATE_INTERVAL = 5000; // 5 seconds for aircraft (faster polling)
-const WEATHER_INTERVAL = 20 * 60 * 1000; // 20 minutes for weather
+const WEATHER_INTERVAL = 5 * 60 * 1000; // 5 minutes for weather
 const RANGE_RINGS_NM = [5, 15, 30];
 const NM_TO_METERS = 1852;
 
