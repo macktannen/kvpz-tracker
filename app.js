@@ -598,8 +598,8 @@ function processAircraft(aircraftList) {
             }
         }
         
-        // 3. KVPZ GEOFENCE TRIGGER (Any aircraft under 1000 ft within 1 mile of KVPZ)
-        if (dist < 1.0 && alt < 1000 && !currentState.logged) {
+        // 3. KVPZ GEOFENCE TRIGGER (Any aircraft under 1200 ft within 1 mile of KVPZ)
+        if (dist < 1.0 && alt < 1200 && !currentState.logged) {
             let direction = null;
             if (prevState) {
                 // Outbound if climbing or moving away
