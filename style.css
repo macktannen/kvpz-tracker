@@ -685,3 +685,145 @@ body {
     margin: 0.4rem 0 !important;
 }
 
+/* 10. Responsive Mobile Overrides */
+@media (max-width: 992px) {
+    /* Enable full body scrolling on mobile */
+    body, .app-container {
+        height: auto;
+        overflow: auto;
+    }
+
+    /* Stack sidebar and map panels vertically */
+    .app-main {
+        flex-direction: column;
+        height: auto;
+        overflow: visible;
+    }
+
+    /* Side Panel elements expand to full width */
+    .sidebar-panel {
+        width: 100%;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        overflow: visible;
+        padding: 0.75rem;
+    }
+
+    /* Fixed height map panel for touch interaction */
+    .map-panel {
+        height: 450px;
+        min-height: 450px;
+        width: 100%;
+        overflow: visible;
+    }
+
+    #map {
+        height: 100%;
+        min-height: 100%;
+    }
+
+    /* Flow controls panel dynamically below map container on mobile */
+    .map-controls-panel {
+        position: relative;
+        bottom: auto;
+        right: auto;
+        margin: 1rem auto;
+        width: 90%;
+        max-width: 320px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        box-shadow: none;
+    }
+    
+    .map-controls-panel h4 {
+        grid-column: span 2;
+    }
+    
+    .map-controls-panel hr {
+        grid-column: span 2;
+    }
+
+    /* Table listing panel expands and flows naturally */
+    .app-footer {
+        height: auto;
+        width: 100%;
+        overflow: visible;
+        border-top: 1px solid var(--border-color);
+    }
+
+    /* Wrap spreadsheet search and controls vertically */
+    .footer-controls {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+        padding: 1rem;
+    }
+
+    .search-area {
+        width: 100%;
+    }
+
+    .filter-area {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.4rem;
+    }
+    
+    .filter-btn {
+        flex: 1 1 auto;
+        text-align: center;
+        padding: 0.4rem 0.6rem;
+        font-size: 0.75rem;
+    }
+
+    .feed-status-area {
+        justify-content: center;
+    }
+
+    /* Horizontal scroll support for dense data table */
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+        padding: 0.5rem;
+    }
+    
+    .flight-table {
+        min-width: 800px;
+    }
+}
+
+@media (max-width: 600px) {
+    /* Header layout wraps to stack stat cards into a grid on narrow mobile screens */
+    .app-header {
+        flex-direction: column;
+        height: auto;
+        padding: 1rem;
+        gap: 0.75rem;
+        align-items: stretch;
+    }
+
+    .logo-area {
+        justify-content: center;
+    }
+
+    .header-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .stat-card {
+        min-width: unset;
+        padding: 0.4rem;
+    }
+
+    .clock-area {
+        display: none;
+    }
+}
+
+
