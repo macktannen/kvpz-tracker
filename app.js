@@ -2,7 +2,7 @@
 
 // Configurations
 const KVPZ_COORDS = [41.4542, -87.0068];
-const UPDATE_INTERVAL = 10000; // 10 seconds for aircraft
+const UPDATE_INTERVAL = 5000; // 5 seconds for aircraft (faster polling)
 const WEATHER_INTERVAL = 20 * 60 * 1000; // 20 minutes for weather
 const RANGE_RINGS_NM = [5, 15, 30];
 const NM_TO_METERS = 1852;
@@ -368,7 +368,7 @@ async function fetchWeather() {
     }
 }
 
-// 4. Fetch Aircraft Data
+// 4. Fetch Aircraft Data (Dual Feed Redundancy)
 async function fetchAircraftData() {
     if (!map) return;
     const statusText = document.getElementById('feed-status-text');
@@ -382,21 +382,54 @@ async function fetchAircraftData() {
         // Convert meters to nautical miles and cap between 5 and 250 NM
         const radiusNM = Math.min(250, Math.max(5, Math.ceil(radiusMeters / 1852)));
         
-        const url = `https://api.airplanes.live/v2/point/${center.lat.toFixed(4)}/${center.lng.toFixed(4)}/${radiusNM}`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('ADS-B feed returned status ' + response.status);
+        const latStr = center.lat.toFixed(4);
+        const lonStr = center.lng.toFixed(4);
         
-        const data = await response.json();
+        const urlAirplanesLive = `https://api.airplanes.live/v2/point/${latStr}/${lonStr}/${radiusNM}`;
+        const urlAdsbOne = `https://api.adsb.one/v2/point/${latStr}/${lonStr}/${radiusNM}`;
+        
+        // Fetch from both sources in parallel
+        const results = await Promise.allSettled([
+            fetch(urlAirplanesLive).then(r => { if (!r.ok) throw r; return r.json(); }),
+            fetch(urlAdsbOne).then(r => { if (!r.ok) throw r; return r.json(); })
+        ]);
+        
+        let mergedAircraft = {};
+        let successCount = 0;
+        
+        results.forEach((res, index) => {
+            if (res.status === 'fulfilled' && res.value && Array.isArray(res.value.ac)) {
+                successCount++;
+                res.value.ac.forEach(ac => {
+                    if (ac.hex) {
+                        // Merge by hex. Keep the one with callsign or coords if conflicting
+                        const existing = mergedAircraft[ac.hex];
+                        if (!existing || (!existing.flight && ac.flight) || (!existing.lat && ac.lat)) {
+                            mergedAircraft[ac.hex] = ac;
+                        }
+                    }
+                });
+            } else {
+                console.warn(`Feed ${index === 0 ? 'Airplanes.live' : 'ADSB.one'} failed:`, res.reason);
+            }
+        });
+        
+        if (successCount === 0) {
+            throw new Error('All redundant tracking feeds failed.');
+        }
+        
+        const mergedList = Object.values(mergedAircraft);
         
         pulseIndicator.className = "pulse-indicator status-live";
-        statusText.textContent = `Live Screen Feed (${radiusNM} NM Coverage) &bull; Updated ${new Date().toLocaleTimeString([], {hour12:false})}`;
+        const sourcesText = successCount === 2 ? "Dual Feeds Active" : (results[0].status === 'fulfilled' ? "Airplanes.live Active" : "ADSB.one Active");
+        statusText.textContent = `${sourcesText} (${radiusNM} NM Coverage) &bull; Updated ${new Date().toLocaleTimeString([], {hour12:false})}`;
         
-        processAircraft(data.ac || []);
+        processAircraft(mergedList);
         
     } catch (error) {
         console.error("Error loading ADS-B data:", error);
         pulseIndicator.className = "pulse-indicator status-error";
-        statusText.textContent = "Live Feed Error - Retrying...";
+        statusText.textContent = "Live Feeds offline - Retrying...";
     }
 }
 
@@ -496,8 +529,8 @@ function processAircraft(aircraftList) {
             const lastState = aircraftCache[hex];
             const timeSinceLastSeen = now - lastState.lastSeen;
             
-            // Disappeared within 5.0 NM, below 2500 ft, on an active arrival trajectory:
-            if (timeSinceLastSeen < 30000 && lastState.opType === 'arrival' && lastState.dist < 5.0 && lastState.alt < 2500 && !lastState.logged) {
+            // Disappeared within 6.0 NM, below 2500 ft, on an active arrival trajectory (Option 1: expanded passive landing buffer):
+            if (timeSinceLastSeen < 45000 && lastState.opType === 'arrival' && lastState.dist < 6.0 && lastState.alt < 2500 && !lastState.logged) {
                 logOperation(lastState.callsign, lastState.type, 'arrival', `Landed KVPZ (Last seen ${lastState.dist.toFixed(1)} NM out, ${lastState.alt} FT)`);
                 lastState.logged = true;
             }
