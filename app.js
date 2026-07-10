@@ -7,6 +7,32 @@ const WEATHER_INTERVAL = 20 * 60 * 1000; // 20 minutes for weather
 const RANGE_RINGS_NM = [5, 15, 30];
 const NM_TO_METERS = 1852;
 
+// Safe localStorage wrappers to prevent SecurityError crash on iOS/Safari/Edge Private Browsing
+function safeGetItem(key, fallback = null) {
+    try {
+        return localStorage.getItem(key) || fallback;
+    } catch (e) {
+        console.warn(`localStorage read blocked for key "${key}":`, e);
+        return fallback;
+    }
+}
+
+function safeSetItem(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch (e) {
+        console.warn(`localStorage write blocked for key "${key}":`, e);
+    }
+}
+
+function safeRemoveItem(key) {
+    try {
+        localStorage.removeItem(key);
+    } catch (e) {
+        console.warn(`localStorage remove blocked for key "${key}":`, e);
+    }
+}
+
 // App State
 let map;
 let airfieldGroup; // Leaflet LayerGroup for KVPZ beacons/rings
@@ -81,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('btn-clear-logs').addEventListener('click', () => {
         operationsLog = [];
-        localStorage.removeItem('kvpz_operations_log');
+        safeRemoveItem('kvpz_operations_log');
         arrivalCount = 0;
         departureCount = 0;
         updateOpsLog();
@@ -205,7 +231,7 @@ function initMap() {
     };
 
     // Retrieve saved base layer from memory (default to Dark Matter)
-    const savedBaseLayerName = localStorage.getItem('kvpz_map_base_layer') || "Dark Matter (Radar)";
+    const savedBaseLayerName = safeGetItem('kvpz_map_base_layer', "Dark Matter (Radar)");
     const initialBaseLayer = baseMaps[savedBaseLayerName] || darkMatter;
 
     // Center map around KVPZ, adding selected base layer
@@ -277,7 +303,7 @@ function initMap() {
 
     // 3. Sync events to save configuration selections to localStorage
     map.on('baselayerchange', (e) => {
-        localStorage.setItem('kvpz_map_base_layer', e.name);
+        safeSetItem('kvpz_map_base_layer', e.name);
     });
 
     map.on('overlayadd', (e) => {
@@ -806,11 +832,7 @@ function logOperation(callsign, type, opType, description) {
     operationsLog = operationsLog.filter(log => !log || log.timestamp === undefined || log.timestamp >= oneMonthAgo);
     
     // Save to localStorage
-    try {
-        localStorage.setItem('kvpz_operations_log', JSON.stringify(operationsLog));
-    } catch (e) {
-        console.error("Failed to write operations log memory to localStorage:", e);
-    }
+    safeSetItem('kvpz_operations_log', JSON.stringify(operationsLog));
     
     // Recalculate counters
     arrivalCount = operationsLog.filter(log => log.opType === 'arrival').length;
@@ -864,7 +886,7 @@ function updateOpsLog() {
 // 7b. Persistent Memory Operations Loader
 function loadOperationsLogMemory() {
     try {
-        const stored = localStorage.getItem('kvpz_operations_log');
+        const stored = safeGetItem('kvpz_operations_log');
         if (stored) {
             const allLogs = JSON.parse(stored);
             const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
@@ -873,7 +895,7 @@ function loadOperationsLogMemory() {
             operationsLog = allLogs.filter(log => !log || log.timestamp === undefined || log.timestamp >= oneMonthAgo);
             
             // Re-save pruned list
-            localStorage.setItem('kvpz_operations_log', JSON.stringify(operationsLog));
+            safeSetItem('kvpz_operations_log', JSON.stringify(operationsLog));
             
             // Calculate persistent counters
             arrivalCount = operationsLog.filter(log => log.opType === 'arrival').length;
@@ -1009,7 +1031,7 @@ function handleSearch(e) {
 // 9. Map Configurations Storage Utilities
 function loadMapSettings() {
     try {
-        const stored = localStorage.getItem('kvpz_map_settings');
+        const stored = safeGetItem('kvpz_map_settings');
         if (stored) {
             const settings = JSON.parse(stored);
             showRings = settings.showRings !== undefined ? settings.showRings : true;
@@ -1027,7 +1049,7 @@ function loadMapSettings() {
 function saveMapSettings() {
     try {
         const settings = { showRings, showLabels, showTrails, showLow, showMed, showHigh };
-        localStorage.setItem('kvpz_map_settings', JSON.stringify(settings));
+        safeSetItem('kvpz_map_settings', JSON.stringify(settings));
     } catch (e) {
         console.error("Error saving map settings to localStorage:", e);
     }
