@@ -598,6 +598,27 @@ function processAircraft(aircraftList) {
             }
         }
         
+        // 3. KVPZ GEOFENCE TRIGGER (Any aircraft under 1000 ft within 1 mile of KVPZ)
+        if (dist < 1.0 && alt < 1000 && !currentState.logged) {
+            let direction = null;
+            if (prevState) {
+                // Outbound if climbing or moving away
+                const isOutbound = vspeed > 100 || dist > prevState.dist;
+                direction = isOutbound ? 'departure' : 'arrival';
+            } else {
+                // First appearance: outbound if climbing, else arrival
+                direction = vspeed > 0 ? 'departure' : 'arrival';
+            }
+            
+            currentState.logged = true;
+            currentState.opType = direction;
+            if (direction === 'arrival') {
+                logOperation(callsign, type, 'arrival', `Geofence Landing KVPZ (Alt: ${alt} FT, Dist: ${dist.toFixed(2)} NM)`);
+            } else {
+                logOperation(callsign, type, 'departure', `Geofence Departure KVPZ (Alt: ${alt} FT, Dist: ${dist.toFixed(2)} NM)`);
+            }
+        }
+        
         aircraftCache[hex] = currentState;
     });
     
