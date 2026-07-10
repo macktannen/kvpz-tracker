@@ -509,8 +509,8 @@ function processAircraft(aircraftList) {
             currentState.trail = [[lat, lon]];
             
             // KVPZ DEPARTURE TRIGGER (First appearing from KVPZ)
-            // Must first appear close (< 2.5 NM) and at low altitude (< 2000 ft) while climbing
-            if (dist < 2.5 && alt < 2000 && vspeed > 100) {
+            // Option 1 Optimized: First appear close (< 5.0 NM) and at low altitude (< 3000 ft) while climbing (> 100 FPM)
+            if (dist < 5.0 && alt < 3000 && vspeed > 100) {
                 logOperation(callsign, type, 'departure', `Departed KVPZ, climbing through ${alt} ft`);
                 currentState.logged = true;
                 currentState.opType = 'departure';
