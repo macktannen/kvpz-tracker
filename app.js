@@ -602,12 +602,12 @@ function processAircraft(aircraftList) {
         if (dist < 1.0 && alt < 1200 && !currentState.logged) {
             let direction = null;
             if (prevState) {
-                // Outbound if climbing or moving away
-                const isOutbound = vspeed > 100 || dist > prevState.dist;
+                // Outbound if distance is increasing (moving away from airfield)
+                const isOutbound = dist > prevState.dist;
                 direction = isOutbound ? 'departure' : 'arrival';
             } else {
-                // First appearance: outbound if climbing, else arrival
-                direction = vspeed > 0 ? 'departure' : 'arrival';
+                // First appearance inside the tight 1-mile geofence: classify as departure
+                direction = 'departure';
             }
             
             currentState.logged = true;
