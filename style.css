@@ -1,0 +1,687 @@
+/* KVPZ ADS-B Aircraft Tracker Stylesheet */
+
+:root {
+    --bg-main: #0b0f19;
+    --bg-header: #111827;
+    --bg-card: rgba(17, 24, 39, 0.7);
+    --border-color: rgba(75, 85, 99, 0.3);
+    
+    --color-text: #f3f4f6;
+    --color-text-muted: #9ca3af;
+    
+    --accent-primary: #10b981; /* Neon green */
+    --accent-cyan: #06b6d4; /* Cyber cyan */
+    --accent-red: #ef4444; /* Emergency red */
+    
+    --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    
+    --shadow-glow: 0 0 15px rgba(16, 185, 129, 0.25);
+    --shadow-cyan-glow: 0 0 15px rgba(6, 182, 212, 0.25);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* App Container */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* Header */
+.app-header {
+    background-color: var(--bg-header);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    height: 70px;
+}
+
+.logo-area {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.radar-logo-icon {
+    font-size: 1.75rem;
+    color: var(--accent-primary);
+    animation: radar-pulse 2s infinite ease-in-out;
+}
+
+.title-sub h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: linear-gradient(90deg, #34d399, #22d3ee);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.title-sub span {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.header-stats {
+    display: flex;
+    gap: 1rem;
+}
+
+.stat-card {
+    background-color: rgba(31, 41, 55, 0.5);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.4rem 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 110px;
+}
+
+.stat-card.accent-arrival {
+    border-left: 3px solid #6366f1; /* Purple */
+}
+
+.stat-card.accent-departure {
+    border-left: 3px solid #f59e0b; /* Amber */
+}
+
+.stat-card.accent-overflight {
+    border-left: 3px solid #a855f7; /* Violet */
+}
+
+.stat-label {
+    font-size: 0.65rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-family: var(--font-mono);
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.clock-area {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.clock-label {
+    font-size: 0.65rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.clock-time {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    color: var(--accent-cyan);
+    font-weight: 700;
+}
+
+/* Main Content */
+.app-main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100vh - 320px); /* Adjust based on footer size */
+}
+
+/* Sidebar */
+.sidebar-panel {
+    width: 380px;
+    background-color: #0e1321;
+    border-right: 1px solid var(--border-color);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    overflow-y: auto;
+}
+
+.card {
+    background: var(--bg-card);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-header {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-header h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--accent-cyan);
+}
+
+.badge {
+    background-color: var(--accent-primary);
+    color: #000;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.badge.vfr { background-color: #10b981; color: #fff; }
+.badge.mvfr { background-color: #3b82f6; color: #fff; }
+.badge.ifr { background-color: #ef4444; color: #fff; }
+.badge.lifr { background-color: #ec4899; color: #fff; }
+
+.card-body {
+    padding: 1rem;
+}
+
+/* Weather Grid */
+.weather-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.weather-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: rgba(31, 41, 55, 0.4);
+    border-radius: 6px;
+    padding: 0.5rem;
+}
+
+.weather-item i {
+    font-size: 1.1rem;
+    color: var(--color-text-muted);
+}
+
+.weather-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.w-label {
+    font-size: 0.65rem;
+    color: var(--color-text-muted);
+}
+
+.w-value {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.metar-raw {
+    font-size: 0.75rem;
+    border-top: 1px dashed var(--border-color);
+    padding-top: 0.5rem;
+}
+
+.metar-raw strong {
+    color: var(--color-text-muted);
+}
+
+.metar-raw p {
+    font-family: var(--font-mono);
+    color: var(--color-text);
+    margin-top: 0.2rem;
+    line-height: 1.3;
+}
+
+/* Operations Log */
+.ops-card {
+    flex: 1;
+    overflow: hidden;
+}
+
+.ops-log-container {
+    overflow-y: auto;
+    flex: 1;
+    padding: 0.5rem;
+}
+
+.btn-clear-logs {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: color 0.2s;
+}
+
+.btn-clear-logs:hover {
+    color: var(--accent-red);
+}
+
+.ops-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ops-item {
+    background-color: rgba(31, 41, 55, 0.4);
+    border-radius: 6px;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.8rem;
+    border-left: 4px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ops-item.arrival {
+    border-left-color: #6366f1;
+}
+
+.ops-item.departure {
+    border-left-color: #f59e0b;
+}
+
+.ops-time {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+}
+
+.ops-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.ops-callsign {
+    font-weight: 700;
+}
+
+.ops-desc {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.empty-log {
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    padding: 2rem 0;
+}
+
+/* Map Panel */
+.map-panel {
+    flex: 1;
+    position: relative;
+}
+
+#map {
+    height: 100%;
+    width: 100%;
+    background-color: #1a1a1a;
+}
+
+/* Map Overlays & Control Panel */
+.map-controls-panel {
+    position: absolute;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 1000;
+    background: var(--bg-card);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    width: 180px;
+}
+
+.map-controls-panel h4 {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 0.1rem;
+}
+
+.map-controls-panel label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 500;
+}
+
+.map-controls-panel input[type="checkbox"] {
+    accent-color: var(--accent-cyan);
+    cursor: pointer;
+}
+
+.color-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot-low { background-color: #10b981; }
+.dot-med { background-color: #f59e0b; }
+.dot-high { background-color: #a855f7; }
+
+/* CSS Rule to hide plane labels dynamically */
+.hide-plane-labels .plane-label {
+    display: none !important;
+}
+
+
+/* Custom Plane Markers for Leaflet */
+.leaflet-div-icon {
+    background: transparent !important;
+    border: none !important;
+}
+
+.plane-marker-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.plane-icon-svg {
+    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.8));
+    transition: transform 0.3s ease;
+}
+
+.plane-label {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid var(--border-color);
+    color: #fff;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.05rem 0.2rem;
+    margin-top: 2px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+/* Bottom Flight List Footer */
+.app-footer {
+    height: 250px;
+    background-color: var(--bg-header);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.footer-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background-color: rgba(17, 24, 39, 0.8);
+}
+
+.search-area {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: rgba(31, 41, 55, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.35rem 0.75rem;
+    width: 320px;
+}
+
+.search-area input {
+    background: none;
+    border: none;
+    color: #fff;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    width: 100%;
+    outline: none;
+}
+
+.search-area i {
+    color: var(--color-text-muted);
+}
+
+.filter-area {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.filter-btn {
+    background-color: rgba(31, 41, 55, 0.6);
+    border: 1px solid var(--border-color);
+    color: var(--color-text-muted);
+    border-radius: 6px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.filter-btn:hover {
+    color: #fff;
+    background-color: rgba(55, 65, 81, 0.6);
+}
+
+.filter-btn.active {
+    background-color: var(--accent-cyan);
+    border-color: var(--accent-cyan);
+    color: #000;
+}
+
+.feed-status-area {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.pulse-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.pulse-indicator.status-live {
+    background-color: var(--accent-primary);
+    box-shadow: 0 0 8px var(--accent-primary);
+    animation: indicator-pulse 1.5s infinite alternate;
+}
+
+.pulse-indicator.status-error {
+    background-color: var(--accent-red);
+    box-shadow: 0 0 8px var(--accent-red);
+}
+
+/* Spreadsheet Table */
+.table-container {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.flight-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    text-align: left;
+}
+
+.flight-table th {
+    background-color: rgba(31, 41, 55, 0.4);
+    color: var(--color-text-muted);
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.flight-table td {
+    padding: 0.45rem 1rem;
+    border-bottom: 1px solid rgba(75, 85, 99, 0.15);
+    font-family: var(--font-sans);
+}
+
+.flight-table tbody tr {
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.flight-table tbody tr:hover {
+    background-color: rgba(31, 41, 55, 0.4);
+}
+
+.flight-table tbody tr.selected {
+    background-color: rgba(6, 182, 212, 0.15);
+}
+
+.flight-table td:nth-child(1), 
+.flight-table td:nth-child(3), 
+.flight-table td:nth-child(6), 
+.flight-table td:nth-child(7) {
+    font-family: var(--font-mono);
+}
+
+.loading-row {
+    text-align: center;
+    color: var(--color-text-muted);
+    padding: 2rem !important;
+}
+
+/* Animations */
+@keyframes radar-pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+        filter: drop-shadow(0 0 0 rgba(16, 185, 129, 0));
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+        filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.6));
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+        filter: drop-shadow(0 0 0 rgba(16, 185, 129, 0));
+    }
+}
+
+@keyframes indicator-pulse {
+    0% { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+
+/* Leaflet Dark Customizations */
+.leaflet-bar {
+    border: 1px solid var(--border-color) !important;
+}
+.leaflet-bar a {
+    background-color: var(--bg-header) !important;
+    color: var(--color-text) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+.leaflet-bar a:hover {
+    background-color: rgba(55, 65, 81, 0.8) !important;
+    color: #fff !important;
+}
+.leaflet-container {
+    font-family: var(--font-sans) !important;
+}
+
+/* Custom Tooltip */
+.airport-tooltip {
+    background: rgba(17, 24, 39, 0.95);
+    border: 1px solid var(--accent-cyan);
+    color: #fff;
+    font-weight: 600;
+    border-radius: 4px;
+    padding: 0.3rem 0.6rem;
+}
+.airport-tooltip::before {
+    border-top-color: var(--accent-cyan) !important;
+}
+
+/* Leaflet Layer Control Dark Customizations */
+.leaflet-control-layers {
+    background: var(--bg-card) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--color-text) !important;
+    border-radius: 8px !important;
+    font-family: var(--font-sans) !important;
+    font-size: 0.75rem !important;
+    padding: 0.6rem !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+}
+
+.leaflet-control-layers-list label {
+    margin-bottom: 4px !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    user-select: none !important;
+}
+
+.leaflet-control-layers-list input[type="radio"], 
+.leaflet-control-layers-list input[type="checkbox"] {
+    accent-color: var(--accent-cyan) !important;
+    cursor: pointer !important;
+}
+
+.leaflet-control-layers-separator {
+    border-top: 1px solid var(--border-color) !important;
+    margin: 0.4rem 0 !important;
+}
+

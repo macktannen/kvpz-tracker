@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KVPZ ADS-B Aircraft Tracker</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation / Status Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <i class="fa-solid fa-plane-departure radar-logo-icon"></i>
+                <div class="title-sub">
+                    <h1>KVPZ Radar</h1>
+                    <span>Porter County Regional Airport &bull; Valparaiso, IN</span>
+                </div>
+            </div>
+            
+            <div class="header-stats">
+                <div class="stat-card">
+                    <span class="stat-label">Active Airbornes</span>
+                    <span class="stat-value" id="count-total">0</span>
+                </div>
+                <div class="stat-card accent-arrival">
+                    <span class="stat-label">Inbounds (&lt;10nm)</span>
+                    <span class="stat-value" id="count-arrivals">0</span>
+                </div>
+                <div class="stat-card accent-departure">
+                    <span class="stat-label">Outbounds (&lt;10nm)</span>
+                    <span class="stat-value" id="count-departures">0</span>
+                </div>
+                <div class="stat-card accent-overflight">
+                    <span class="stat-label">Transit Traffic</span>
+                    <span class="stat-value" id="count-overflights">0</span>
+                </div>
+            </div>
+            
+            <div class="clock-area">
+                <span class="clock-label">Local Time</span>
+                <span class="clock-time" id="local-clock">00:00:00</span>
+            </div>
+        </header>
+
+        <!-- Main Workspace (Map + Side Panel) -->
+        <main class="app-main">
+            <!-- Sidebar Panel (Weather + Operations) -->
+            <section class="sidebar-panel">
+                <!-- Airport Info & METAR Card -->
+                <div class="card weather-card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-cloud-sun-rain"></i> Live METAR Weather</h3>
+                        <span class="badge" id="weather-flight-cat">---</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="weather-grid">
+                            <div class="weather-item">
+                                <i class="fa-solid fa-wind"></i>
+                                <div class="weather-info">
+                                    <span class="w-label">Wind</span>
+                                    <span class="w-value" id="weather-wind">---</span>
+                                </div>
+                            </div>
+                            <div class="weather-item">
+                                <i class="fa-solid fa-eye"></i>
+                                <div class="weather-info">
+                                    <span class="w-label">Visibility</span>
+                                    <span class="w-value" id="weather-vis">---</span>
+                                </div>
+                            </div>
+                            <div class="weather-item">
+                                <i class="fa-solid fa-temperature-half"></i>
+                                <div class="weather-info">
+                                    <span class="w-label">Temp / Dew</span>
+                                    <span class="w-value" id="weather-temp">---</span>
+                                </div>
+                            </div>
+                            <div class="weather-item">
+                                <i class="fa-solid fa-gauge"></i>
+                                <div class="weather-info">
+                                    <span class="w-label">Altimeter</span>
+                                    <span class="w-value" id="weather-altim">---</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="metar-raw">
+                            <strong>RAW OBSERVATION:</strong>
+                            <p id="weather-raw-text">Loading live aviation weather reports...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Operations Log (Arrivals / Departures) -->
+                <div class="card ops-card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-list-check"></i> Operations Log</h3>
+                        <button class="btn-clear-logs" id="btn-clear-logs" title="Clear logs"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                    <div class="card-body ops-log-container">
+                        <ul class="ops-list" id="ops-log-list">
+                            <li class="empty-log">Listening for KVPZ arrivals and departures...</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Map Container -->
+            <section class="map-panel" id="map-panel-container">
+                <div id="map"></div>
+                <div class="map-controls-panel">
+                    <h4>Map Display Layers</h4>
+                    <label><input type="checkbox" id="toggle-rings" checked> Range Rings</label>
+                    <label><input type="checkbox" id="toggle-labels" checked> Flight Labels</label>
+                    <label><input type="checkbox" id="toggle-trails" checked> Selected Trails</label>
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 0.4rem 0;">
+                    <h4>Altitude Filters</h4>
+                    <label><span class="color-dot dot-low"></span> <input type="checkbox" id="toggle-low" checked> Low (&lt;3k ft)</label>
+                    <label><span class="color-dot dot-med"></span> <input type="checkbox" id="toggle-med" checked> Mid (3k-12k ft)</label>
+                    <label><span class="color-dot dot-high"></span> <input type="checkbox" id="toggle-high" checked> High (&gt;12k ft)</label>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Bottom Spreadsheet / Flight List -->
+        <footer class="app-footer">
+            <div class="footer-controls">
+                <div class="search-area">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="flight-search" placeholder="Search by callsign, tail, ICAO, type, operator...">
+                </div>
+                <div class="filter-area">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="low">Low Altitude (&lt;3k ft)</button>
+                    <button class="filter-btn" data-filter="inbound">Inbounds</button>
+                    <button class="filter-btn" data-filter="outbound">Outbounds</button>
+                </div>
+                <div class="feed-status-area">
+                    <span class="pulse-indicator status-live" id="pulse-indicator"></span>
+                    <span id="feed-status-text">Connecting to airplanes.live feed...</span>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table class="flight-table">
+                    <thead>
+                        <tr>
+                            <th>Callsign</th>
+                            <th>Tail #</th>
+                            <th>ICAO</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Altitude</th>
+                            <th>Speed</th>
+                            <th>VSpeed</th>
+                            <th>Heading</th>
+                            <th>Distance</th>
+                            <th>Operator</th>
+                        </tr>
+                    </thead>
+                    <tbody id="flight-table-body">
+                        <tr>
+                            <td colspan="11" class="loading-row">
+                                <i class="fa-solid fa-spinner fa-spin"></i> Waiting for live ADS-B packets...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="app.js"></script>
+</body>
+</html>
