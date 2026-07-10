@@ -34,6 +34,12 @@ let rangeRingLayers = []; // Stores range rings and labels
 document.addEventListener('DOMContentLoaded', () => {
     initClock();
     initMap();
+    
+    // Load KVPZ operations log memory from localStorage & clean up 1-month-old logs
+    loadOperationsLogMemory();
+    updateOpsLog();
+    updateCounters();
+    
     fetchWeather();
     fetchAircraftData();
     
@@ -56,7 +62,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('btn-clear-logs').addEventListener('click', () => {
         operationsLog = [];
+        localStorage.removeItem('kvpz_operations_log');
+        arrivalCount = 0;
+        departureCount = 0;
         updateOpsLog();
+        updateCounters();
     });
 
     // Map Controls Event Listeners
@@ -689,9 +699,11 @@ function updateMapMarker(ac) {
 
 // 7. Operations Logger
 function logOperation(callsign, type, opType, description) {
-    const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const now = new Date();
     const logItem = {
-        time,
+        timestamp: now.getTime(), // Miliseconds for 30-day age filtering
+        dateStr: now.toLocaleDateString(),
+        timeStr: now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         callsign,
         type,
         opType,
@@ -699,13 +711,24 @@ function logOperation(callsign, type, opType, description) {
     };
     
     operationsLog.unshift(logItem); // Add to beginning of array
-    if (operationsLog.length > 50) operationsLog.pop(); // Cap at 50 logs
     
-    // Increment counters
-    if (opType === 'arrival') arrivalCount++;
-    if (opType === 'departure') departureCount++;
+    // Prune entries older than 30 days (1 month)
+    const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+    operationsLog = operationsLog.filter(log => log.timestamp && log.timestamp >= oneMonthAgo);
+    
+    // Save to localStorage
+    try {
+        localStorage.setItem('kvpz_operations_log', JSON.stringify(operationsLog));
+    } catch (e) {
+        console.error("Failed to write operations log memory to localStorage:", e);
+    }
+    
+    // Recalculate counters
+    arrivalCount = operationsLog.filter(log => log.opType === 'arrival').length;
+    departureCount = operationsLog.filter(log => log.opType === 'departure').length;
     
     updateOpsLog();
+    updateCounters();
 }
 
 function updateOpsLog() {
@@ -737,13 +760,44 @@ function updateOpsLog() {
         
         const time = document.createElement('span');
         time.className = 'ops-time';
-        time.textContent = log.time;
+        // Show Date and Time since logs persist across multiple days
+        time.textContent = `${log.dateStr} ${log.timeStr}`;
         
         item.appendChild(details);
         item.appendChild(time);
         
         logList.appendChild(item);
     });
+}
+
+// 7b. Persistent Memory Operations Loader
+function loadOperationsLogMemory() {
+    try {
+        const stored = localStorage.getItem('kvpz_operations_log');
+        if (stored) {
+            const allLogs = JSON.parse(stored);
+            const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+            
+            // Filter out logs older than 30 days
+            operationsLog = allLogs.filter(log => log.timestamp && log.timestamp >= oneMonthAgo);
+            
+            // Re-save pruned list
+            localStorage.setItem('kvpz_operations_log', JSON.stringify(operationsLog));
+            
+            // Calculate persistent counters
+            arrivalCount = operationsLog.filter(log => log.opType === 'arrival').length;
+            departureCount = operationsLog.filter(log => log.opType === 'departure').length;
+        } else {
+            operationsLog = [];
+            arrivalCount = 0;
+            departureCount = 0;
+        }
+    } catch (e) {
+        console.error("Error loading operations log memory:", e);
+        operationsLog = [];
+        arrivalCount = 0;
+        departureCount = 0;
+    }
 }
 
 // Update Header Stats counters
