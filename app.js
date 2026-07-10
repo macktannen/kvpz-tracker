@@ -582,8 +582,11 @@ function processAircraft(aircraftList) {
             const lastState = aircraftCache[hex];
             const timeSinceLastSeen = now - lastState.lastSeen;
             
-            // Disappeared within 6.0 NM, below 2500 ft, on an active arrival trajectory (Option 1: expanded passive landing buffer):
-            if (timeSinceLastSeen < 45000 && lastState.opType === 'arrival' && lastState.dist < 6.0 && lastState.alt < 2500 && !lastState.logged) {
+            // Disappeared and met landing criteria (Option 1 / Last-Seen Filter):
+            const isTargetedArrival = lastState.opType === 'arrival' && lastState.dist < 6.0 && lastState.alt < 2500;
+            const isAnyDisappearingClose = lastState.dist < 5.0; // Any aircraft last seen within 5 NM
+            
+            if (timeSinceLastSeen < 45000 && (isTargetedArrival || isAnyDisappearingClose) && !lastState.logged) {
                 logOperation(lastState.callsign, lastState.type, 'arrival', `Landed KVPZ (Last seen ${lastState.dist.toFixed(1)} NM out, ${lastState.alt} FT)`);
                 lastState.logged = true;
             }
