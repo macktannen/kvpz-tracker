@@ -494,7 +494,6 @@ function initMap() {
     map = L.map('map', {
         center: KVPZ_COORDS,
         zoom: 10,
-        minZoom: 1, // Allow full zoom out
         layers: [initialBaseLayer],
         zoomControl: true
     });
@@ -720,21 +719,14 @@ async function fetchAircraftData() {
         const center = map.getCenter();
         const ne = map.getBounds().getNorthEast();
         const radiusMeters = center.distanceTo(ne);
-        const radiusNM = Math.ceil(radiusMeters / 1852);
+        // Convert meters to nautical miles and cap between 5 and 250 NM
+        const radiusNM = Math.min(250, Math.max(5, Math.ceil(radiusMeters / 1852)));
         
-        let urlAirplanesLive, urlAdsbOne;
-        const isGlobal = radiusNM >= 250;
+        const latStr = center.lat.toFixed(4);
+        const lonStr = center.lng.toFixed(4);
         
-        if (isGlobal) {
-            urlAirplanesLive = `https://api.airplanes.live/v2/all`;
-            urlAdsbOne = `https://api.adsb.one/v2/all`;
-        } else {
-            const latStr = center.lat.toFixed(4);
-            const lonStr = center.lng.toFixed(4);
-            const queryRadius = Math.max(5, radiusNM);
-            urlAirplanesLive = `https://api.airplanes.live/v2/point/${latStr}/${lonStr}/${queryRadius}`;
-            urlAdsbOne = `https://api.adsb.one/v2/point/${latStr}/${lonStr}/${queryRadius}`;
-        }
+        const urlAirplanesLive = `https://api.airplanes.live/v2/point/${latStr}/${lonStr}/${radiusNM}`;
+        const urlAdsbOne = `https://api.adsb.one/v2/point/${latStr}/${lonStr}/${radiusNM}`;
         
         // Fetch from both sources in parallel
         const results = await Promise.allSettled([
@@ -770,8 +762,7 @@ async function fetchAircraftData() {
         
         pulseIndicator.className = "pulse-indicator status-live";
         const sourcesText = successCount === 2 ? "Dual Feeds Active" : (results[0].status === 'fulfilled' ? "Airplanes.live Active" : "ADSB.one Active");
-        const coverageText = isGlobal ? "Global" : `${Math.max(5, radiusNM)} NM`;
-        statusText.innerHTML = `${sourcesText} (${coverageText} Coverage) &bull; Updated ${new Date().toLocaleTimeString([], {hour12:false})}`;
+        statusText.textContent = `${sourcesText} (${radiusNM} NM Coverage) &bull; Updated ${new Date().toLocaleTimeString([], {hour12:false})}`;
         
         processAircraft(mergedList);
         
