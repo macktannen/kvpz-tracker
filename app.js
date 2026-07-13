@@ -57,6 +57,10 @@ let showHigh = true;
 let controlsCollapsed = false;
 let rangeRingLayers = []; // Stores range rings and labels
 
+// Map Base Tile Layers & State
+let baseTileLayers = {};
+let darkMatter, osm, voyager, satellite;
+
 // Initialize the Application
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Load map toggles & settings memory from localStorage first
@@ -69,6 +73,22 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('toggle-low').checked = showLow;
     document.getElementById('toggle-med').checked = showMed;
     document.getElementById('toggle-high').checked = showHigh;
+    
+    // Set initial active map style radio button
+    const savedStyle = safeGetItem('kvpz_map_base_layer', 'dark');
+    const activeRadio = document.getElementById(`style-${savedStyle}`);
+    if (activeRadio) {
+        activeRadio.checked = true;
+    }
+    
+    // Map Style radio change listeners
+    document.querySelectorAll('input[name="map-style"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                setBaseLayer(e.target.value);
+            }
+        });
+    });
     
     // Sync initial plane labels display state
     const mapContainer = document.getElementById('map-panel-container');
@@ -214,39 +234,38 @@ function initClock() {
 // 2. Map Initialization
 function initMap() {
     // 1. Create Tile Layers
-    const darkMatter = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    darkMatter = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap &copy; CARTO',
         subdomains: 'abcd',
         maxZoom: 20
     });
     
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap',
         maxZoom: 19
     });
     
-    const voyager = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    voyager = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap &copy; CARTO',
         subdomains: 'abcd',
         maxZoom: 20
     });
     
-    const satellite = L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}', {
+    satellite = L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}', {
         attribution: 'Tiles courtesy of the U.S. Geological Survey',
         maxZoom: 16
     });
 
-    // 2. Define Layer Controls (Base & Overlays)
-    const baseMaps = {
-        "Dark Matter (Radar)": darkMatter,
-        "OpenStreetMap (Light)": osm,
-        "Voyager (Vector)": voyager,
-        "USGS Satellite": satellite
+    baseTileLayers = {
+        "dark": darkMatter,
+        "light": osm,
+        "vector": voyager,
+        "satellite": satellite
     };
 
-    // Retrieve saved base layer from memory (default to Dark Matter)
-    const savedBaseLayerName = safeGetItem('kvpz_map_base_layer', "Dark Matter (Radar)");
-    const initialBaseLayer = baseMaps[savedBaseLayerName] || darkMatter;
+    // Retrieve saved base layer from memory (default to dark)
+    const savedStyle = safeGetItem('kvpz_map_base_layer', "dark");
+    const initialBaseLayer = baseTileLayers[savedStyle] || darkMatter;
 
     // Center map around KVPZ, adding selected base layer
     map = L.map('map', {
@@ -309,37 +328,29 @@ function initMap() {
         rangeRingLayers.push(label);
     });
 
-    const overlayMaps = {
-        "KVPZ Range Rings & Beacon": airfieldGroup
-    };
-    
-    L.control.layers(baseMaps, overlayMaps, { collapsed: false }).addTo(map);
-
-    // 3. Sync events to save configuration selections to localStorage
-    map.on('baselayerchange', (e) => {
-        safeSetItem('kvpz_map_base_layer', e.name);
-    });
-
-    map.on('overlayadd', (e) => {
-        if (e.name === "KVPZ Range Rings & Beacon") {
-            showRings = true;
-            document.getElementById('toggle-rings').checked = true;
-            saveMapSettings();
-        }
-    });
-
-    map.on('overlayremove', (e) => {
-        if (e.name === "KVPZ Range Rings & Beacon") {
-            showRings = false;
-            document.getElementById('toggle-rings').checked = false;
-            saveMapSettings();
-        }
-    });
-
-    // 4. Listen to map movement/zoom to dynamically fetch flight data
+    // Listen to map movement/zoom to dynamically fetch flight data
     map.on('moveend', () => {
         fetchAircraftData();
     });
+}
+
+// Set base map layer programmatically
+function setBaseLayer(layerKey) {
+    if (!map || !baseTileLayers) return;
+    
+    // Remove all base layers
+    Object.values(baseTileLayers).forEach(layer => {
+        if (map.hasLayer(layer)) {
+            map.removeLayer(layer);
+        }
+    });
+    
+    // Add the selected layer
+    const selectedLayer = baseTileLayers[layerKey];
+    if (selectedLayer) {
+        selectedLayer.addTo(map);
+        safeSetItem('kvpz_map_base_layer', layerKey);
+    }
 }
 
 // Coordinate calculation utility
