@@ -829,13 +829,13 @@ function processAircraft(aircraftList) {
             
             // Check for active landing roll (within 2.5 miles of runway, low altitude, and ground speed/vspeed drop)
             if (currentState.opType === 'arrival' && dist < 2.5 && alt < 1200 && (speed < 45 || vspeed < -300) && !prevState.logged && !currentState.logged) {
-                logOperation(callsign, type, 'arrival', `Landed KVPZ (Speed: ${speed} KT, Alt: ${alt} FT)`);
+                logOperation(callsign, type, 'arrival', `Landed KVPZ (Speed: ${speed} KT, Alt: ${alt} FT)`, tail);
                 currentState.logged = true;
             }
             
             // 2. KVPZ DEPARTURE TRIGGER (Ground to Air takeoff transition)
             if (prevState.dist < 2.5 && prevState.alt < 1500 && vspeed > 200 && !prevState.logged && !currentState.logged) {
-                logOperation(callsign, type, 'departure', `Departed KVPZ, climbing through ${alt} ft`);
+                logOperation(callsign, type, 'departure', `Departed KVPZ, climbing through ${alt} ft`, tail);
                 currentState.logged = true;
                 currentState.opType = 'departure';
             }
@@ -853,7 +853,7 @@ function processAircraft(aircraftList) {
             // KVPZ DEPARTURE TRIGGER (First appearing from KVPZ)
             // Option 1 Optimized: First appear close (< 5.0 NM) and at low altitude (< 3000 ft) while climbing (> 100 FPM)
             if (dist < 5.0 && alt < 3000 && vspeed > 100) {
-                logOperation(callsign, type, 'departure', `Departed KVPZ, climbing through ${alt} ft`);
+                logOperation(callsign, type, 'departure', `Departed KVPZ, climbing through ${alt} ft`, tail);
                 currentState.logged = true;
                 currentState.opType = 'departure';
             } else {
@@ -876,9 +876,9 @@ function processAircraft(aircraftList) {
             currentState.logged = true;
             currentState.opType = direction;
             if (direction === 'arrival') {
-                logOperation(callsign, type, 'arrival', `Geofence Landing KVPZ (Alt: ${alt} FT, Dist: ${dist.toFixed(2)} NM)`);
+                logOperation(callsign, type, 'arrival', `Geofence Landing KVPZ (Alt: ${alt} FT, Dist: ${dist.toFixed(2)} NM)`, tail);
             } else {
-                logOperation(callsign, type, 'departure', `Geofence Departure KVPZ (Alt: ${alt} FT, Dist: ${dist.toFixed(2)} NM)`);
+                logOperation(callsign, type, 'departure', `Geofence Departure KVPZ (Alt: ${alt} FT, Dist: ${dist.toFixed(2)} NM)`, tail);
             }
         }
         
@@ -897,7 +897,7 @@ function processAircraft(aircraftList) {
             const isAnyDisappearingClose = lastState.dist < 5.0; // Any aircraft last seen within 5 NM
             
             if (timeSinceLastSeen < 45000 && (isTargetedArrival || isAnyDisappearingClose) && !lastState.logged) {
-                logOperation(lastState.callsign, lastState.type, 'arrival', `Landed KVPZ (Last seen ${lastState.dist.toFixed(1)} NM out, ${lastState.alt} FT)`);
+                logOperation(lastState.callsign, lastState.type, 'arrival', `Landed KVPZ (Last seen ${lastState.dist.toFixed(1)} NM out, ${lastState.alt} FT)`, lastState.tail);
                 lastState.logged = true;
             }
             
@@ -1182,34 +1182,94 @@ function updateOpsLog() {
         return;
     }
     
+    // Group operations by tail number (fallback to callsign if tail is missing/N/A)
+    const groups = {};
     operationsLog.forEach(log => {
+        const key = (log.tail && log.tail !== 'N/A') ? log.tail : (log.callsign || 'Unknown');
+        if (!groups[key]) {
+            groups[key] = {
+                tail: key,
+                callsign: log.callsign || key,
+                type: log.type || 'N/A',
+                arrivals: 0,
+                departures: 0,
+                newestTimestamp: 0,
+                events: []
+            };
+        }
+        groups[key].events.push(log);
+        if (log.opType === 'arrival') {
+            groups[key].arrivals++;
+        } else if (log.opType === 'departure') {
+            groups[key].departures++;
+        }
+        const logTime = log.timestamp || 0;
+        if (logTime > groups[key].newestTimestamp) {
+            groups[key].newestTimestamp = logTime;
+        }
+    });
+    
+    // Sort groups so that the tail with the most recent operation appears first
+    const sortedGroups = Object.values(groups).sort((a, b) => b.newestTimestamp - a.newestTimestamp);
+    
+    sortedGroups.forEach(group => {
         const item = document.createElement('li');
-        item.className = `ops-item ${log.opType}`;
+        item.className = 'ops-group-card';
         
+        // Header
+        const header = document.createElement('div');
+        header.className = 'ops-group-header';
+        header.innerHTML = `
+            <div class="ops-group-left">
+                <span class="ops-group-tail"><i class="fa-solid fa-plane"></i> ${group.tail}</span>
+                <span class="ops-group-type">(${group.type})</span>
+            </div>
+            <div class="ops-group-badges">
+                <span class="badge inbound">ARR: ${group.arrivals}</span>
+                <span class="badge outbound" style="background-color: #ef4444; color: white;">DEP: ${group.departures}</span>
+                <span class="chevron-indicator"><i class="fa-solid fa-chevron-down"></i></span>
+            </div>
+        `;
+        
+        // Details list (stacked events)
         const details = document.createElement('div');
-        details.className = 'ops-details';
+        details.className = 'ops-group-details';
+        details.style.display = 'none'; // Collapsed by default
         
-        const header = document.createElement('span');
-        header.className = 'ops-callsign';
-        header.innerHTML = `<i class="fa-solid ${log.opType === 'arrival' ? 'fa-plane-arrival' : 'fa-plane-departure'}"></i> ${log.callsign} <span style="font-weight: normal; font-size: 0.75rem; color: var(--color-text-muted);">(${log.type})</span>`;
+        group.events.forEach(log => {
+            const eventDiv = document.createElement('div');
+            eventDiv.className = `ops-event-item ${log.opType}`;
+            
+            const meta = document.createElement('div');
+            meta.className = 'ops-event-meta';
+            const dateText = log.dateStr || '';
+            const timeText = log.timeStr || log.time || '---';
+            meta.innerHTML = `
+                <span class="ops-event-time">${dateText ? dateText + ' ' : ''}${timeText}</span>
+                <span class="ops-event-type-badge">${log.opType === 'arrival' ? 'Arrival' : 'Departure'}</span>
+            `;
+            
+            const desc = document.createElement('div');
+            desc.className = 'ops-event-desc';
+            desc.textContent = log.description;
+            
+            eventDiv.appendChild(meta);
+            eventDiv.appendChild(desc);
+            details.appendChild(eventDiv);
+        });
         
-        const desc = document.createElement('span');
-        desc.className = 'ops-desc';
-        desc.textContent = log.description;
+        // Toggle interaction
+        header.addEventListener('click', () => {
+            const isHidden = details.style.display === 'none';
+            details.style.display = isHidden ? 'flex' : 'none';
+            const chevron = header.querySelector('.chevron-indicator i');
+            if (chevron) {
+                chevron.className = isHidden ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down';
+            }
+        });
         
-        details.appendChild(header);
-        details.appendChild(desc);
-        
-        const time = document.createElement('span');
-        time.className = 'ops-time';
-        // Show Date and Time since logs persist across multiple days; fallback to legacy 'time' field if needed
-        const dateText = log.dateStr || '';
-        const timeText = log.timeStr || log.time || '---';
-        time.textContent = dateText ? `${dateText} ${timeText}` : timeText;
-        
+        item.appendChild(header);
         item.appendChild(details);
-        item.appendChild(time);
-        
         logList.appendChild(item);
     });
 }

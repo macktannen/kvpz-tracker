@@ -293,44 +293,117 @@ body {
     gap: 0.5rem;
 }
 
-.ops-item {
-    background-color: rgba(31, 41, 55, 0.4);
-    border-radius: 6px;
+/* Stacked Operations Log Cards */
+.ops-group-card {
+    background: rgba(31, 41, 55, 0.4);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    list-style: none;
+    transition: border-color 0.2s, background-color 0.2s;
+}
+
+.ops-group-card:hover {
+    background: rgba(31, 41, 55, 0.6);
+    border-color: rgba(6, 182, 212, 0.4);
+}
+
+.ops-group-header {
     padding: 0.6rem 0.8rem;
-    font-size: 0.8rem;
-    border-left: 4px solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    cursor: pointer;
+    user-select: none;
 }
 
-.ops-item.arrival {
-    border-left-color: #6366f1;
+.ops-group-left {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
 }
 
-.ops-item.departure {
-    border-left-color: #f59e0b;
+.ops-group-tail {
+    font-weight: 700;
+    color: #fff;
+    font-size: 0.75rem;
 }
 
-.ops-time {
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
+.ops-group-type {
+    font-size: 0.65rem;
     color: var(--color-text-muted);
 }
 
-.ops-details {
+.ops-group-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.ops-group-badges .badge {
+    font-size: 0.6rem;
+    padding: 1px 5px;
+    font-weight: bold;
+    border-radius: 4px;
+}
+
+.chevron-indicator {
+    color: var(--color-text-muted);
+    font-size: 0.65rem;
+    transition: transform 0.2s ease;
+    margin-left: 0.2rem;
+    display: flex;
+    align-items: center;
+}
+
+.ops-group-details {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 0.5rem 0.7rem;
+    background: rgba(10, 15, 30, 0.25);
     display: flex;
     flex-direction: column;
-    gap: 0.1rem;
+    gap: 0.5rem;
 }
 
-.ops-callsign {
-    font-weight: 700;
+.ops-event-item {
+    border-left: 2px solid var(--border-color);
+    padding-left: 0.5rem;
+    font-size: 0.68rem;
+    line-height: 1.3;
 }
 
-.ops-desc {
-    font-size: 0.75rem;
+.ops-event-item.arrival {
+    border-left-color: var(--accent-cyan);
+}
+
+.ops-event-item.departure {
+    border-left-color: #ef4444;
+}
+
+.ops-event-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.62rem;
     color: var(--color-text-muted);
+    margin-bottom: 1px;
+}
+
+.ops-event-type-badge {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.55rem;
+}
+
+.ops-event-item.arrival .ops-event-type-badge {
+    color: var(--accent-cyan);
+}
+
+.ops-event-item.departure .ops-event-type-badge {
+    color: #ef4444;
+}
+
+.ops-event-desc {
+    color: var(--color-text);
 }
 
 .empty-log {
