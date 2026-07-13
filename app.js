@@ -300,22 +300,35 @@ function getAircraftCategory(ac) {
     if (ac.mil === 1 || ac.mil === true) return 'military';
 
     const desc = (ac.desc || '').toLowerCase();
-    const type = (ac.type || '').toLowerCase();
+    const type = (ac.t || ac.type || '').toLowerCase();
     const cat = (ac.category || '');
     const op = (ac.ownOp || '').toLowerCase();
     
     // 2. Helicopters
-    if (desc.includes('helicopter') || desc.includes('rotorcraft') || desc.includes('copter') || 
-        type.includes('h60') || type.includes('ec35') || cat === 'A7') {
-        return 'helicopter';
-    }
+    const isHelo = desc.includes('helicopter') || desc.includes('rotorcraft') || desc.includes('copter') || 
+                   type.startsWith('r22') || type.startsWith('r44') || type.startsWith('r66') || 
+                   type.startsWith('b206') || type.startsWith('b505') || type.startsWith('b407') || 
+                   type.startsWith('as50') || type.startsWith('as35') || type.startsWith('ec30') || 
+                   type.startsWith('ec20') || type.startsWith('uh60') || type.startsWith('uh1') || 
+                   type.startsWith('ah64') || type.startsWith('ch47') || type.includes('h60') || 
+                   type.includes('ec35') || cat === 'A7';
+    if (isHelo) return 'helicopter';
 
     // 3. Business Jets (common corporate jet types and manufacturers)
     const isBizJet = desc.includes('gulfstream') || desc.includes('citation') || 
                      desc.includes('challenger') || desc.includes('falcon') || 
                      desc.includes('learjet') || desc.includes('hawker') || 
                      desc.includes('phenom') || desc.includes('global express') || 
-                     desc.includes('sovereign') || desc.includes('premier i') ||
+                     desc.includes('sovereign') || desc.includes('premier') ||
+                     type.startsWith('cl30') || type.startsWith('cl60') || type.startsWith('cl35') ||
+                     type.startsWith('glf') || type.startsWith('glex') || type.startsWith('gl5t') ||
+                     type.startsWith('gl6t') || type.startsWith('c25a') || type.startsWith('c25b') ||
+                     type.startsWith('c510') || type.startsWith('c525') || type.startsWith('c560') ||
+                     type.startsWith('c56x') || type.startsWith('c680') || type.startsWith('c750') ||
+                     type.startsWith('c700') || type.startsWith('lr35') || type.startsWith('lr45') ||
+                     type.startsWith('lr60') || type.startsWith('fa20') || type.startsWith('fa50') ||
+                     type.startsWith('fa7x') || type.startsWith('fa8x') || type.startsWith('e55p') ||
+                     type.startsWith('e50p') || type.startsWith('pc24') || type.startsWith('h25b') ||
                      type.includes('cl30') || type.includes('cl60') || type.includes('glf') ||
                      type.includes('c510') || type.includes('c525') || type.includes('c560') ||
                      type.includes('c680') || type.includes('c750') || type.includes('lr35') ||
@@ -327,14 +340,18 @@ function getAircraftCategory(ac) {
     const isCommJet = desc.includes('boeing') || desc.includes('airbus') || 
                       desc.includes('embraer') || desc.includes('bombardier') ||
                       desc.includes('md-8') || desc.includes('md-11') || desc.includes('dc-10') ||
-                      type.includes('b73') || type.includes('b74') || type.includes('b75') ||
-                      type.includes('b76') || type.includes('b77') || type.includes('b78') ||
-                      type.includes('a31') || type.includes('a32') || type.includes('a33') ||
-                      type.includes('a34') || type.includes('a35') || type.includes('a38') ||
-                      type.includes('crj') || type.includes('erj') ||
+                      type.startsWith('b73') || type.startsWith('b74') || type.startsWith('b75') ||
+                      type.startsWith('b76') || type.startsWith('b77') || type.startsWith('b78') ||
+                      type.startsWith('a31') || type.startsWith('a32') || type.startsWith('a33') ||
+                      type.startsWith('a34') || type.startsWith('a35') || type.startsWith('a38') ||
+                      type.startsWith('b38m') || type.startsWith('b39m') ||
+                      type.startsWith('crj') || type.startsWith('erj') ||
+                      type.startsWith('e17') || type.startsWith('e19') || type.startsWith('e14') ||
                       op.includes('airline') || op.includes('airways') || op.includes('cargo') ||
                       op.includes('delta') || op.includes('united') || op.includes('american') ||
-                      op.includes('southwest') || op.includes('fedex') || op.includes('ups');
+                      op.includes('southwest') || op.includes('fedex') || op.includes('ups') ||
+                      op.includes('dhl') || op.includes('spirit') || op.includes('frontier') ||
+                      op.includes('alaska') || op.includes('jetblue');
     if (isCommJet) return 'commercial-jet';
 
     // 5. Airplane (general aviation, single/multi engine props, turboprops)
@@ -343,10 +360,11 @@ function getAircraftCategory(ac) {
                        desc.includes('beech') || desc.includes('cirrus') || 
                        desc.includes('diamond') || desc.includes('mooney') ||
                        desc.includes('prop') || desc.includes('piston') ||
-                       type.includes('c15') || type.includes('c17') || type.includes('c18') ||
-                       type.includes('c20') || type.includes('pa2') || type.includes('pa3') ||
-                       type.includes('pa4') || type.includes('be3') || type.includes('be5') ||
-                       type.includes('sr2');
+                       type.startsWith('c15') || type.startsWith('c17') || type.startsWith('c18') ||
+                       type.startsWith('c20') || type.startsWith('c21') || type.startsWith('pa2') ||
+                       type.startsWith('pa3') || type.startsWith('pa4') || type.startsWith('be3') ||
+                       type.startsWith('be5') || type.startsWith('sr2') || type.startsWith('moo') ||
+                       type.startsWith('da4') || type.startsWith('da2');
     if (isAirplane) return 'airplane';
 
     return 'other';
@@ -860,11 +878,17 @@ function removeAircraftLayers(hex) {
 // Get Icon Class based on Aircraft details
 function getAircraftIconClass(ac) {
     const desc = (ac.desc || '').toLowerCase();
-    const type = (ac.type || '').toLowerCase();
+    const type = (ac.t || ac.type || '').toLowerCase();
     const cat = (ac.category || '');
     
     // Helicopters
-    if (desc.includes('helicopter') || desc.includes('rotorcraft') || desc.includes('copter') || type.includes('h60') || type.includes('ec35') || cat === 'A7') {
+    if (desc.includes('helicopter') || desc.includes('rotorcraft') || desc.includes('copter') || 
+        type.startsWith('r22') || type.startsWith('r44') || type.startsWith('r66') || 
+        type.startsWith('b206') || type.startsWith('b505') || type.startsWith('b407') || 
+        type.startsWith('as50') || type.startsWith('as35') || type.startsWith('ec30') || 
+        type.startsWith('ec20') || type.startsWith('uh60') || type.startsWith('uh1') || 
+        type.startsWith('ah64') || type.startsWith('ch47') || type.includes('h60') || 
+        type.includes('ec35') || cat === 'A7') {
         return 'helicopter';
     }
     // Jets
