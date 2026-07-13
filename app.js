@@ -975,10 +975,13 @@ function updateMapMarker(ac) {
             </svg>
         `;
     } else if (iconType === 'military') {
-        // Delta-wing double-tail tactical stealth fighter profile (F-22/F-35 style)
+        // Directional delta wedge triangle inside a tactical radar circle to signify military
         iconHtml = `
             <svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${ac.heading}deg);">
-                <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M256 20L110 220l120 20L70 420l186-45 186 45L382 240l120-20z"/>
+                <!-- Outer tactical circle -->
+                <circle cx="256" cy="256" r="222" fill="none" stroke="${color}" stroke-width="20" />
+                <!-- Directional triangle pointer -->
+                <path fill="${color}" stroke="#090d16" stroke-width="16" stroke-linejoin="round" d="M256 95L150 395l106-65l106 65z"/>
             </svg>
         `;
     } else if (iconType === 'commercial-jet') {
