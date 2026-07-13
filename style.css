@@ -555,7 +555,7 @@ body {
 }
 
 .flight-table th {
-    background-color: rgba(31, 41, 55, 0.4);
+    background-color: #111827; /* Solid background matching container to prevent row text bleed-through */
     color: var(--color-text-muted);
     font-weight: 600;
     padding: 0.5rem 1rem;
