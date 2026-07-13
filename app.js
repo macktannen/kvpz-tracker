@@ -268,7 +268,36 @@ document.addEventListener('DOMContentLoaded', () => {
     // Gemini Chat UI Listeners
     const sendBtn = document.getElementById('chat-send-btn');
     const chatInput = document.getElementById('chat-input');
+    const settingsBtn = document.getElementById('chat-settings-btn');
+    const keyConfigArea = document.getElementById('chat-key-config');
+    const keyInput = document.getElementById('gemini-api-key');
+    const saveKeyBtn = document.getElementById('save-key-btn');
     
+    // Load pre-existing key
+    if (keyInput) {
+        keyInput.value = safeGetItem('gemini_api_key') || '';
+    }
+    
+    if (settingsBtn && keyConfigArea) {
+        settingsBtn.addEventListener('click', () => {
+            const isHidden = keyConfigArea.style.display === 'none';
+            keyConfigArea.style.display = isHidden ? 'block' : 'none';
+        });
+    }
+    
+    if (saveKeyBtn && keyInput) {
+        saveKeyBtn.addEventListener('click', () => {
+            const keyVal = keyInput.value.trim();
+            safeSetItem('gemini_api_key', keyVal);
+            if (keyVal) {
+                appendChatMessage('system', 'Gemini API Key saved successfully.');
+            } else {
+                appendChatMessage('system', 'Gemini API Key cleared.');
+            }
+            if (keyConfigArea) keyConfigArea.style.display = 'none';
+        });
+    }
+
     if (sendBtn && chatInput) {
         sendBtn.addEventListener('click', submitChatMessage);
         chatInput.addEventListener('keypress', (e) => {
@@ -277,15 +306,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
-    document.querySelectorAll('.chip-btn').forEach(chip => {
-        chip.addEventListener('click', (e) => {
-            if (chatInput) {
-                chatInput.value = e.currentTarget.getAttribute('data-prompt');
-                submitChatMessage();
-            }
-        });
-    });
 });
 
 function refreshAllAircraftLayers() {
@@ -1441,7 +1461,7 @@ function appendChatMessage(sender, text) {
     }, 30);
 }
 
-function submitChatMessage() {
+async function submitChatMessage() {
     const input = document.getElementById('chat-input');
     if (!input) return;
     const text = input.value.trim();
@@ -1456,20 +1476,153 @@ function submitChatMessage() {
     const typingDiv = document.createElement('div');
     typingDiv.className = 'chat-message bot typing';
     typingDiv.id = 'chat-typing-indicator';
-    typingDiv.innerHTML = `<i class="fa-solid fa-ellipsis fa-fade"></i> Gemini is analyzing airfield logs...`;
+    typingDiv.innerHTML = `<i class="fa-solid fa-ellipsis fa-fade"></i> Gemini is analyzing radar and registry logs...`;
     if (container) {
         container.appendChild(typingDiv);
         container.scrollTop = container.scrollHeight;
     }
     
-    // 3. Process reply after delay
-    setTimeout(() => {
+    // 3. Check for API key
+    const apiKey = safeGetItem('gemini_api_key');
+    if (!apiKey) {
+        setTimeout(() => {
+            const indicator = document.getElementById('chat-typing-indicator');
+            if (indicator) indicator.remove();
+            appendChatMessage('bot', `⚠️ <strong>Gemini API Key Required:</strong><br/>To search tail numbers, trace registered owners, or ask general questions, please paste your Gemini API Key in the key settings menu (<i class="fa-solid fa-key"></i> icon in the chat header). You can obtain a free key from <a href="https://aistudio.google.com/" target="_blank" style="color:var(--accent-cyan); text-decoration:underline;">Google AI Studio</a>.`);
+        }, 600);
+        return;
+    }
+    
+    // 4. Query live Gemini
+    try {
+        const responseText = await queryLiveGemini(text, apiKey);
+        const indicator = document.getElementById('chat-typing-indicator');
+        if (indicator) indicator.remove();
+        appendChatMessage('bot', responseText);
+    } catch (err) {
+        console.error("Gemini API Error:", err);
         const indicator = document.getElementById('chat-typing-indicator');
         if (indicator) indicator.remove();
         
-        const response = generateCopilotResponse(text);
-        appendChatMessage('bot', response);
-    }, 900);
+        // Fallback to local radar state response if API fails
+        const fallbackResponse = generateCopilotResponse(text);
+        appendChatMessage('bot', `⚠️ <strong>API Request Failed:</strong> ${err.message || 'Could not connect'}. Using local radar stats fallback...<br/><br/>${fallbackResponse}`);
+    }
+}
+
+async function queryLiveGemini(queryText, apiKey) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    
+    // Build airfield context
+    const activeFlights = Object.values(aircraftCache);
+    const metarText = document.getElementById('weather-text') ? document.getElementById('weather-text').textContent : 'Offline';
+    const metarCat = document.getElementById('weather-category') ? document.getElementById('weather-category').textContent : 'N/A';
+    const station = document.getElementById('weather-station') ? document.getElementById('weather-station').textContent : 'KVPZ';
+    
+    const logsDivs = Array.from(document.querySelectorAll('#log-container div')).slice(0, 15);
+    const logsText = logsDivs.map(d => d.textContent.trim()).join('\n');
+    
+    const flightLines = activeFlights.map(ac => 
+        `- Callsign: ${ac.callsign} | Tail: ${ac.tail} | Type: ${ac.type} | Desc: ${ac.desc} | Alt: ${ac.alt} FT | Spd: ${ac.speed} KT | Hdg: ${ac.heading}° | Dist: ${ac.dist.toFixed(1)} NM | Op: ${ac.operator}`
+    ).join('\n');
+    
+    const airfieldContext = `
+Porter County Regional Airport (KVPZ) Current Airfield Context:
+- Active Weather METAR (${station}): ${metarText} (Category: ${metarCat})
+- Total Aircraft Tracked in Geofence: ${activeFlights.length}
+- Arrivals Recorded Today: ${arrivalCount}
+- Departures Recorded Today: ${departureCount}
+
+Active Flight Radar List:
+${flightLines || 'No active flights on screen.'}
+
+Recent Operations Log:
+${logsText || 'No logs registered yet.'}
+`;
+
+    const systemInstruction = `
+You are the Gemini Airfield Co-Pilot for Porter County Regional Airport (KVPZ) in Valparaiso, Indiana.
+Your purpose is to answer the user's questions about live traffic, weather, operations, or look up FAA registries for aircraft tail/registration numbers.
+
+When looking up tail numbers (e.g., N500XP, N172SP, N12345):
+- You must perform a deep lookup of the FAA / international registry records using your live Google Search tool.
+- Identify the exact aircraft manufacturer, model series, year of production, engine setup, and certification status.
+- Identify the registered owner (individual or corporation name) and their registered city/state/country location.
+- Present this beautifully in HTML or Markdown using sections:
+  ✈️ AIRCRAFT PROFILE
+  👤 REGISTERED OWNER
+  🔧 TECHNICAL SPECIFICATIONS
+  📝 HISTORY & NOTES
+
+When answering questions about the current traffic or airfield weather, consult the provided "Current Airfield Context" data. Keep your responses concise, highly professional, and formatted in clean HTML/Markdown.
+`;
+
+    const requestBody = {
+        contents: [
+            {
+                role: 'user',
+                parts: [
+                    { text: `User Query: ${queryText}\n\n[Current Airfield Context]\n${airfieldContext}` }
+                ]
+            }
+        ],
+        systemInstruction: {
+            parts: [
+                { text: systemInstruction }
+            ]
+        },
+        tools: [
+            {
+                googleSearch: {}
+            }
+        ]
+    };
+    
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+    }
+    
+    const data = await response.json();
+    let reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!reply) {
+        throw new Error("Empty response from Gemini API");
+    }
+    
+    // Parse markdown styling into basic HTML for chat messages
+    reply = formatMarkdownToHTML(reply);
+    
+    return reply;
+}
+
+function formatMarkdownToHTML(text) {
+    let html = text;
+    
+    // Bold
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+    // Code blocks
+    html = html.replace(/```(.*?)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+    html = html.replace(/`(.*?)`/g, '<code>$1</code>');
+    
+    // Bullet lists
+    html = html.replace(/^\s*[-*]\s+(.*?)$/gm, '• $1');
+    
+    // Paragraph breaks
+    html = html.replace(/\n\n/g, '<br/><br/>');
+    html = html.replace(/\n/g, '<br/>');
+    
+    return html;
 }
 
 function generateCopilotResponse(query) {
@@ -1577,6 +1730,6 @@ function generateCopilotResponse(query) {
             • <em>"Summarize active traffic"</em> (Flight count & log counters)<br/>
             • <em>"Are there any military flights?"</em> (Stealth target checks)<br/>
             • <em>"Show helicopters"</em> (Rotary wing count)<br/><br/>
-            Try typing one of these questions or click the quick-suggest buttons above!`;
+            Try typing one of these questions!`;
 }
 
