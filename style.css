@@ -352,6 +352,60 @@ body {
     background-color: #1a1a1a;
 }
 
+/* Custom Map Hover Tooltip */
+.custom-map-tooltip.leaflet-tooltip {
+    background: rgba(17, 24, 39, 0.95) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 8px !important;
+    padding: 0.6rem 0.8rem !important;
+    color: var(--color-text) !important;
+    font-family: var(--font-sans) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6) !important;
+    font-size: 0.72rem !important;
+    line-height: 1.4 !important;
+    border-left: 3px solid var(--accent-cyan) !important;
+}
+
+.custom-map-tooltip.leaflet-tooltip-top:before {
+    border-top-color: rgba(17, 24, 39, 0.95) !important;
+}
+
+.map-tooltip-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.tooltip-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 0.2rem;
+    margin-bottom: 0.15rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.tooltip-tail {
+    color: var(--color-text-muted);
+    font-weight: normal;
+    font-size: 0.7rem;
+}
+
+.tooltip-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.tooltip-body div {
+    white-space: nowrap;
+}
+
 /* Map Style Dropdown (Top Right of Map) */
 .map-settings-container {
     position: absolute;

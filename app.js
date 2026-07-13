@@ -1031,15 +1031,52 @@ function updateMapMarker(ac) {
         iconAnchor: [30, 14]
     });
     
+    const categoryNames = {
+        'commercial-jet': 'Commercial Jet',
+        'business-jet': 'Business Jet',
+        'airplane': 'GA Airplane',
+        'helicopter': 'Helicopter',
+        'military': 'Military Aircraft',
+        'other': 'Other / Glider'
+    };
+    const categoryLabel = categoryNames[ac.categoryClass] || 'Other / Glider';
+    const vspeedText = ac.vspeed > 0 ? `+${ac.vspeed.toLocaleString()} FPM` : (ac.vspeed < 0 ? `${ac.vspeed.toLocaleString()} FPM` : 'Level');
+    const altText = ac.alt === 0 ? 'Ground' : `${ac.alt.toLocaleString()} FT`;
+
+    const tooltipContent = `
+        <div class="map-tooltip-content">
+            <div class="tooltip-header">
+                <strong>${ac.callsign}</strong>
+                <span class="tooltip-tail">${ac.tail !== 'N/A' ? ac.tail : ''}</span>
+            </div>
+            <div class="tooltip-body">
+                <div><strong>Category:</strong> ${categoryLabel}</div>
+                <div><strong>Type:</strong> ${ac.type} (${ac.desc !== 'N/A' ? ac.desc : 'No Desc'})</div>
+                <div><strong>Altitude:</strong> ${altText}</div>
+                <div><strong>Speed:</strong> ${ac.speed} KT | <strong>Heading:</strong> ${ac.heading}°</div>
+                <div><strong>V-Speed:</strong> ${vspeedText}</div>
+                <div><strong>Distance:</strong> ${ac.dist.toFixed(1)} NM from KVPZ</div>
+                <div><strong>Operator:</strong> ${ac.operator}</div>
+            </div>
+        </div>
+    `;
+    
     if (aircraftMarkers[ac.hex]) {
         // Update existing marker position & rotation
         aircraftMarkers[ac.hex].setLatLng([ac.lat, ac.lon]);
         aircraftMarkers[ac.hex].setIcon(customIcon);
+        aircraftMarkers[ac.hex].setTooltipContent(tooltipContent);
     } else {
         // Create new marker
         const marker = L.marker([ac.lat, ac.lon], { icon: customIcon }).addTo(map);
         marker.on('click', () => {
             selectAircraft(ac.hex);
+        });
+        marker.bindTooltip(tooltipContent, {
+            direction: 'top',
+            offset: [0, -15],
+            className: 'custom-map-tooltip',
+            sticky: false
         });
         aircraftMarkers[ac.hex] = marker;
     }
