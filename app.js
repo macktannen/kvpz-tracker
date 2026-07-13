@@ -1320,6 +1320,13 @@ function updateOpsLog() {
             if (chevron) {
                 chevron.className = isHidden ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down';
             }
+            
+            // Autopopulate the Google Search input field and update aviation link portals
+            const searchField = document.getElementById('chat-input');
+            if (searchField && group.tail && group.tail !== 'Unknown') {
+                searchField.value = group.tail;
+                updateSearchPortalLinks(group.tail);
+            }
         });
         
         item.appendChild(header);
