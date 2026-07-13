@@ -269,6 +269,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendBtn = document.getElementById('chat-send-btn');
     const chatInput = document.getElementById('chat-input');
     
+    const collapseSearchBtn = document.getElementById('btn-collapse-search');
+    const searchPanel = document.getElementById('chat-panel');
+    
+    // Read search panel collapse state from local storage on startup
+    let searchPanelCollapsed = safeGetItem('kvpz_search_panel_collapsed') === 'true';
+    if (searchPanelCollapsed && searchPanel && collapseSearchBtn) {
+        searchPanel.classList.add('collapsed');
+        collapseSearchBtn.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
+    }
+    
+    if (collapseSearchBtn && searchPanel) {
+        collapseSearchBtn.addEventListener('click', () => {
+            const isCollapsed = searchPanel.classList.toggle('collapsed');
+            safeSetItem('kvpz_search_panel_collapsed', isCollapsed);
+            collapseSearchBtn.innerHTML = isCollapsed 
+                ? '<i class="fa-solid fa-chevron-left"></i>' 
+                : '<i class="fa-solid fa-chevron-right"></i>';
+            
+            // Trigger Leaflet map container recalculation after width animation finishes
+            setTimeout(() => {
+                if (map) map.invalidateSize();
+            }, 320);
+        });
+    }
+
     if (sendBtn && chatInput) {
         sendBtn.addEventListener('click', submitStandardSearch);
         chatInput.addEventListener('keypress', (e) => {
