@@ -1000,21 +1000,22 @@ function updateUI() {
         return true;
     });
     
-    // Sort: selected aircraft always goes to the very top, others sorted by distance ascending
-    filteredAircraft.sort((a, b) => {
-        if (selectedHex === a.hex) return -1;
-        if (selectedHex === b.hex) return 1;
-        return a.dist - b.dist;
-    });
+    // Sort strictly by distance to KVPZ ascending
+    filteredAircraft.sort((a, b) => a.dist - b.dist);
     
     if (filteredAircraft.length === 0) {
         tbody.innerHTML = '<tr><td colspan="11" class="loading-row">No active aircraft match criteria.</td></tr>';
         return;
     }
     
+    let selectedRow = null;
+    
     filteredAircraft.forEach(ac => {
         const tr = document.createElement('tr');
-        if (selectedHex === ac.hex) tr.className = 'selected';
+        if (selectedHex === ac.hex) {
+            tr.className = 'selected';
+            selectedRow = tr;
+        }
         
         tr.addEventListener('click', () => {
             selectAircraft(ac.hex);
@@ -1038,6 +1039,13 @@ function updateUI() {
         
         tbody.appendChild(tr);
     });
+    
+    // Smoothly scroll the selected row into view if it exists
+    if (selectedRow) {
+        setTimeout(() => {
+            selectedRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 50);
+    }
 }
 
 function selectAircraft(hex) {
@@ -1050,12 +1058,6 @@ function selectAircraft(hex) {
         const ac = aircraftCache[hex];
         if (ac && ac.lat && ac.lon) {
             map.panTo([ac.lat, ac.lon]);
-        }
-        
-        // Scroll the table container to the top so the selected row (now sorted to the top) is visible immediately!
-        const tableContainer = document.querySelector('.table-container');
-        if (tableContainer) {
-            tableContainer.scrollTop = 0;
         }
     }
     
