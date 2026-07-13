@@ -357,7 +357,7 @@ body {
     position: absolute;
     top: 1rem;
     right: 1rem;
-    z-index: 1000;
+    z-index: 2000 !important; /* Position above all Leaflet control panels and map layers */
     display: flex;
     flex-direction: column;
     align-items: flex-end;
