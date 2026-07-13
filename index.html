@@ -120,16 +120,24 @@
             <!-- Map Container -->
             <section class="map-panel" id="map-panel-container">
                 <div id="map"></div>
-                <div class="map-controls-panel">
-                    <h4>Map Display Layers</h4>
-                    <label><input type="checkbox" id="toggle-rings" checked> Range Rings</label>
-                    <label><input type="checkbox" id="toggle-labels" checked> Flight Labels</label>
-                    <label><input type="checkbox" id="toggle-trails" checked> Selected Trails</label>
-                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 0.4rem 0;">
-                    <h4>Altitude Filters</h4>
-                    <label><span class="color-dot dot-low"></span> <input type="checkbox" id="toggle-low" checked> Low (&lt;3k ft)</label>
-                    <label><span class="color-dot dot-med"></span> <input type="checkbox" id="toggle-med" checked> Mid (3k-12k ft)</label>
-                    <label><span class="color-dot dot-high"></span> <input type="checkbox" id="toggle-high" checked> High (&gt;12k ft)</label>
+                <div class="map-controls-panel" id="map-controls-panel">
+                    <div class="controls-header" id="controls-header">
+                        <h3><i class="fa-solid fa-sliders"></i> Map Filters</h3>
+                        <button class="btn-toggle-controls" id="btn-toggle-controls" title="Toggle Filters">
+                            <i class="fa-solid fa-chevron-up"></i>
+                        </button>
+                    </div>
+                    <div class="controls-content" id="controls-content">
+                        <h4>Map Display Layers</h4>
+                        <label><input type="checkbox" id="toggle-rings" checked> Range Rings</label>
+                        <label><input type="checkbox" id="toggle-labels" checked> Flight Labels</label>
+                        <label><input type="checkbox" id="toggle-trails" checked> Selected Trails</label>
+                        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 0.4rem 0;">
+                        <h4>Altitude Filters</h4>
+                        <label><span class="color-dot dot-low"></span> <input type="checkbox" id="toggle-low" checked> Low (&lt;3k ft)</label>
+                        <label><span class="color-dot dot-med"></span> <input type="checkbox" id="toggle-med" checked> Mid (3k-12k ft)</label>
+                        <label><span class="color-dot dot-high"></span> <input type="checkbox" id="toggle-high" checked> High (&gt;12k ft)</label>
+                    </div>
                 </div>
             </section>
 

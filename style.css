@@ -366,10 +366,70 @@ body {
     padding: 0.8rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
     font-size: 0.75rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     width: 180px;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease;
+}
+
+.controls-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.controls-header h3 {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.btn-toggle-controls {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+}
+
+.controls-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+    transition: opacity 0.2s ease, max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-top 0.3s ease;
+    max-height: 250px;
+    overflow: hidden;
+}
+
+/* Collapsed State Styles */
+.map-controls-panel.collapsed {
+    width: 140px;
+    display: block !important;
+}
+
+.map-controls-panel.collapsed .controls-content {
+    max-height: 0;
+    opacity: 0;
+    margin-top: 0;
+    pointer-events: none;
+}
+
+.map-controls-panel.collapsed .btn-toggle-controls {
+    transform: rotate(180deg);
 }
 
 .map-controls-panel h4 {

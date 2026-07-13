@@ -54,6 +54,7 @@ let showTrails = true;
 let showLow = true;
 let showMed = true;
 let showHigh = true;
+let controlsCollapsed = false;
 let rangeRingLayers = []; // Stores range rings and labels
 
 // Initialize the Application
@@ -76,6 +77,19 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         mapContainer.classList.add('hide-plane-labels');
     }
+    
+    // Set initial collapsible state of map controls
+    const controlsPanel = document.getElementById('map-controls-panel');
+    if (controlsPanel && controlsCollapsed) {
+        controlsPanel.classList.add('collapsed');
+    }
+    
+    // Collapsible Menu Event Listener (click header to collapse/expand)
+    document.getElementById('controls-header').addEventListener('click', () => {
+        controlsCollapsed = !controlsCollapsed;
+        controlsPanel.classList.toggle('collapsed', controlsCollapsed);
+        saveMapSettings();
+    });
     
     initClock();
     initMap();
@@ -1087,6 +1101,7 @@ function loadMapSettings() {
             showLow = settings.showLow !== undefined ? settings.showLow : true;
             showMed = settings.showMed !== undefined ? settings.showMed : true;
             showHigh = settings.showHigh !== undefined ? settings.showHigh : true;
+            controlsCollapsed = settings.controlsCollapsed !== undefined ? settings.controlsCollapsed : false;
         }
     } catch (e) {
         console.error("Error loading map settings from localStorage:", e);
@@ -1095,7 +1110,7 @@ function loadMapSettings() {
 
 function saveMapSettings() {
     try {
-        const settings = { showRings, showLabels, showTrails, showLow, showMed, showHigh };
+        const settings = { showRings, showLabels, showTrails, showLow, showMed, showHigh, controlsCollapsed };
         safeSetItem('kvpz_map_settings', JSON.stringify(settings));
     } catch (e) {
         console.error("Error saving map settings to localStorage:", e);
