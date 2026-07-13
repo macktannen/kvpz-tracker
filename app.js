@@ -1000,8 +1000,12 @@ function updateUI() {
         return true;
     });
     
-    // Sort by distance ascending
-    filteredAircraft.sort((a, b) => a.dist - b.dist);
+    // Sort: selected aircraft always goes to the very top, others sorted by distance ascending
+    filteredAircraft.sort((a, b) => {
+        if (selectedHex === a.hex) return -1;
+        if (selectedHex === b.hex) return 1;
+        return a.dist - b.dist;
+    });
     
     if (filteredAircraft.length === 0) {
         tbody.innerHTML = '<tr><td colspan="11" class="loading-row">No active aircraft match criteria.</td></tr>';
@@ -1046,6 +1050,12 @@ function selectAircraft(hex) {
         const ac = aircraftCache[hex];
         if (ac && ac.lat && ac.lon) {
             map.panTo([ac.lat, ac.lon]);
+        }
+        
+        // Scroll the table container to the top so the selected row (now sorted to the top) is visible immediately!
+        const tableContainer = document.querySelector('.table-container');
+        if (tableContainer) {
+            tableContainer.scrollTop = 0;
         }
     }
     
