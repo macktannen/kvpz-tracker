@@ -347,6 +347,38 @@ body {
     border-radius: 4px;
 }
 
+.btn-delete-group {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 0.65rem;
+    padding: 2px 4px;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.btn-delete-group:hover {
+    color: var(--accent-red);
+}
+
+.btn-delete-event {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 0.6rem;
+    padding: 1px 3px;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.btn-delete-event:hover {
+    color: var(--accent-red);
+}
+
 .chevron-indicator {
     color: var(--color-text-muted);
     font-size: 0.65rem;

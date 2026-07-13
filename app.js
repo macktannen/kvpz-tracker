@@ -1144,7 +1144,7 @@ function updateMapMarker(ac) {
 }
 
 // 7. Operations Logger
-function logOperation(callsign, type, opType, description) {
+function logOperation(callsign, type, opType, description, tail) {
     const now = new Date();
     const logItem = {
         timestamp: now.getTime(), // Miliseconds for 30-day age filtering
@@ -1153,7 +1153,8 @@ function logOperation(callsign, type, opType, description) {
         callsign,
         type,
         opType,
-        description
+        description,
+        tail: tail || 'N/A'
     };
     
     operationsLog.unshift(logItem); // Add to beginning of array
@@ -1162,6 +1163,10 @@ function logOperation(callsign, type, opType, description) {
     const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
     operationsLog = operationsLog.filter(log => !log || log.timestamp === undefined || log.timestamp >= oneMonthAgo);
     
+    saveAndSyncOperations();
+}
+
+function saveAndSyncOperations() {
     // Save to localStorage
     safeSetItem('kvpz_operations_log', JSON.stringify(operationsLog));
     
@@ -1171,6 +1176,23 @@ function logOperation(callsign, type, opType, description) {
     
     updateOpsLog();
     updateCounters();
+}
+
+function deleteOperationsByTail(tail) {
+    operationsLog = operationsLog.filter(log => {
+        const key = (log.tail && log.tail !== 'N/A') ? log.tail : (log.callsign || 'Unknown');
+        return key !== tail;
+    });
+    saveAndSyncOperations();
+}
+
+function deleteOperationEvent(timestamp, dateStr, timeStr, callsign) {
+    operationsLog = operationsLog.filter(log => {
+        if (timestamp && log.timestamp === timestamp) return false;
+        if (!timestamp && log.dateStr === dateStr && (log.timeStr === timeStr || log.time === timeStr) && log.callsign === callsign) return false;
+        return true;
+    });
+    saveAndSyncOperations();
 }
 
 function updateOpsLog() {
@@ -1231,6 +1253,23 @@ function updateOpsLog() {
             </div>
         `;
         
+        // Add group delete button before the chevron
+        const deleteGroupBtn = document.createElement('button');
+        deleteGroupBtn.className = 'btn-delete-group';
+        deleteGroupBtn.title = `Delete all logs for ${group.tail}`;
+        deleteGroupBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+        deleteGroupBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (confirm(`Delete all operations logged for ${group.tail}?`)) {
+                deleteOperationsByTail(group.tail);
+            }
+        });
+        
+        const badgesContainer = header.querySelector('.ops-group-badges');
+        if (badgesContainer) {
+            badgesContainer.insertBefore(deleteGroupBtn, badgesContainer.querySelector('.chevron-indicator'));
+        }
+        
         // Details list (stacked events)
         const details = document.createElement('div');
         details.className = 'ops-group-details';
@@ -1246,8 +1285,23 @@ function updateOpsLog() {
             const timeText = log.timeStr || log.time || '---';
             meta.innerHTML = `
                 <span class="ops-event-time">${dateText ? dateText + ' ' : ''}${timeText}</span>
-                <span class="ops-event-type-badge">${log.opType === 'arrival' ? 'Arrival' : 'Departure'}</span>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="ops-event-type-badge">${log.opType === 'arrival' ? 'Arrival' : 'Departure'}</span>
+                </div>
             `;
+            
+            // Add individual event delete button next to type badge
+            const deleteEventBtn = document.createElement('button');
+            deleteEventBtn.className = 'btn-delete-event';
+            deleteEventBtn.title = 'Delete this event';
+            deleteEventBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+            deleteEventBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (confirm(`Delete this ${log.opType} event at ${timeText}?`)) {
+                    deleteOperationEvent(log.timestamp, log.dateStr, timeText, log.callsign);
+                }
+            });
+            meta.querySelector('div').appendChild(deleteEventBtn);
             
             const desc = document.createElement('div');
             desc.className = 'ops-event-desc';
