@@ -905,30 +905,6 @@ function removeAircraftLayers(hex) {
     }
 }
 
-// Get Icon Class based on Aircraft details
-function getAircraftIconClass(ac) {
-    const desc = (ac.desc || '').toLowerCase();
-    const type = (ac.t || ac.type || '').toLowerCase();
-    const cat = (ac.category || '');
-    
-    // Helicopters
-    if (desc.includes('helicopter') || desc.includes('rotorcraft') || desc.includes('copter') || 
-        type.startsWith('r22') || type.startsWith('r44') || type.startsWith('r66') || 
-        type.startsWith('b206') || type.startsWith('b505') || type.startsWith('b407') || 
-        type.startsWith('as50') || type.startsWith('as35') || type.startsWith('ec30') || 
-        type.startsWith('ec20') || type.startsWith('uh60') || type.startsWith('uh1') || 
-        type.startsWith('ah64') || type.startsWith('ch47') || type.includes('h60') || 
-        type.includes('ec35') || cat === 'A7') {
-        return 'helicopter';
-    }
-    // Jets
-    if (desc.includes('jet') || desc.includes('boeing') || desc.includes('airbus') || desc.includes('embraer') || desc.includes('bombardier') || desc.includes('gulfstream') || desc.includes('citation') || desc.includes('challenger') || desc.includes('falcon') || desc.includes('learjet')) {
-        return 'jet';
-    }
-    // Default general/prop plane
-    return 'prop';
-}
-
 // 6. Map Marker Graphics & Rotation
 function updateMapMarker(ac) {
     // Choose color based on altitude
@@ -939,8 +915,8 @@ function updateMapMarker(ac) {
         color = '#f59e0b'; // Amber (Med 3k-12k)
     }
     
-    // Determine aircraft type icon
-    const iconType = getAircraftIconClass(ac);
+    // Determine aircraft type icon from precomputed categoryClass
+    const iconType = ac.categoryClass || 'other';
     let iconHtml = '';
     
     if (iconType === 'helicopter') {
@@ -998,18 +974,43 @@ function updateMapMarker(ac) {
                 <circle cx="256" cy="256" r="14" fill="${color}" stroke="#090d16" stroke-width="4" />
             </svg>
         `;
-    } else if (iconType === 'jet') {
-        // High fidelity geometric top-down jet SVG
+    } else if (iconType === 'military') {
+        // Delta-wing double-tail tactical stealth fighter profile (F-22/F-35 style)
         iconHtml = `
             <svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${ac.heading}deg);">
-                <path fill="${color}" stroke="#090d16" stroke-width="15" d="M256 16c-11.05 0-20 8.95-20 20v140L48 272v44l188-56v112l-48 36v28l80-24 80 24v-28l-48-36V260l188 56v-44L276 176V36c0-11.05-8.95-20-20-20z"/>
+                <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M256 20L110 220l120 20L70 420l186-45 186 45L382 240l120-20z"/>
+            </svg>
+        `;
+    } else if (iconType === 'commercial-jet') {
+        // Large passenger swept-wing airliner profile
+        iconHtml = `
+            <svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${ac.heading}deg);">
+                <path fill="${color}" stroke="#090d16" stroke-width="14" d="M256 16c-12 0-22 10-22 22v140L24 280v40l210-48v112l-64 48v24l86-20 86 20v-24l-64-48V272l210 48v-40L278 178V38c0-12-10-22-22-22z"/>
+            </svg>
+        `;
+    } else if (iconType === 'business-jet') {
+        // Sleek corporate business jet with twin rear-mounted engine cylinders
+        iconHtml = `
+            <svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${ac.heading}deg);">
+                <path fill="${color}" stroke="#090d16" stroke-width="13" d="M256 20c-8 0-14 8-14 18v150L60 290v30l182-45v80c-15 4-26 12-26 25v65l38-12 38 12v-65c0-13-11-21-26-25v-80l182 45v-30L270 188V38c0-10-6-18-14-18z"/>
+                <rect x="208" y="335" width="16" height="40" rx="6" fill="${color}" stroke="#090d16" stroke-width="5" />
+                <rect x="288" y="335" width="16" height="40" rx="6" fill="${color}" stroke="#090d16" stroke-width="5" />
+            </svg>
+        `;
+    } else if (iconType === 'airplane') {
+        // Straight-wing general aviation light propeller aircraft with prop line spinner
+        iconHtml = `
+            <svg class="plane-icon-svg" width="28" height="28" viewBox="0 0 512 512" style="transform: rotate(${ac.heading}deg);">
+                <path fill="${color}" stroke="#090d16" stroke-width="14" d="M256 40c-10 0-18 8-18 18v134L32 192v36l206 12v120l-48 30v24l66-16 66 16v-24l-48-30V240l206-12v-36L274 192V58c0-10-8-18-18-18z"/>
+                <line x1="210" y1="42" x2="302" y2="42" stroke="#090d16" stroke-width="12" stroke-linecap="round" />
+                <line x1="210" y1="42" x2="302" y2="42" stroke="${color}" stroke-width="5" stroke-linecap="round" />
             </svg>
         `;
     } else {
-        // High fidelity geometric top-down prop plane SVG
+        // Default "Other": Sleek glider profile with extra long narrow wings
         iconHtml = `
             <svg class="plane-icon-svg" width="28" height="28" viewBox="0 0 512 512" style="transform: rotate(${ac.heading}deg);">
-                <path fill="${color}" stroke="#090d16" stroke-width="15" d="M448 336v-40L288 192V79.2c0-26-21.8-47.2-48-47.2S192 53.2 192 79.2V192L32 296v40l160-48v117.8l-48 35.4v30.8l96-28.6 96 28.6v-30.8l-48-35.4V328l160 48z"/>
+                <path fill="${color}" stroke="#090d16" stroke-width="13" d="M256 60c-8 0-14 8-14 16v120L16 204v20l226 8v140l-30 20v14l44-10 44 10v-14l-30-20V232l226-8v-20L270 196V76c0-8-6-16-14-16z"/>
             </svg>
         `;
     }
