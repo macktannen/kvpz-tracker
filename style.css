@@ -545,6 +545,7 @@ body {
 .table-container {
     flex: 1;
     overflow-y: auto;
+    background-color: #111827 !important; /* Force fully solid background on container */
 }
 
 .flight-table {
@@ -552,10 +553,23 @@ body {
     border-collapse: collapse;
     font-size: 0.8rem;
     text-align: left;
+    background-color: #111827 !important; /* Force fully solid background on table */
+}
+
+.flight-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 100 !important;
+    background-color: #1f2937 !important; /* Force fully solid background on head */
+}
+
+.flight-table thead tr {
+    background-color: #1f2937 !important; /* Force fully solid background on head row */
 }
 
 .flight-table th {
     background-color: #1f2937 !important; /* Fully solid dark background to prevent row text bleed-through */
+    background-clip: padding-box !important;
     opacity: 1 !important; /* Force complete opacity */
     color: var(--color-text-muted);
     font-weight: 600;
@@ -563,7 +577,7 @@ body {
     border-bottom: 1px solid var(--border-color);
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 100 !important;
 }
 
 .flight-table td {
@@ -783,12 +797,16 @@ body {
         justify-content: center;
     }
 
-    /* Horizontal scroll support for dense data table */
+    /* Horizontal and vertical scroll support for dense data table on mobile */
     .table-container {
         overflow-x: auto;
+        overflow-y: auto !important;
+        height: 300px !important;
+        max-height: 300px !important;
         -webkit-overflow-scrolling: touch;
         width: 100%;
         padding: 0.5rem;
+        background-color: #111827 !important; /* Force solid background on container */
     }
     
     .flight-table {
