@@ -342,6 +342,19 @@ function calculateOffsetCoords(lat, lon, distanceMeters, bearingDegrees) {
     return [lat2 * 180 / Math.PI, lon2 * 180 / Math.PI];
 }
 
+// Geodesic distance calculation in Nautical Miles (Haversine formula)
+function getDistanceNM(lat1, lon1, lat2, lon2) {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
+    const R = 3440.065; // Earth radius in nautical miles
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
 // 3. METAR Weather Handling
 async function fetchWeather() {
     const weatherText = document.getElementById('weather-raw-text');
@@ -533,10 +546,11 @@ function processAircraft(aircraftList) {
         const speed = parseInt(ac.gs) || 0;
         const vspeed = parseInt(ac.baro_rate) || 0;
         const heading = parseInt(ac.track) || 0;
-        const dist = parseFloat(ac.dst) || 0;
-        const operator = ac.ownOp || 'Private';
         const lat = ac.lat;
         const lon = ac.lon;
+        // Always calculate geodesic distance relative to KVPZ coordinates to prevent map panning from affecting operations logging
+        const dist = (lat && lon) ? getDistanceNM(lat, lon, KVPZ_COORDS[0], KVPZ_COORDS[1]) : 999.0;
+        const operator = ac.ownOp || 'Private';
         const category = ac.category || '';
         
         const currentState = {
