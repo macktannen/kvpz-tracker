@@ -264,6 +264,28 @@ document.addEventListener('DOMContentLoaded', () => {
         saveMapSettings();
         refreshAllAircraftLayers();
     });
+
+    // Gemini Chat UI Listeners
+    const sendBtn = document.getElementById('chat-send-btn');
+    const chatInput = document.getElementById('chat-input');
+    
+    if (sendBtn && chatInput) {
+        sendBtn.addEventListener('click', submitChatMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitChatMessage();
+            }
+        });
+    }
+
+    document.querySelectorAll('.chip-btn').forEach(chip => {
+        chip.addEventListener('click', (e) => {
+            if (chatInput) {
+                chatInput.value = e.currentTarget.getAttribute('data-prompt');
+                submitChatMessage();
+            }
+        });
+    });
 });
 
 function refreshAllAircraftLayers() {
@@ -1307,7 +1329,7 @@ function updateUI() {
     }
 }
 
-function selectAircraft(hex) {
+async function selectAircraft(hex) {
     if (selectedHex === hex) {
         // Unselect
         selectedHex = null;
@@ -1317,6 +1339,12 @@ function selectAircraft(hex) {
         const ac = aircraftCache[hex];
         if (ac && ac.lat && ac.lon) {
             map.panTo([ac.lat, ac.lon]);
+            
+            // Try to fetch full historical trace from the ADS-B API online
+            const apiTrace = await fetchDetailedTrace(hex);
+            if (apiTrace && apiTrace.length > 0) {
+                ac.trail = apiTrace;
+            }
         }
     }
     
@@ -1370,5 +1398,185 @@ function saveMapSettings() {
     } catch (e) {
         console.error("Error saving map settings to localStorage:", e);
     }
+}
+
+// Online Flight Track History (Trace) Fetcher
+async function fetchDetailedTrace(hex) {
+    const urlAirplanesLive = `https://api.airplanes.live/v2/trace/${hex}`;
+    const urlAdsbOne = `https://api.adsb.one/v2/trace/${hex}`;
+    
+    try {
+        // Run fetches in parallel and race them to load as fast as possible
+        const res = await Promise.any([
+            fetch(urlAirplanesLive).then(r => { if (!r.ok) throw r; return r.json(); }),
+            fetch(urlAdsbOne).then(r => { if (!r.ok) throw r; return r.json(); })
+        ]);
+        
+        if (res && Array.isArray(res.trace)) {
+            // readsb trace array format: [seconds_offset, lat, lon, alt, speed, heading, flags]
+            const path = res.trace
+                .filter(pt => pt[1] && pt[2])
+                .map(pt => [pt[1], pt[2]]);
+            return path;
+        }
+    } catch (e) {
+        console.warn(`Could not fetch online historical trace for hex ${hex}:`, e);
+    }
+    return null;
+}
+
+// 11. Gemini Chat Co-Pilot Interface & Logic
+function appendChatMessage(sender, text) {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${sender}`;
+    messageDiv.innerHTML = text;
+    container.appendChild(messageDiv);
+    
+    // Auto scroll to bottom
+    setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+    }, 30);
+}
+
+function submitChatMessage() {
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    
+    // 1. Append user message
+    appendChatMessage('user', text);
+    input.value = '';
+    
+    // 2. Typing indicator
+    const container = document.getElementById('chat-messages');
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'chat-message bot typing';
+    typingDiv.id = 'chat-typing-indicator';
+    typingDiv.innerHTML = `<i class="fa-solid fa-ellipsis fa-fade"></i> Gemini is analyzing airfield logs...`;
+    if (container) {
+        container.appendChild(typingDiv);
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    // 3. Process reply after delay
+    setTimeout(() => {
+        const indicator = document.getElementById('chat-typing-indicator');
+        if (indicator) indicator.remove();
+        
+        const response = generateCopilotResponse(text);
+        appendChatMessage('bot', response);
+    }, 900);
+}
+
+function generateCopilotResponse(query) {
+    const q = query.toLowerCase();
+    const activeFlights = Object.values(aircraftCache);
+    
+    // Helper names map
+    const catLabels = {
+        'commercial-jet': 'Commercial Jet',
+        'business-jet': 'Business Jet',
+        'airplane': 'GA Airplane',
+        'helicopter': 'Helicopter',
+        'military': 'Military Aircraft',
+        'other': 'Other / Glider'
+    };
+    
+    // 1. CURRENT WEATHER METAR INFO
+    if (q.includes('weather') || q.includes('metar') || q.includes('wind') || q.includes('temp') || q.includes('ceiling') || q.includes('visibility') || q.includes('rain') || q.includes('snow') || q.includes('cloud')) {
+        const metarText = document.getElementById('weather-text') ? document.getElementById('weather-text').textContent : '';
+        const metarCat = document.getElementById('weather-category') ? document.getElementById('weather-category').textContent : '';
+        const station = document.getElementById('weather-station') ? document.getElementById('weather-station').textContent : 'KVPZ';
+        
+        if (metarText && metarText !== 'Loading KVPZ weather logs...') {
+            return `<strong>KVPZ Weather Observation (${station}):</strong><br/>
+                    • Flight Category: <span class="badge ${metarCat.toLowerCase()}" style="display:inline-block; padding: 2px 6px; font-size: 0.65rem; font-weight: bold; border-radius: 4px;">${metarCat}</span><br/>
+                    • METAR Raw: <code>${metarText}</code><br/><br/>
+                    The current flight rules are <strong>${metarCat}</strong> based on latest observations.`;
+        } else {
+            return `I'm unable to retrieve the live weather right now. Weather station KVPZ is offline or loading.`;
+        }
+    }
+    
+    // 2. MILITARY FLIGHTS
+    if (q.includes('military') || q.includes('navy') || q.includes('air force') || q.includes('army') || q.includes('marines') || q.includes('combat') || q.includes('fighter') || q.includes('mil')) {
+        const milFlights = activeFlights.filter(ac => ac.categoryClass === 'military');
+        if (milFlights.length > 0) {
+            let list = milFlights.map(ac => `• <strong>${ac.callsign}</strong> (${ac.type}, Tail: ${ac.tail}) at ${ac.alt.toLocaleString()} FT, ${ac.dist.toFixed(1)} NM out, operator: ${ac.operator}`).join('<br/>');
+            return `<strong>Military Aircraft Spotted (${milFlights.length} active):</strong><br/>${list}`;
+        } else {
+            return `No military flights are currently detected within our tracking radius. I'll keep monitoring.`;
+        }
+    }
+    
+    // 3. HELICOPTERS
+    if (q.includes('helicopter') || q.includes('helo') || q.includes('copter') || q.includes('rotor')) {
+        const helos = activeFlights.filter(ac => ac.categoryClass === 'helicopter');
+        if (helos.length > 0) {
+            let list = helos.map(ac => `• <strong>${ac.callsign}</strong> (${ac.type}) at ${ac.alt.toLocaleString()} FT, ${ac.dist.toFixed(1)} NM away, operator: ${ac.operator}`).join('<br/>');
+            return `<strong>Helicopters Detected (${helos.length} active):</strong><br/>${list}`;
+        } else {
+            return `No helicopters are currently detected within range.`;
+        }
+    }
+    
+    // 4. BUSINESS JETS
+    if (q.includes('business') || q.includes('biz') || q.includes('gulfstream') || q.includes('citation') || q.includes('corporate') || q.includes('private jet')) {
+        const biz = activeFlights.filter(ac => ac.categoryClass === 'business-jet');
+        if (biz.length > 0) {
+            let list = biz.map(ac => `• <strong>${ac.callsign}</strong> (${ac.type}) at ${ac.alt.toLocaleString()} FT, ${ac.dist.toFixed(1)} NM away`).join('<br/>');
+            return `<strong>Business Jets Detected (${biz.length} active):</strong><br/>${list}`;
+        } else {
+            return `No corporate/business jets are currently active in our geofence.`;
+        }
+    }
+
+    // 5. COMMERCIAL JETS
+    if (q.includes('commercial') || q.includes('airline') || q.includes('airliner') || q.includes('boeing') || q.includes('airbus')) {
+        const comm = activeFlights.filter(ac => ac.categoryClass === 'commercial-jet');
+        if (comm.length > 0) {
+            let list = comm.map(ac => `• <strong>${ac.callsign}</strong> (${ac.type}, Operator: ${ac.operator}) at ${ac.alt.toLocaleString()} FT`).join('<br/>');
+            return `<strong>Commercial Jets Tracked (${comm.length} active):</strong><br/>${list}`;
+        } else {
+            return `No commercial airline flights are currently logged inside our bounds.`;
+        }
+    }
+    
+    // 6. SUMMARIZE ACTIVITY
+    if (q.includes('summarize') || q.includes('activity') || q.includes('traffic') || q.includes('log') || q.includes('stats') || q.includes('active') || q.includes('status')) {
+        const totalCount = activeFlights.length;
+        const totalArrivals = arrivalCount;
+        const totalDepartures = departureCount;
+        
+        let breakDown = {};
+        activeFlights.forEach(ac => {
+            const cls = catLabels[ac.categoryClass] || 'Other / Glider';
+            breakDown[cls] = (breakDown[cls] || 0) + 1;
+        });
+        
+        let breakdownStr = Object.entries(breakDown).map(([cat, val]) => `• ${cat}: ${val}`).join('<br/>');
+        let currentDetail = activeFlights.slice(0, 3).map(ac => `• <strong>${ac.callsign}</strong> (${catLabels[ac.categoryClass] || 'Other'}, ${ac.alt.toLocaleString()} FT, heading ${ac.heading}°)`).join('<br/>');
+        
+        return `<strong>KVPZ Traffic Summary:</strong><br/>
+                • Total Aircraft in Area: <strong>${totalCount}</strong><br/>
+                • Arrivals Logged Today: <strong>${totalArrivals}</strong><br/>
+                • Departures Logged Today: <strong>${totalDepartures}</strong><br/><br/>
+                <strong>Current Categories:</strong><br/>
+                ${breakdownStr || 'No active traffic.'}<br/><br/>
+                ${currentDetail ? `<strong>Active Air Traffic Snippet:</strong><br/>${currentDetail}` : ''}`;
+    }
+    
+    // 7. DEFAULT RESPONSE
+    return `I am your Gemini Co-Pilot for Porter County Regional Airport (KVPZ).<br/><br/>
+            I can answer questions based on real-time radar state and weather logs:<br/>
+            • <em>"What is the weather?"</em> (METAR & Flight rules)<br/>
+            • <em>"Summarize active traffic"</em> (Flight count & log counters)<br/>
+            • <em>"Are there any military flights?"</em> (Stealth target checks)<br/>
+            • <em>"Show helicopters"</em> (Rotary wing count)<br/><br/>
+            Try typing one of these questions or click the quick-suggest buttons above!`;
 }
 

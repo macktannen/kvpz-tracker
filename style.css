@@ -924,6 +924,171 @@ body {
     margin: 0.4rem 0 !important;
 }
 
+/* Gemini Chat Panel (Right Sidebar) */
+.chat-panel {
+    width: 320px;
+    background: var(--bg-card);
+    border-left: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: var(--font-sans);
+}
+
+.chat-header {
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.8rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.chat-header h3 {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    background: rgba(10, 15, 30, 0.2);
+}
+
+/* Scrollbar for chat messages */
+.chat-messages::-webkit-scrollbar {
+    width: 6px;
+}
+.chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+.chat-messages::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.chat-message {
+    max-width: 85%;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.72rem;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.chat-message.bot {
+    background: rgba(31, 41, 55, 0.6);
+    color: var(--color-text);
+    align-self: flex-start;
+    border-left: 3px solid var(--accent-cyan);
+    border-top-left-radius: 0;
+}
+
+.chat-message.user {
+    background: var(--accent-cyan);
+    color: #0b0f19;
+    font-weight: 600;
+    align-self: flex-end;
+    border-bottom-right-radius: 0;
+    box-shadow: 0 2px 8px rgba(6, 182, 212, 0.25);
+}
+
+.chat-message.system {
+    align-self: center;
+    background: none;
+    color: var(--color-text-muted);
+    font-style: italic;
+    font-size: 0.65rem;
+    padding: 0.2rem;
+}
+
+.chat-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.5rem 0.8rem;
+    background: rgba(17, 24, 39, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.chat-suggestions .chip-btn {
+    background: rgba(31, 41, 55, 0.8);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--color-text-muted);
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 0.3rem 0.6rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.chat-suggestions .chip-btn:hover {
+    color: #fff;
+    background: rgba(31, 41, 55, 1);
+    border-color: var(--accent-cyan);
+}
+
+.chat-input-area {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-header);
+}
+
+#chat-input {
+    flex: 1;
+    background: rgba(17, 24, 39, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--color-text);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+#chat-input:focus {
+    border-color: var(--accent-cyan);
+}
+
+#chat-send-btn {
+    background: var(--accent-cyan);
+    border: none;
+    color: #0b0f19;
+    padding: 0.5rem 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: background-color 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#chat-send-btn:hover {
+    background-color: #0891b2;
+}
+
+#chat-send-btn:active {
+    transform: scale(0.95);
+}
+
 /* 10. Responsive Mobile Overrides */
 @media (max-width: 992px) {
     /* Enable full body scrolling on mobile */
@@ -932,7 +1097,7 @@ body {
         overflow: auto;
     }
 
-    /* Stack sidebar and map panels vertically */
+    /* Stack sidebar, map, and chat panels vertically */
     .app-main {
         flex-direction: column;
         height: auto;
@@ -954,6 +1119,15 @@ body {
         height: 450px;
         min-height: 450px;
         width: 100%;
+        overflow: visible;
+    }
+    
+    /* Stack Gemini Chat Panel vertically below the map */
+    .chat-panel {
+        width: 100% !important;
+        height: 380px;
+        border-left: none !important;
+        border-top: 1px solid var(--border-color);
         overflow: visible;
     }
 

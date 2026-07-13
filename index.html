@@ -16,7 +16,7 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
     <div class="app-container">
@@ -173,6 +173,33 @@
                 </div>
             </section>
 
+            <!-- Gemini Chat Panel -->
+            <aside class="chat-panel" id="chat-panel">
+                <div class="chat-header">
+                    <h3><i class="fa-solid fa-brain"></i> Gemini Co-Pilot</h3>
+                </div>
+                <div class="chat-messages" id="chat-messages">
+                    <div class="chat-message bot">
+                        Hi! I'm Gemini, your KVPZ airfield assistant. Ask me questions like:
+                        <ul style="margin: 0.4rem 0 0 1.2rem; padding: 0; display: flex; flex-direction: column; gap: 2px;">
+                            <li>"Summarize KVPZ activity"</li>
+                            <li>"What is the current weather?"</li>
+                            <li>"Are there any military flights?"</li>
+                            <li>"List active helicopters"</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="chat-suggestions">
+                    <button class="chip-btn" data-prompt="Summarize KVPZ activity">Summarize Activity</button>
+                    <button class="chip-btn" data-prompt="What is the current weather?">Weather</button>
+                    <button class="chip-btn" data-prompt="Are there any military flights?">Military</button>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="Ask Gemini about active traffic...">
+                    <button id="chat-send-btn"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </aside>
+
         </main>
 
         <!-- Bottom Spreadsheet / Flight List -->
@@ -225,6 +252,6 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="app.js?v=5"></script>
+    <script src="app.js?v=6"></script>
 </body>
 </html>
