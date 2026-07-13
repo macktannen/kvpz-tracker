@@ -265,45 +265,19 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshAllAircraftLayers();
     });
 
-    // Gemini Chat UI Listeners
+    // Google Search UI Listeners
     const sendBtn = document.getElementById('chat-send-btn');
     const chatInput = document.getElementById('chat-input');
-    const settingsBtn = document.getElementById('chat-settings-btn');
-    const keyConfigArea = document.getElementById('chat-key-config');
-    const keyInput = document.getElementById('gemini-api-key');
-    const saveKeyBtn = document.getElementById('save-key-btn');
     
-    // Load pre-existing key
-    if (keyInput) {
-        keyInput.value = safeGetItem('gemini_api_key') || '';
-    }
-    
-    if (settingsBtn && keyConfigArea) {
-        settingsBtn.addEventListener('click', () => {
-            const isHidden = keyConfigArea.style.display === 'none';
-            keyConfigArea.style.display = isHidden ? 'block' : 'none';
-        });
-    }
-    
-    if (saveKeyBtn && keyInput) {
-        saveKeyBtn.addEventListener('click', () => {
-            const keyVal = keyInput.value.trim();
-            safeSetItem('gemini_api_key', keyVal);
-            if (keyVal) {
-                alert('Google AI API Key saved successfully.');
-            } else {
-                alert('Google AI API Key cleared.');
-            }
-            if (keyConfigArea) keyConfigArea.style.display = 'none';
-        });
-    }
-
     if (sendBtn && chatInput) {
-        sendBtn.addEventListener('click', submitAISearch);
+        sendBtn.addEventListener('click', submitStandardSearch);
         chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                submitAISearch();
+                submitStandardSearch();
             }
+        });
+        chatInput.addEventListener('input', (e) => {
+            updateSearchPortalLinks(e.target.value);
         });
     }
 });
@@ -1365,6 +1339,14 @@ async function selectAircraft(hex) {
             if (apiTrace && apiTrace.length > 0) {
                 ac.trail = apiTrace;
             }
+            
+            // Populate Google Search Input and Database Link portals
+            const searchField = document.getElementById('chat-input');
+            if (searchField) {
+                const targetQuery = (ac.tail && ac.tail !== 'N/A') ? ac.tail : ac.callsign;
+                searchField.value = targetQuery;
+                updateSearchPortalLinks(targetQuery);
+            }
         }
     }
     
@@ -1445,293 +1427,51 @@ async function fetchDetailedTrace(hex) {
     return null;
 }
 
-// 11. Google AI Search Interface & Logic
-async function submitAISearch() {
+// 11. Google Search & Portal Database Links
+function submitStandardSearch() {
     const input = document.getElementById('chat-input');
     if (!input) return;
     const text = input.value.trim();
     if (!text) return;
     
-    const welcomeView = document.getElementById('search-welcome');
-    const resultsArea = document.getElementById('search-results-area');
+    // Open standard Google Search in a new tab
+    window.open(`https://www.google.com/search?q=${encodeURIComponent(text)}`, '_blank');
     
-    // Hide welcome, show results, clear previous results
-    if (welcomeView) welcomeView.style.display = 'none';
-    if (resultsArea) {
-        resultsArea.style.display = 'block';
-        resultsArea.innerHTML = `
-            <div style="text-align: center; color: var(--color-text-muted); padding: 3rem 1rem;">
-                <i class="fa-solid fa-circle-notch fa-spin fa-2x" style="color: var(--accent-cyan); margin-bottom: 0.8rem;"></i>
-                <p style="margin: 0; font-size: 0.72rem;">Google AI is scanning flight registries...</p>
-            </div>
-        `;
-    }
+    // Update portal links
+    updateSearchPortalLinks(text);
+}
+
+function updateSearchPortalLinks(query) {
+    const container = document.getElementById('portal-links-container');
+    if (!container) return;
     
-    // Check for API key
-    const apiKey = safeGetItem('gemini_api_key');
-    if (!apiKey) {
-        setTimeout(() => {
-            if (resultsArea) {
-                resultsArea.innerHTML = `
-                    <div class="search-card" style="border-left-color: #ef4444 !important;">
-                        <h3 style="color: #ef4444; border-bottom-color: rgba(239, 68, 68, 0.2);">⚠️ Google AI Key Required</h3>
-                        <p>To run live search queries, you must configure a Google AI / Gemini API Key.</p>
-                        <p>Click the key icon (<i class="fa-solid fa-key"></i>) in the header, paste your key, and click Save. You can get one for free at <a href="https://aistudio.google.com/" target="_blank" style="color: var(--accent-cyan); text-decoration: underline;">Google AI Studio</a>.</p>
-                    </div>
-                `;
-            }
-        }, 400);
+    const cleanQuery = query.trim().toUpperCase();
+    if (!cleanQuery) {
+        container.innerHTML = `<p style="margin: 0; color: var(--color-text-muted); font-size: 0.65rem; font-style: italic;">Enter a tail number or select an aircraft to generate direct database links.</p>`;
         return;
     }
     
-    try {
-        const responseText = await queryLiveGemini(text, apiKey);
-        if (resultsArea) {
-            resultsArea.innerHTML = `
-                <div class="search-card">
-                    <div style="font-size: 0.65rem; color: var(--accent-cyan); text-transform: uppercase; font-weight: bold; margin-bottom: 0.6rem; border-bottom: 1px solid rgba(6, 182, 212, 0.15); padding-bottom: 0.3rem; display: flex; justify-content: space-between;">
-                        <span>AI Search Query: "${text}"</span>
-                        <span>Source: Google AI</span>
-                    </div>
-                    ${responseText}
-                </div>
-            `;
-        }
-    } catch (err) {
-        console.error("AI Search Error:", err);
-        const fallbackResponse = generateCopilotResponse(text);
-        if (resultsArea) {
-            resultsArea.innerHTML = `
-                <div class="search-card" style="border-left-color: #f59e0b !important;">
-                    <h3 style="color: #f59e0b; border-bottom-color: rgba(245, 158, 11, 0.2);">⚠️ Live Search Connection Failed</h3>
-                    <p style="font-size: 0.7rem; color: var(--color-text-muted); margin-bottom: 0.8rem;">Error: ${err.message || 'Could not connect'}. Showing local radar database results instead.</p>
-                    ${fallbackResponse}
-                </div>
-            `;
-        }
-    }
-}
-
-async function queryLiveGemini(queryText, apiKey) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
-    
-    // Build airfield context
-    const activeFlights = Object.values(aircraftCache);
-    const metarText = document.getElementById('weather-text') ? document.getElementById('weather-text').textContent : 'Offline';
-    const metarCat = document.getElementById('weather-category') ? document.getElementById('weather-category').textContent : 'N/A';
-    const station = document.getElementById('weather-station') ? document.getElementById('weather-station').textContent : 'KVPZ';
-    
-    const logsDivs = Array.from(document.querySelectorAll('#log-container div')).slice(0, 15);
-    const logsText = logsDivs.map(d => d.textContent.trim()).join('\n');
-    
-    const flightLines = activeFlights.map(ac => 
-        `- Callsign: ${ac.callsign} | Tail: ${ac.tail} | Type: ${ac.type} | Desc: ${ac.desc} | Alt: ${ac.alt} FT | Spd: ${ac.speed} KT | Hdg: ${ac.heading}° | Dist: ${ac.dist.toFixed(1)} NM | Op: ${ac.operator}`
-    ).join('\n');
-    
-    const airfieldContext = `
-Porter County Regional Airport (KVPZ) Current Airfield Context:
-- Active Weather METAR (${station}): ${metarText} (Category: ${metarCat})
-- Total Aircraft Tracked in Geofence: ${activeFlights.length}
-- Arrivals Recorded Today: ${arrivalCount}
-- Departures Recorded Today: ${departureCount}
-
-Active Flight Radar List:
-${flightLines || 'No active flights on screen.'}
-
-Recent Operations Log:
-${logsText || 'No logs registered yet.'}
-`;
-
-    const systemInstruction = `
-You are the Gemini Airfield Co-Pilot for Porter County Regional Airport (KVPZ) in Valparaiso, Indiana.
-Your purpose is to answer the user's questions about live traffic, weather, operations, or look up FAA registries for aircraft tail/registration numbers.
-
-When looking up tail numbers (e.g., N500XP, N172SP, N12345):
-- You must perform a deep lookup of the FAA / international registry records using your live Google Search tool.
-- Identify the exact aircraft manufacturer, model series, year of production, engine setup, and certification status.
-- Identify the registered owner (individual or corporation name) and their registered city/state/country location.
-- Present this beautifully in HTML or Markdown using sections:
-  ✈️ AIRCRAFT PROFILE
-  👤 REGISTERED OWNER
-  🔧 TECHNICAL SPECIFICATIONS
-  📝 HISTORY & NOTES
-
-When answering questions about the current traffic or airfield weather, consult the provided "Current Airfield Context" data. Keep your responses concise, highly professional, and formatted in clean HTML/Markdown.
-`;
-
-    const requestBody = {
-        contents: [
-            {
-                role: 'user',
-                parts: [
-                    { text: `User Query: ${queryText}\n\n[Current Airfield Context]\n${airfieldContext}` }
-                ]
-            }
-        ],
-        systemInstruction: {
-            parts: [
-                { text: systemInstruction }
-            ]
-        },
-        tools: [
-            {
-                googleSearch: {}
-            }
-        ]
-    };
-    
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-    });
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+    // Strip leading N for FAA Registry Lookups
+    let faaTxt = cleanQuery;
+    if (cleanQuery.startsWith('N')) {
+        faaTxt = cleanQuery.substring(1);
     }
     
-    const data = await response.json();
-    let reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!reply) {
-        throw new Error("Empty response from Gemini API");
-    }
-    
-    // Parse markdown styling into basic HTML for chat messages
-    reply = formatMarkdownToHTML(reply);
-    
-    return reply;
-}
-
-function formatMarkdownToHTML(text) {
-    let html = text;
-    
-    // Bold
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    
-    // Code blocks
-    html = html.replace(/```(.*?)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-    html = html.replace(/`(.*?)`/g, '<code>$1</code>');
-    
-    // Bullet lists
-    html = html.replace(/^\s*[-*]\s+(.*?)$/gm, '• $1');
-    
-    // Paragraph breaks
-    html = html.replace(/\n\n/g, '<br/><br/>');
-    html = html.replace(/\n/g, '<br/>');
-    
-    return html;
-}
-
-function generateCopilotResponse(query) {
-    const q = query.toLowerCase();
-    const activeFlights = Object.values(aircraftCache);
-    
-    // Helper names map
-    const catLabels = {
-        'commercial-jet': 'Commercial Jet',
-        'business-jet': 'Business Jet',
-        'airplane': 'GA Airplane',
-        'helicopter': 'Helicopter',
-        'military': 'Military Aircraft',
-        'other': 'Other / Glider'
-    };
-    
-    // 1. CURRENT WEATHER METAR INFO
-    if (q.includes('weather') || q.includes('metar') || q.includes('wind') || q.includes('temp') || q.includes('ceiling') || q.includes('visibility') || q.includes('rain') || q.includes('snow') || q.includes('cloud')) {
-        const metarText = document.getElementById('weather-text') ? document.getElementById('weather-text').textContent : '';
-        const metarCat = document.getElementById('weather-category') ? document.getElementById('weather-category').textContent : '';
-        const station = document.getElementById('weather-station') ? document.getElementById('weather-station').textContent : 'KVPZ';
-        
-        if (metarText && metarText !== 'Loading KVPZ weather logs...') {
-            return `<strong>KVPZ Weather Observation (${station}):</strong><br/>
-                    • Flight Category: <span class="badge ${metarCat.toLowerCase()}" style="display:inline-block; padding: 2px 6px; font-size: 0.65rem; font-weight: bold; border-radius: 4px;">${metarCat}</span><br/>
-                    • METAR Raw: <code>${metarText}</code><br/><br/>
-                    The current flight rules are <strong>${metarCat}</strong> based on latest observations.`;
-        } else {
-            return `I'm unable to retrieve the live weather right now. Weather station KVPZ is offline or loading.`;
-        }
-    }
-    
-    // 2. MILITARY FLIGHTS
-    if (q.includes('military') || q.includes('navy') || q.includes('air force') || q.includes('army') || q.includes('marines') || q.includes('combat') || q.includes('fighter') || q.includes('mil')) {
-        const milFlights = activeFlights.filter(ac => ac.categoryClass === 'military');
-        if (milFlights.length > 0) {
-            let list = milFlights.map(ac => `• <strong>${ac.callsign}</strong> (${ac.type}, Tail: ${ac.tail}) at ${ac.alt.toLocaleString()} FT, ${ac.dist.toFixed(1)} NM out, operator: ${ac.operator}`).join('<br/>');
-            return `<strong>Military Aircraft Spotted (${milFlights.length} active):</strong><br/>${list}`;
-        } else {
-            return `No military flights are currently detected within our tracking radius. I'll keep monitoring.`;
-        }
-    }
-    
-    // 3. HELICOPTERS
-    if (q.includes('helicopter') || q.includes('helo') || q.includes('copter') || q.includes('rotor')) {
-        const helos = activeFlights.filter(ac => ac.categoryClass === 'helicopter');
-        if (helos.length > 0) {
-            let list = helos.map(ac => `• <strong>${ac.callsign}</strong> (${ac.type}) at ${ac.alt.toLocaleString()} FT, ${ac.dist.toFixed(1)} NM away, operator: ${ac.operator}`).join('<br/>');
-            return `<strong>Helicopters Detected (${helos.length} active):</strong><br/>${list}`;
-        } else {
-            return `No helicopters are currently detected within range.`;
-        }
-    }
-    
-    // 4. BUSINESS JETS
-    if (q.includes('business') || q.includes('biz') || q.includes('gulfstream') || q.includes('citation') || q.includes('corporate') || q.includes('private jet')) {
-        const biz = activeFlights.filter(ac => ac.categoryClass === 'business-jet');
-        if (biz.length > 0) {
-            let list = biz.map(ac => `• <strong>${ac.callsign}</strong> (${ac.type}) at ${ac.alt.toLocaleString()} FT, ${ac.dist.toFixed(1)} NM away`).join('<br/>');
-            return `<strong>Business Jets Detected (${biz.length} active):</strong><br/>${list}`;
-        } else {
-            return `No corporate/business jets are currently active in our geofence.`;
-        }
-    }
-
-    // 5. COMMERCIAL JETS
-    if (q.includes('commercial') || q.includes('airline') || q.includes('airliner') || q.includes('boeing') || q.includes('airbus')) {
-        const comm = activeFlights.filter(ac => ac.categoryClass === 'commercial-jet');
-        if (comm.length > 0) {
-            let list = comm.map(ac => `• <strong>${ac.callsign}</strong> (${ac.type}, Operator: ${ac.operator}) at ${ac.alt.toLocaleString()} FT`).join('<br/>');
-            return `<strong>Commercial Jets Tracked (${comm.length} active):</strong><br/>${list}`;
-        } else {
-            return `No commercial airline flights are currently logged inside our bounds.`;
-        }
-    }
-    
-    // 6. SUMMARIZE ACTIVITY
-    if (q.includes('summarize') || q.includes('activity') || q.includes('traffic') || q.includes('log') || q.includes('stats') || q.includes('active') || q.includes('status')) {
-        const totalCount = activeFlights.length;
-        const totalArrivals = arrivalCount;
-        const totalDepartures = departureCount;
-        
-        let breakDown = {};
-        activeFlights.forEach(ac => {
-            const cls = catLabels[ac.categoryClass] || 'Other / Glider';
-            breakDown[cls] = (breakDown[cls] || 0) + 1;
-        });
-        
-        let breakdownStr = Object.entries(breakDown).map(([cat, val]) => `• ${cat}: ${val}`).join('<br/>');
-        let currentDetail = activeFlights.slice(0, 3).map(ac => `• <strong>${ac.callsign}</strong> (${catLabels[ac.categoryClass] || 'Other'}, ${ac.alt.toLocaleString()} FT, heading ${ac.heading}°)`).join('<br/>');
-        
-        return `<strong>KVPZ Traffic Summary:</strong><br/>
-                • Total Aircraft in Area: <strong>${totalCount}</strong><br/>
-                • Arrivals Logged Today: <strong>${totalArrivals}</strong><br/>
-                • Departures Logged Today: <strong>${totalDepartures}</strong><br/><br/>
-                <strong>Current Categories:</strong><br/>
-                ${breakdownStr || 'No active traffic.'}<br/><br/>
-                ${currentDetail ? `<strong>Active Air Traffic Snippet:</strong><br/>${currentDetail}` : ''}`;
-    }
-    
-    // 7. DEFAULT RESPONSE
-    return `I am your Gemini Co-Pilot for Porter County Regional Airport (KVPZ).<br/><br/>
-            I can answer questions based on real-time radar state and weather logs:<br/>
-            • <em>"What is the weather?"</em> (METAR & Flight rules)<br/>
-            • <em>"Summarize active traffic"</em> (Flight count & log counters)<br/>
-            • <em>"Are there any military flights?"</em> (Stealth target checks)<br/>
-            • <em>"Show helicopters"</em> (Rotary wing count)<br/><br/>
-            Try typing one of these questions!`;
+    container.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.4rem;">
+            <a href="https://www.google.com/search?q=${encodeURIComponent(cleanQuery)}" target="_blank" class="portal-link">
+                <i class="fa-brands fa-google"></i> Google Search: "${cleanQuery}"
+            </a>
+            <a href="https://registry.faa.gov/aircraftinquiry/Search/NNumberResult?nNumberTxt=${encodeURIComponent(faaTxt)}" target="_blank" class="portal-link">
+                <i class="fa-solid fa-building"></i> FAA Registry Lookup
+            </a>
+            <a href="https://www.flightaware.com/resources/registration/${encodeURIComponent(cleanQuery)}" target="_blank" class="portal-link">
+                <i class="fa-solid fa-plane-departure"></i> FlightAware Registry
+            </a>
+            <a href="https://www.flightradar24.com/data/aircraft/${encodeURIComponent(cleanQuery)}" target="_blank" class="portal-link">
+                <i class="fa-solid fa-clock-rotate-left"></i> Flightradar24 History
+            </a>
+        </div>
+    `;
 }
 
