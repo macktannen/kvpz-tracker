@@ -74,20 +74,39 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('toggle-med').checked = showMed;
     document.getElementById('toggle-high').checked = showHigh;
     
-    // Set initial active map style radio button
-    const savedStyle = safeGetItem('kvpz_map_base_layer', 'dark');
-    const activeRadio = document.getElementById(`style-${savedStyle}`);
-    if (activeRadio) {
-        activeRadio.checked = true;
-    }
-    
-    // Map Style radio change listeners
-    document.querySelectorAll('input[name="map-style"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                setBaseLayer(e.target.value);
-            }
+    // Set initial active map style tab
+    const savedStyle = safeGetItem('kvpz_map_base_layer', 'light');
+    document.querySelectorAll('.map-tab-btn').forEach(btn => {
+        if (btn.getAttribute('data-map') === savedStyle) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+        
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.map-tab-btn').forEach(b => b.classList.remove('active'));
+            const targetBtn = e.currentTarget;
+            targetBtn.classList.add('active');
+            
+            const mapStyle = targetBtn.getAttribute('data-map');
+            setBaseLayer(mapStyle);
+            
+            document.getElementById('map-settings-container').classList.remove('open');
         });
+    });
+    
+    // Map Settings Dropdown Toggle Listener
+    document.getElementById('settings-toggle-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('map-settings-container').classList.toggle('open');
+    });
+    
+    // Click outside to close dropdown
+    document.addEventListener('click', (e) => {
+        const container = document.getElementById('map-settings-container');
+        if (container && !container.contains(e.target)) {
+            container.classList.remove('open');
+        }
     });
     
     // Sync initial plane labels display state
@@ -263,9 +282,9 @@ function initMap() {
         "satellite": satellite
     };
 
-    // Retrieve saved base layer from memory (default to dark)
-    const savedStyle = safeGetItem('kvpz_map_base_layer', "dark");
-    const initialBaseLayer = baseTileLayers[savedStyle] || darkMatter;
+    // Retrieve saved base layer from memory (default to OpenStreetMap Light)
+    const savedStyle = safeGetItem('kvpz_map_base_layer', "light");
+    const initialBaseLayer = baseTileLayers[savedStyle] || osm;
 
     // Center map around KVPZ, adding selected base layer
     map = L.map('map', {

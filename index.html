@@ -120,6 +120,30 @@
             <!-- Map Container -->
             <section class="map-panel" id="map-panel-container">
                 <div id="map"></div>
+                
+                <!-- Map Style Settings Dropdown -->
+                <div class="map-settings-container" id="map-settings-container">
+                    <button class="settings-toggle-btn" id="settings-toggle-btn" title="Toggle Map Style">
+                        <i class="fa-solid fa-map"></i> <span>Map Style</span> <i class="fa-solid fa-chevron-down toggle-chevron"></i>
+                    </button>
+                    <div class="settings-dropdown" id="settings-dropdown">
+                        <div class="dropdown-tabs">
+                            <button class="map-tab-btn" data-map="light" title="OpenStreetMap (Light)">
+                                <i class="fa-solid fa-sun"></i> Light
+                            </button>
+                            <button class="map-tab-btn" data-map="dark" title="Dark Matter (Radar)">
+                                <i class="fa-solid fa-moon"></i> Dark
+                            </button>
+                            <button class="map-tab-btn" data-map="vector" title="Voyager (Vector)">
+                                <i class="fa-solid fa-route"></i> Vector
+                            </button>
+                            <button class="map-tab-btn" data-map="satellite" title="USGS Satellite">
+                                <i class="fa-solid fa-satellite"></i> Satellite
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="map-controls-panel" id="map-controls-panel">
                     <div class="controls-header" id="controls-header">
                         <h3><i class="fa-solid fa-sliders"></i> Map Filters</h3>
