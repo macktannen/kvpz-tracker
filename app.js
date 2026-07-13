@@ -297,12 +297,42 @@ function isTypeVisible(ac) {
 
 function getAircraftCategory(ac) {
     // 1. Military (check mil flag from feed)
-    if (ac.mil === 1 || ac.mil === true) return 'military';
+    if (ac.mil === 1 || ac.mil === true || ac.mil === '1' || String(ac.mil).toLowerCase() === 'true') {
+        return 'military';
+    }
 
+    const callsign = (ac.flight || ac.r || '').trim().toUpperCase();
+    const tail = (ac.r || '').trim().toUpperCase();
     const desc = (ac.desc || '').toLowerCase();
     const type = (ac.t || ac.type || '').toLowerCase();
     const cat = (ac.category || '');
     const op = (ac.ownOp || '').toLowerCase();
+
+    // 2. Identify military callsign patterns (common prefixes and names)
+    const milCallsignPrefixes = [
+        'RCH', 'PAT', 'VV', 'NAVY', 'ARMY', 'MC', 'USAF', 'USN', 'USMC', 
+        'GUARD', 'ANG', 'ADF', 'SPAR', 'RSC', 'SAM', 'MARNE', 'FORCE',
+        'EVAC', 'MEDEVAC', 'RESC', 'RESCUE', 'DUST', 'SHOC', 'VIPER',
+        'SABR', 'SABER', 'TALN', 'TALON', 'RHIN', 'RHINO', 'HAWK', 
+        'COBR', 'COBRA', 'WARN', 'WARG', 'HORNET', 'RAPTOR', 'C130',
+        'C17', 'KC13', 'KC10', 'KC46', 'T38', 'T6'
+    ];
+    
+    const isMilCallsign = milCallsignPrefixes.some(p => callsign.startsWith(p)) || 
+                          op.includes('military') || op.includes('navy') || 
+                          op.includes('air force') || op.includes('marines') || 
+                          op.includes('army') || op.includes('coast guard');
+
+    // 3. Identify military tail number pattern (purely numeric, no letters, at least 3 digits)
+    const cleanTail = tail.replace(/[\s\-\/]/g, '');
+    const isPurelyNumericTail = cleanTail.length >= 3 && /^\d+$/.test(cleanTail);
+
+    // 4. Combine callsign / tail heuristic
+    const isCallsignDiffFromTail = callsign.length > 0 && tail.length > 0 && callsign !== tail;
+    
+    if (isMilCallsign || (isPurelyNumericTail && isCallsignDiffFromTail)) {
+        return 'military';
+    }
     
     // 2. Helicopters
     const isHelo = desc.includes('helicopter') || desc.includes('rotorcraft') || desc.includes('copter') || 
