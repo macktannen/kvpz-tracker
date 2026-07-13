@@ -16,7 +16,7 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     
-    <link rel="stylesheet" href="style.css?v=9">
+    <link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
     <div class="app-container">
@@ -173,17 +173,17 @@
                 </div>
             </section>
 
-            <!-- Gemini Chat Panel -->
+            <!-- Google AI Search Panel -->
             <aside class="chat-panel" id="chat-panel">
                 <div class="chat-header">
-                    <h3><i class="fa-solid fa-brain"></i> Gemini Co-Pilot</h3>
+                    <h3><i class="fa-solid fa-magnifying-glass"></i> Google AI Search</h3>
                     <button class="chat-settings-btn" id="chat-settings-btn" title="API Settings"><i class="fa-solid fa-key"></i></button>
                 </div>
                 
                 <!-- API Key Configuration Area -->
                 <div class="chat-key-config" id="chat-key-config" style="display: none;">
                     <div style="display: flex; flex-direction: column; gap: 0.3rem;">
-                        <span style="font-size: 0.65rem; color: var(--color-text-muted);">Enter Gemini API Key (stored locally):</span>
+                        <span style="font-size: 0.65rem; color: var(--color-text-muted);">Enter Google AI Key (stored locally):</span>
                         <div style="display: flex; gap: 0.4rem;">
                             <input type="password" id="gemini-api-key" placeholder="Enter API Key (AIzaSy...)">
                             <button id="save-key-btn" class="settings-save-btn">Save</button>
@@ -191,18 +191,23 @@
                     </div>
                 </div>
 
-                <div class="chat-messages" id="chat-messages">
-                    <div class="chat-message bot">
-                        Hi! I'm Gemini, your KVPZ airfield co-pilot. 
-                        <br/><br/>
-                        Enter your <strong>Gemini API Key</strong> using the key icon (<i class="fa-solid fa-key"></i>) in the header to activate real-time FAA registry search, detailed aircraft profiling, and owner lookups.
-                        <br/><br/>
-                        Once unlocked, just search any tail number (e.g., <code>N500XP</code>) or ask me questions about active airport traffic!
-                    </div>
+                <div class="chat-input-area" style="border-bottom: 1px solid var(--border-color); border-top: none;">
+                    <input type="text" id="chat-input" placeholder="Enter Tail Number (e.g., N500XP)...">
+                    <button id="chat-send-btn" style="padding: 0.5rem 1rem;"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
                 </div>
-                <div class="chat-input-area">
-                    <input type="text" id="chat-input" placeholder="Search tail number or ask co-pilot...">
-                    <button id="chat-send-btn"><i class="fa-solid fa-paper-plane"></i></button>
+
+                <div class="chat-messages" id="chat-messages" style="background: rgba(10, 15, 30, 0.1);">
+                    <!-- Welcome view -->
+                    <div class="search-welcome" id="search-welcome" style="color: var(--color-text-muted); font-size: 0.72rem; padding: 2rem 1.5rem; text-align: center; display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1.5rem; align-items: center;">
+                        <i class="fa-solid fa-radar fa-3x" style="color: var(--accent-cyan); opacity: 0.8; margin-bottom: 0.5rem; animation: pulse 2s infinite;"></i>
+                        <strong>Welcome to Google AI Search</strong>
+                        <p style="margin: 0; line-height: 1.4;">Enter any aircraft tail number or flight callsign above to run a live AI search against global FAA registration databases and operator records.</p>
+                        <p style="margin: 0.8rem 0 0 0; font-size: 0.65rem; color: var(--accent-cyan);"><i class="fa-solid fa-key"></i> Please make sure to configure your Google AI API key first using the key settings icon above.</p>
+                    </div>
+                    <!-- Results area -->
+                    <div id="search-results-area" style="display: none; width: 100%;">
+                        <!-- Dynamic search results populated here -->
+                    </div>
                 </div>
             </aside>
 
@@ -258,6 +263,6 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="app.js?v=9"></script>
+    <script src="app.js?v=10"></script>
 </body>
 </html>

@@ -1037,6 +1037,66 @@ body {
     background: rgba(255, 255, 255, 0.25);
 }
 
+/* Google AI Search Card */
+.search-card {
+    background: rgba(31, 41, 55, 0.45);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.9rem 1.1rem;
+    color: var(--color-text);
+    font-size: 0.72rem;
+    line-height: 1.5;
+    border-left: 3px solid var(--accent-cyan);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    animation: fadeIn 0.4s ease-out;
+}
+
+.search-card h2, .search-card h3, .search-card h4 {
+    margin-top: 0.9rem;
+    margin-bottom: 0.4rem;
+    color: var(--accent-cyan);
+    font-size: 0.78rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 0.2rem;
+}
+
+.search-card h2:first-child, .search-card h3:first-child, .search-card h4:first-child {
+    margin-top: 0;
+}
+
+.search-card ul {
+    margin: 0.4rem 0 0.4rem 1.2rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.search-card p {
+    margin: 0.4rem 0;
+}
+
+.search-card code {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    color: var(--accent-cyan);
+}
+
+.search-card pre {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 0.5rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-family: monospace;
+    margin: 0.4rem 0;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
 .chat-message {
     max-width: 85%;
     padding: 0.6rem 0.8rem;

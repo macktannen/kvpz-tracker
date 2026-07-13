@@ -290,19 +290,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const keyVal = keyInput.value.trim();
             safeSetItem('gemini_api_key', keyVal);
             if (keyVal) {
-                appendChatMessage('system', 'Gemini API Key saved successfully.');
+                alert('Google AI API Key saved successfully.');
             } else {
-                appendChatMessage('system', 'Gemini API Key cleared.');
+                alert('Google AI API Key cleared.');
             }
             if (keyConfigArea) keyConfigArea.style.display = 'none';
         });
     }
 
     if (sendBtn && chatInput) {
-        sendBtn.addEventListener('click', submitChatMessage);
+        sendBtn.addEventListener('click', submitAISearch);
         chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                submitChatMessage();
+                submitAISearch();
             }
         });
     }
@@ -1445,68 +1445,70 @@ async function fetchDetailedTrace(hex) {
     return null;
 }
 
-// 11. Gemini Chat Co-Pilot Interface & Logic
-function appendChatMessage(sender, text) {
-    const container = document.getElementById('chat-messages');
-    if (!container) return;
-    
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `chat-message ${sender}`;
-    messageDiv.innerHTML = text;
-    container.appendChild(messageDiv);
-    
-    // Auto scroll to bottom
-    setTimeout(() => {
-        container.scrollTop = container.scrollHeight;
-    }, 30);
-}
-
-async function submitChatMessage() {
+// 11. Google AI Search Interface & Logic
+async function submitAISearch() {
     const input = document.getElementById('chat-input');
     if (!input) return;
     const text = input.value.trim();
     if (!text) return;
     
-    // 1. Append user message
-    appendChatMessage('user', text);
-    input.value = '';
+    const welcomeView = document.getElementById('search-welcome');
+    const resultsArea = document.getElementById('search-results-area');
     
-    // 2. Typing indicator
-    const container = document.getElementById('chat-messages');
-    const typingDiv = document.createElement('div');
-    typingDiv.className = 'chat-message bot typing';
-    typingDiv.id = 'chat-typing-indicator';
-    typingDiv.innerHTML = `<i class="fa-solid fa-ellipsis fa-fade"></i> Gemini is analyzing radar and registry logs...`;
-    if (container) {
-        container.appendChild(typingDiv);
-        container.scrollTop = container.scrollHeight;
+    // Hide welcome, show results, clear previous results
+    if (welcomeView) welcomeView.style.display = 'none';
+    if (resultsArea) {
+        resultsArea.style.display = 'block';
+        resultsArea.innerHTML = `
+            <div style="text-align: center; color: var(--color-text-muted); padding: 3rem 1rem;">
+                <i class="fa-solid fa-circle-notch fa-spin fa-2x" style="color: var(--accent-cyan); margin-bottom: 0.8rem;"></i>
+                <p style="margin: 0; font-size: 0.72rem;">Google AI is scanning flight registries...</p>
+            </div>
+        `;
     }
     
-    // 3. Check for API key
+    // Check for API key
     const apiKey = safeGetItem('gemini_api_key');
     if (!apiKey) {
         setTimeout(() => {
-            const indicator = document.getElementById('chat-typing-indicator');
-            if (indicator) indicator.remove();
-            appendChatMessage('bot', `⚠️ <strong>Gemini API Key Required:</strong><br/>To search tail numbers, trace registered owners, or ask general questions, please paste your Gemini API Key in the key settings menu (<i class="fa-solid fa-key"></i> icon in the chat header). You can obtain a free key from <a href="https://aistudio.google.com/" target="_blank" style="color:var(--accent-cyan); text-decoration:underline;">Google AI Studio</a>.`);
-        }, 600);
+            if (resultsArea) {
+                resultsArea.innerHTML = `
+                    <div class="search-card" style="border-left-color: #ef4444 !important;">
+                        <h3 style="color: #ef4444; border-bottom-color: rgba(239, 68, 68, 0.2);">⚠️ Google AI Key Required</h3>
+                        <p>To run live search queries, you must configure a Google AI / Gemini API Key.</p>
+                        <p>Click the key icon (<i class="fa-solid fa-key"></i>) in the header, paste your key, and click Save. You can get one for free at <a href="https://aistudio.google.com/" target="_blank" style="color: var(--accent-cyan); text-decoration: underline;">Google AI Studio</a>.</p>
+                    </div>
+                `;
+            }
+        }, 400);
         return;
     }
     
-    // 4. Query live Gemini
     try {
         const responseText = await queryLiveGemini(text, apiKey);
-        const indicator = document.getElementById('chat-typing-indicator');
-        if (indicator) indicator.remove();
-        appendChatMessage('bot', responseText);
+        if (resultsArea) {
+            resultsArea.innerHTML = `
+                <div class="search-card">
+                    <div style="font-size: 0.65rem; color: var(--accent-cyan); text-transform: uppercase; font-weight: bold; margin-bottom: 0.6rem; border-bottom: 1px solid rgba(6, 182, 212, 0.15); padding-bottom: 0.3rem; display: flex; justify-content: space-between;">
+                        <span>AI Search Query: "${text}"</span>
+                        <span>Source: Google AI</span>
+                    </div>
+                    ${responseText}
+                </div>
+            `;
+        }
     } catch (err) {
-        console.error("Gemini API Error:", err);
-        const indicator = document.getElementById('chat-typing-indicator');
-        if (indicator) indicator.remove();
-        
-        // Fallback to local radar state response if API fails
+        console.error("AI Search Error:", err);
         const fallbackResponse = generateCopilotResponse(text);
-        appendChatMessage('bot', `⚠️ <strong>API Request Failed:</strong> ${err.message || 'Could not connect'}. Using local radar stats fallback...<br/><br/>${fallbackResponse}`);
+        if (resultsArea) {
+            resultsArea.innerHTML = `
+                <div class="search-card" style="border-left-color: #f59e0b !important;">
+                    <h3 style="color: #f59e0b; border-bottom-color: rgba(245, 158, 11, 0.2);">⚠️ Live Search Connection Failed</h3>
+                    <p style="font-size: 0.7rem; color: var(--color-text-muted); margin-bottom: 0.8rem;">Error: ${err.message || 'Could not connect'}. Showing local radar database results instead.</p>
+                    ${fallbackResponse}
+                </div>
+            `;
+        }
     }
 }
 
