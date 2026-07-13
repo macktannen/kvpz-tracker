@@ -54,6 +54,12 @@ let showTrails = true;
 let showLow = true;
 let showMed = true;
 let showHigh = true;
+let showCommJet = true;
+let showAirplane = true;
+let showBizJet = true;
+let showHelo = true;
+let showMil = true;
+let showOther = true;
 let controlsCollapsed = false;
 let rangeRingLayers = []; // Stores range rings and labels
 
@@ -73,6 +79,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('toggle-low').checked = showLow;
     document.getElementById('toggle-med').checked = showMed;
     document.getElementById('toggle-high').checked = showHigh;
+    document.getElementById('filter-comm-jet').checked = showCommJet;
+    document.getElementById('filter-airplane').checked = showAirplane;
+    document.getElementById('filter-biz-jet').checked = showBizJet;
+    document.getElementById('filter-helo').checked = showHelo;
+    document.getElementById('filter-mil').checked = showMil;
+    document.getElementById('filter-other').checked = showOther;
     
     // Set initial active map style tab
     const savedStyle = safeGetItem('kvpz_map_base_layer', 'light');
@@ -216,15 +228,51 @@ document.addEventListener('DOMContentLoaded', () => {
         saveMapSettings();
         refreshAllAircraftLayers();
     });
+
+    document.getElementById('filter-comm-jet').addEventListener('change', (e) => {
+        showCommJet = e.target.checked;
+        saveMapSettings();
+        refreshAllAircraftLayers();
+    });
+
+    document.getElementById('filter-airplane').addEventListener('change', (e) => {
+        showAirplane = e.target.checked;
+        saveMapSettings();
+        refreshAllAircraftLayers();
+    });
+
+    document.getElementById('filter-biz-jet').addEventListener('change', (e) => {
+        showBizJet = e.target.checked;
+        saveMapSettings();
+        refreshAllAircraftLayers();
+    });
+
+    document.getElementById('filter-helo').addEventListener('change', (e) => {
+        showHelo = e.target.checked;
+        saveMapSettings();
+        refreshAllAircraftLayers();
+    });
+
+    document.getElementById('filter-mil').addEventListener('change', (e) => {
+        showMil = e.target.checked;
+        saveMapSettings();
+        refreshAllAircraftLayers();
+    });
+
+    document.getElementById('filter-other').addEventListener('change', (e) => {
+        showOther = e.target.checked;
+        saveMapSettings();
+        refreshAllAircraftLayers();
+    });
 });
 
 function refreshAllAircraftLayers() {
-    // Clear and redraw all markers based on new altitude toggles
+    // Clear and redraw all markers based on new altitude & type toggles
     Object.keys(aircraftCache).forEach(hex => {
         removeAircraftLayers(hex);
         const ac = aircraftCache[hex];
-        // Only redraw if altitude filter matches
-        if (ac && ac.lat && ac.lon && isAltitudeVisible(ac.alt)) {
+        // Only redraw if both altitude and type filters match
+        if (ac && ac.lat && ac.lon && isAltitudeVisible(ac.alt) && isTypeVisible(ac)) {
             updateMapMarker(ac);
         }
     });
@@ -235,6 +283,73 @@ function isAltitudeVisible(alt) {
     if (alt < 3000) return showLow;
     if (alt < 12000) return showMed;
     return showHigh;
+}
+
+function isTypeVisible(ac) {
+    const typeClass = ac.categoryClass || 'other';
+    if (typeClass === 'commercial-jet') return showCommJet;
+    if (typeClass === 'airplane') return showAirplane;
+    if (typeClass === 'business-jet') return showBizJet;
+    if (typeClass === 'helicopter') return showHelo;
+    if (typeClass === 'military') return showMil;
+    return showOther;
+}
+
+function getAircraftCategory(ac) {
+    // 1. Military (check mil flag from feed)
+    if (ac.mil === 1 || ac.mil === true) return 'military';
+
+    const desc = (ac.desc || '').toLowerCase();
+    const type = (ac.type || '').toLowerCase();
+    const cat = (ac.category || '');
+    const op = (ac.ownOp || '').toLowerCase();
+    
+    // 2. Helicopters
+    if (desc.includes('helicopter') || desc.includes('rotorcraft') || desc.includes('copter') || 
+        type.includes('h60') || type.includes('ec35') || cat === 'A7') {
+        return 'helicopter';
+    }
+
+    // 3. Business Jets (common corporate jet types and manufacturers)
+    const isBizJet = desc.includes('gulfstream') || desc.includes('citation') || 
+                     desc.includes('challenger') || desc.includes('falcon') || 
+                     desc.includes('learjet') || desc.includes('hawker') || 
+                     desc.includes('phenom') || desc.includes('global express') || 
+                     desc.includes('sovereign') || desc.includes('premier i') ||
+                     type.includes('cl30') || type.includes('cl60') || type.includes('glf') ||
+                     type.includes('c510') || type.includes('c525') || type.includes('c560') ||
+                     type.includes('c680') || type.includes('c750') || type.includes('lr35') ||
+                     type.includes('lr45') || type.includes('lr60') || type.includes('fa20') ||
+                     type.includes('fa50') || type.includes('e55p') || type.includes('e50p');
+    if (isBizJet) return 'business-jet';
+
+    // 4. Commercial Jets (large airline passenger/cargo jets)
+    const isCommJet = desc.includes('boeing') || desc.includes('airbus') || 
+                      desc.includes('embraer') || desc.includes('bombardier') ||
+                      desc.includes('md-8') || desc.includes('md-11') || desc.includes('dc-10') ||
+                      type.includes('b73') || type.includes('b74') || type.includes('b75') ||
+                      type.includes('b76') || type.includes('b77') || type.includes('b78') ||
+                      type.includes('a31') || type.includes('a32') || type.includes('a33') ||
+                      type.includes('a34') || type.includes('a35') || type.includes('a38') ||
+                      type.includes('crj') || type.includes('erj') ||
+                      op.includes('airline') || op.includes('airways') || op.includes('cargo') ||
+                      op.includes('delta') || op.includes('united') || op.includes('american') ||
+                      op.includes('southwest') || op.includes('fedex') || op.includes('ups');
+    if (isCommJet) return 'commercial-jet';
+
+    // 5. Airplane (general aviation, single/multi engine props, turboprops)
+    const isAirplane = desc.includes('single-engine') || desc.includes('multi-engine') ||
+                       desc.includes('cessna') || desc.includes('piper') || 
+                       desc.includes('beech') || desc.includes('cirrus') || 
+                       desc.includes('diamond') || desc.includes('mooney') ||
+                       desc.includes('prop') || desc.includes('piston') ||
+                       type.includes('c15') || type.includes('c17') || type.includes('c18') ||
+                       type.includes('c20') || type.includes('pa2') || type.includes('pa3') ||
+                       type.includes('pa4') || type.includes('be3') || type.includes('be5') ||
+                       type.includes('sr2');
+    if (isAirplane) return 'airplane';
+
+    return 'other';
 }
 
 // airfieldGroup visibility synced directly via listener
@@ -596,9 +711,10 @@ function processAircraft(aircraftList) {
         const dist = (lat && lon) ? getDistanceNM(lat, lon, KVPZ_COORDS[0], KVPZ_COORDS[1]) : 999.0;
         const operator = ac.ownOp || 'Private';
         const category = ac.category || '';
+        const categoryClass = getAircraftCategory(ac);
         
         const currentState = {
-            hex, callsign, tail, type, desc, alt, speed, vspeed, heading, dist, operator, lat, lon, category,
+            hex, callsign, tail, type, desc, alt, speed, vspeed, heading, dist, operator, lat, lon, category, categoryClass,
             lastSeen: now
         };
         
@@ -717,7 +833,7 @@ function processAircraft(aircraftList) {
         // Only draw if inside visible map bounds and matches altitude checkbox settings
         if (ac.lat && ac.lon) {
             const inBounds = map.getBounds().contains([ac.lat, ac.lon]);
-            if (inBounds && isAltitudeVisible(ac.alt)) {
+            if (inBounds && isAltitudeVisible(ac.alt) && isTypeVisible(ac)) {
                 updateMapMarker(ac);
             } else {
                 removeAircraftLayers(hex);
@@ -1032,6 +1148,10 @@ function updateUI() {
                               
         if (!matchesSearch) return false;
         
+        // Map visibility toggle filters (altitude & type)
+        if (!isAltitudeVisible(ac.alt)) return false;
+        if (!isTypeVisible(ac)) return false;
+        
         // Category Filter
         if (currentFilter === 'low') {
             return ac.alt < 3000;
@@ -1131,6 +1251,12 @@ function loadMapSettings() {
             showLow = settings.showLow !== undefined ? settings.showLow : true;
             showMed = settings.showMed !== undefined ? settings.showMed : true;
             showHigh = settings.showHigh !== undefined ? settings.showHigh : true;
+            showCommJet = settings.showCommJet !== undefined ? settings.showCommJet : true;
+            showAirplane = settings.showAirplane !== undefined ? settings.showAirplane : true;
+            showBizJet = settings.showBizJet !== undefined ? settings.showBizJet : true;
+            showHelo = settings.showHelo !== undefined ? settings.showHelo : true;
+            showMil = settings.showMil !== undefined ? settings.showMil : true;
+            showOther = settings.showOther !== undefined ? settings.showOther : true;
             controlsCollapsed = settings.controlsCollapsed !== undefined ? settings.controlsCollapsed : false;
         }
     } catch (e) {
@@ -1140,7 +1266,11 @@ function loadMapSettings() {
 
 function saveMapSettings() {
     try {
-        const settings = { showRings, showLabels, showTrails, showLow, showMed, showHigh, controlsCollapsed };
+        const settings = { 
+            showRings, showLabels, showTrails, showLow, showMed, showHigh, 
+            showCommJet, showAirplane, showBizJet, showHelo, showMil, showOther,
+            controlsCollapsed 
+        };
         safeSetItem('kvpz_map_settings', JSON.stringify(settings));
     } catch (e) {
         console.error("Error saving map settings to localStorage:", e);

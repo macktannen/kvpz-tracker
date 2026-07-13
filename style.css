@@ -519,8 +519,9 @@ body {
     gap: 0.5rem;
     margin-top: 0.4rem;
     transition: opacity 0.2s ease, max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-top 0.3s ease;
-    max-height: 450px;
-    overflow: hidden;
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 /* Collapsed State Styles */
@@ -534,6 +535,7 @@ body {
     opacity: 0;
     margin-top: 0;
     pointer-events: none;
+    overflow: hidden !important;
 }
 
 .map-controls-panel.collapsed .btn-toggle-controls {
