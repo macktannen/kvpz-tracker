@@ -1624,13 +1624,6 @@ async function updatePowerlines() {
     if (!map || !powerlineGroup) return;
     
     const zoom = map.getZoom();
-    // Do not load massive global powerline vectors when zoomed out (cap zoom level 12)
-    if (zoom < 12) {
-        powerlineGroup.clearLayers();
-        lastBboxStr = "";
-        return;
-    }
-    
     const bounds = map.getBounds();
     const south = bounds.getSouth().toFixed(4);
     const west = bounds.getWest().toFixed(4);
@@ -1641,7 +1634,16 @@ async function updatePowerlines() {
     if (bboxStr === lastBboxStr) return; // Map viewport did not change
     lastBboxStr = bboxStr;
     
-    const overpassQuery = `[out:json][timeout:15];(way["power"="line"](${bboxStr});way["power"="minor_line"](${bboxStr}););out geom;`;
+    // Build query to strictly pull powerlines inside the state of Indiana area intersecting the viewport
+    let overpassQuery;
+    if (zoom >= 13) {
+        // Pull major and minor lines inside Indiana when zoomed in close
+        overpassQuery = `[out:json][timeout:25];area["ISO3166-2"="US-IN"]->.indiana;(way["power"="line"](area.indiana)(${bboxStr});way["power"="minor_line"](area.indiana)(${bboxStr}););out geom;`;
+    } else {
+        // Only pull major transmission lines inside Indiana when zoomed out to prevent payload lag
+        overpassQuery = `[out:json][timeout:25];area["ISO3166-2"="US-IN"]->.indiana;(way["power"="line"](area.indiana)(${bboxStr}););out geom;`;
+    }
+    
     const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`;
     
     try {
@@ -1652,11 +1654,36 @@ async function updatePowerlines() {
         // Clear old powerline paths
         powerlineGroup.clearLayers();
         
+        let activeCount = 0;
+        let skippedCount = 0;
+        
         if (data && Array.isArray(data.elements)) {
             data.elements.forEach(el => {
                 if (el.type === 'way' && Array.isArray(el.geometry)) {
-                    const latlngs = el.geometry.map(pt => [pt.lat, pt.lon]);
                     const tags = el.tags || {};
+                    
+                    // Do not pull power lines that are labeled for Duke and AEP (or subsidiaries)
+                    const operator = (tags.operator || '').toLowerCase();
+                    const owner = (tags.owner || '').toLowerCase();
+                    const name = (tags.name || '').toLowerCase();
+                    
+                    const skipKeywords = [
+                        'duke', 'aep', 'american electric power', 
+                        'indiana michigan power', 'indiana & michigan', 
+                        'indiana michigan', 'i&m'
+                    ];
+                    
+                    const shouldSkip = skipKeywords.some(kw => 
+                        operator.includes(kw) || owner.includes(kw) || name.includes(kw)
+                    );
+                    
+                    if (shouldSkip) {
+                        skippedCount++;
+                        return;
+                    }
+                    
+                    activeCount++;
+                    const latlngs = el.geometry.map(pt => [pt.lat, pt.lon]);
                     
                     // Double-stroke neon glow technique
                     // 1. Semi-transparent thick background pink line for glow
@@ -1684,10 +1711,16 @@ async function updatePowerlines() {
                     } else if (tags.cables) {
                         tooltipContent = `Power Line (${tags.cables} cables)`;
                     }
+                    
+                    if (tags.operator) {
+                        tooltipContent += ` - ${tags.operator}`;
+                    }
+                    
                     mainLine.bindTooltip(tooltipContent, { sticky: true });
                 }
             });
         }
+        console.log(`OSM Powerlines Loaded: ${activeCount} active, ${skippedCount} skipped (Duke/AEP exclusion)`);
     } catch (error) {
         console.warn("Error fetching OSM powerline data from Overpass API:", error);
     }
