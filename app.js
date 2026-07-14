@@ -726,55 +726,26 @@ async function fetchAircraftData() {
         const lonStr = center.lng.toFixed(4);
         
         const urlAirplanesLive = `https://api.airplanes.live/v2/point/${latStr}/${lonStr}/${radiusNM}`;
-        const urlAdsbOne = `https://api.adsb.one/v2/point/${latStr}/${lonStr}/${radiusNM}`;
-        const urlAdsbLol = `https://api.adsb.lol/v2/point/${latStr}/${lonStr}/${radiusNM}`;
-        const urlAdsbFi = `https://api.adsb.fi/v2/point/${latStr}/${lonStr}/${radiusNM}`;
         
-        // Fetch from all four community sources in parallel
-        const results = await Promise.allSettled([
-            fetch(urlAirplanesLive).then(r => { if (!r.ok) throw r; return r.json(); }),
-            fetch(urlAdsbOne).then(r => { if (!r.ok) throw r; return r.json(); }),
-            fetch(urlAdsbLol).then(r => { if (!r.ok) throw r; return r.json(); }),
-            fetch(urlAdsbFi).then(r => { if (!r.ok) throw r; return r.json(); })
-        ]);
+        const response = await fetch(urlAirplanesLive);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
         
         let mergedAircraft = {};
-        let successCount = 0;
-        const feedNames = ["Airplanes.live", "ADSB.one", "ADS-B.lol", "ADS-B.fi"];
-        let activeFeeds = [];
-        
-        results.forEach((res, index) => {
-            if (res.status === 'fulfilled' && res.value && Array.isArray(res.value.ac)) {
-                successCount++;
-                activeFeeds.push(feedNames[index]);
-                res.value.ac.forEach(ac => {
-                    if (ac.hex) {
-                        // Merge by hex. Keep the one with callsign or coords if conflicting
-                        const existing = mergedAircraft[ac.hex];
-                        if (!existing || (!existing.flight && ac.flight) || (!existing.lat && ac.lat)) {
-                            mergedAircraft[ac.hex] = ac;
-                        }
-                    }
-                });
-            } else {
-                console.warn(`Feed ${feedNames[index]} failed:`, res.reason);
-            }
-        });
-        
-        if (successCount === 0) {
-            throw new Error('All redundant tracking feeds failed.');
+        if (data && Array.isArray(data.ac)) {
+            data.ac.forEach(ac => {
+                if (ac.hex) {
+                    mergedAircraft[ac.hex] = ac;
+                }
+            });
         }
         
         const mergedList = Object.values(mergedAircraft);
         
         pulseIndicator.className = "pulse-indicator status-live";
-        let sourcesText = "Active Feeds";
-        if (successCount === 4) {
-            sourcesText = "Quad Feeds Active";
-        } else if (successCount > 0) {
-            sourcesText = `${successCount} Feeds Active (${activeFeeds.join(', ')})`;
-        }
-        statusText.textContent = `${sourcesText} (${radiusNM} NM Coverage) • Updated ${new Date().toLocaleTimeString([], {hour12:false})}`;
+        statusText.textContent = `Airplanes.live Active (${radiusNM} NM Coverage) • Updated ${new Date().toLocaleTimeString([], {hour12:false})}`;
         
         processAircraft(mergedList);
         
@@ -1576,18 +1547,15 @@ function saveMapSettings() {
 // Online Flight Track History (Trace) Fetcher
 async function fetchDetailedTrace(hex) {
     const urlAirplanesLive = `https://api.airplanes.live/v2/trace/${hex}`;
-    const urlAdsbOne = `https://api.adsb.one/v2/trace/${hex}`;
     
     try {
-        // Run fetches in parallel and race them to load as fast as possible
-        const res = await Promise.any([
-            fetch(urlAirplanesLive).then(r => { if (!r.ok) throw r; return r.json(); }),
-            fetch(urlAdsbOne).then(r => { if (!r.ok) throw r; return r.json(); })
-        ]);
+        const response = await fetch(urlAirplanesLive);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
         
-        if (res && Array.isArray(res.trace)) {
+        if (data && Array.isArray(data.trace)) {
             // readsb trace array format: [seconds_offset, lat, lon, alt, speed, heading, flags]
-            const path = res.trace
+            const path = data.trace
                 .filter(pt => pt[1] && pt[2])
                 .map(pt => [pt[1], pt[2]]);
             return path;
