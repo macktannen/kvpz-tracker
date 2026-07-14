@@ -53,6 +53,7 @@ let transitCount = 0;
 let showRings = true;
 let showLabels = true;
 let showTrails = true;
+let showPowerlines = true;
 let showLow = true;
 let showMed = true;
 let showHigh = true;
@@ -78,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('toggle-rings').checked = showRings;
     document.getElementById('toggle-labels').checked = showLabels;
     document.getElementById('toggle-trails').checked = showTrails;
+    document.getElementById('toggle-powerlines').checked = showPowerlines;
     document.getElementById('toggle-low').checked = showLow;
     document.getElementById('toggle-med').checked = showMed;
     document.getElementById('toggle-high').checked = showHigh;
@@ -211,6 +213,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const ac = aircraftCache[hex];
             if (ac) updateMapMarker(ac);
         });
+    });
+    
+    document.getElementById('toggle-powerlines').addEventListener('change', (e) => {
+        showPowerlines = e.target.checked;
+        saveMapSettings();
+        if (showPowerlines) {
+            updatePowerlines();
+        } else {
+            if (powerlineGroup) {
+                powerlineGroup.clearLayers();
+            }
+            lastBboxStr = "";
+        }
     });
     
     document.getElementById('toggle-low').addEventListener('change', (e) => {
@@ -1508,6 +1523,7 @@ function loadMapSettings() {
             showRings = settings.showRings !== undefined ? settings.showRings : true;
             showLabels = settings.showLabels !== undefined ? settings.showLabels : true;
             showTrails = settings.showTrails !== undefined ? settings.showTrails : true;
+            showPowerlines = settings.showPowerlines !== undefined ? settings.showPowerlines : true;
             showLow = settings.showLow !== undefined ? settings.showLow : true;
             showMed = settings.showMed !== undefined ? settings.showMed : true;
             showHigh = settings.showHigh !== undefined ? settings.showHigh : true;
@@ -1527,7 +1543,7 @@ function loadMapSettings() {
 function saveMapSettings() {
     try {
         const settings = { 
-            showRings, showLabels, showTrails, showLow, showMed, showHigh, 
+            showRings, showLabels, showTrails, showPowerlines, showLow, showMed, showHigh, 
             showCommJet, showAirplane, showBizJet, showHelo, showMil, showOther,
             controlsCollapsed 
         };
@@ -1622,6 +1638,12 @@ function initPowerlines() {
 
 async function updatePowerlines() {
     if (!map || !powerlineGroup) return;
+    
+    if (!showPowerlines) {
+        powerlineGroup.clearLayers();
+        lastBboxStr = "";
+        return;
+    }
     
     const zoom = map.getZoom();
     const bounds = map.getBounds();
