@@ -727,19 +727,26 @@ async function fetchAircraftData() {
         
         const urlAirplanesLive = `https://api.airplanes.live/v2/point/${latStr}/${lonStr}/${radiusNM}`;
         const urlAdsbOne = `https://api.adsb.one/v2/point/${latStr}/${lonStr}/${radiusNM}`;
+        const urlAdsbLol = `https://api.adsb.lol/v2/point/${latStr}/${lonStr}/${radiusNM}`;
+        const urlAdsbFi = `https://api.adsb.fi/v2/point/${latStr}/${lonStr}/${radiusNM}`;
         
-        // Fetch from both sources in parallel
+        // Fetch from all four community sources in parallel
         const results = await Promise.allSettled([
             fetch(urlAirplanesLive).then(r => { if (!r.ok) throw r; return r.json(); }),
-            fetch(urlAdsbOne).then(r => { if (!r.ok) throw r; return r.json(); })
+            fetch(urlAdsbOne).then(r => { if (!r.ok) throw r; return r.json(); }),
+            fetch(urlAdsbLol).then(r => { if (!r.ok) throw r; return r.json(); }),
+            fetch(urlAdsbFi).then(r => { if (!r.ok) throw r; return r.json(); })
         ]);
         
         let mergedAircraft = {};
         let successCount = 0;
+        const feedNames = ["Airplanes.live", "ADSB.one", "ADS-B.lol", "ADS-B.fi"];
+        let activeFeeds = [];
         
         results.forEach((res, index) => {
             if (res.status === 'fulfilled' && res.value && Array.isArray(res.value.ac)) {
                 successCount++;
+                activeFeeds.push(feedNames[index]);
                 res.value.ac.forEach(ac => {
                     if (ac.hex) {
                         // Merge by hex. Keep the one with callsign or coords if conflicting
@@ -750,7 +757,7 @@ async function fetchAircraftData() {
                     }
                 });
             } else {
-                console.warn(`Feed ${index === 0 ? 'Airplanes.live' : 'ADSB.one'} failed:`, res.reason);
+                console.warn(`Feed ${feedNames[index]} failed:`, res.reason);
             }
         });
         
@@ -761,8 +768,13 @@ async function fetchAircraftData() {
         const mergedList = Object.values(mergedAircraft);
         
         pulseIndicator.className = "pulse-indicator status-live";
-        const sourcesText = successCount === 2 ? "Dual Feeds Active" : (results[0].status === 'fulfilled' ? "Airplanes.live Active" : "ADSB.one Active");
-        statusText.textContent = `${sourcesText} (${radiusNM} NM Coverage) &bull; Updated ${new Date().toLocaleTimeString([], {hour12:false})}`;
+        let sourcesText = "Active Feeds";
+        if (successCount === 4) {
+            sourcesText = "Quad Feeds Active";
+        } else if (successCount > 0) {
+            sourcesText = `${successCount} Feeds Active (${activeFeeds.join(', ')})`;
+        }
+        statusText.textContent = `${sourcesText} (${radiusNM} NM Coverage) • Updated ${new Date().toLocaleTimeString([], {hour12:false})}`;
         
         processAircraft(mergedList);
         
