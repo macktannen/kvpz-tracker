@@ -43,6 +43,8 @@ let selectedHex = null;
 let currentFilter = 'all';
 let searchFilter = '';
 let operationsLog = [];
+let powerlineGroup = null;
+let lastBboxStr = "";
 let arrivalCount = 0;
 let departureCount = 0;
 let transitCount = 0;
@@ -555,6 +557,8 @@ function initMap() {
     map.on('moveend', () => {
         fetchAircraftData();
     });
+    
+    initPowerlines();
 }
 
 // Set base map layer programmatically
@@ -1601,5 +1605,91 @@ function updateSearchPortalLinks(query) {
             </a>
         </div>
     `;
+}
+
+// 12. OSM Powerlines Renderer (Overpass API)
+function initPowerlines() {
+    powerlineGroup = L.layerGroup().addTo(map);
+    
+    // Refresh powerlines whenever map movement finishes
+    map.on('moveend', () => {
+        updatePowerlines();
+    });
+    
+    // Initial load
+    updatePowerlines();
+}
+
+async function updatePowerlines() {
+    if (!map || !powerlineGroup) return;
+    
+    const zoom = map.getZoom();
+    // Do not load massive global powerline vectors when zoomed out (cap zoom level 12)
+    if (zoom < 12) {
+        powerlineGroup.clearLayers();
+        lastBboxStr = "";
+        return;
+    }
+    
+    const bounds = map.getBounds();
+    const south = bounds.getSouth().toFixed(4);
+    const west = bounds.getWest().toFixed(4);
+    const north = bounds.getNorth().toFixed(4);
+    const east = bounds.getEast().toFixed(4);
+    
+    const bboxStr = `${south},${west},${north},${east}`;
+    if (bboxStr === lastBboxStr) return; // Map viewport did not change
+    lastBboxStr = bboxStr;
+    
+    const overpassQuery = `[out:json][timeout:15];(way["power"="line"](${bboxStr});way["power"="minor_line"](${bboxStr}););out geom;`;
+    const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`;
+    
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        
+        // Clear old powerline paths
+        powerlineGroup.clearLayers();
+        
+        if (data && Array.isArray(data.elements)) {
+            data.elements.forEach(el => {
+                if (el.type === 'way' && Array.isArray(el.geometry)) {
+                    const latlngs = el.geometry.map(pt => [pt.lat, pt.lon]);
+                    const tags = el.tags || {};
+                    
+                    // Double-stroke neon glow technique
+                    // 1. Semi-transparent thick background pink line for glow
+                    L.polyline(latlngs, {
+                        color: '#ff007f',
+                        weight: 6,
+                        opacity: 0.35,
+                        dashArray: 'none',
+                        interactive: false
+                    }).addTo(powerlineGroup);
+                    
+                    // 2. High-brightness thin solid pink line on top
+                    const mainLine = L.polyline(latlngs, {
+                        color: '#ff1493', // Deep Pink / Highlighter Pink
+                        weight: 2.2,
+                        opacity: 0.95,
+                        dashArray: 'none'
+                    }).addTo(powerlineGroup);
+                    
+                    // Add tooltips with power line attributes if present
+                    let tooltipContent = 'Power Line';
+                    if (tags.voltage) {
+                        const kv = parseInt(tags.voltage) / 1000;
+                        tooltipContent = `Transmission Line (${kv} kV)`;
+                    } else if (tags.cables) {
+                        tooltipContent = `Power Line (${tags.cables} cables)`;
+                    }
+                    mainLine.bindTooltip(tooltipContent, { sticky: true });
+                }
+            });
+        }
+    } catch (error) {
+        console.warn("Error fetching OSM powerline data from Overpass API:", error);
+    }
 }
 
