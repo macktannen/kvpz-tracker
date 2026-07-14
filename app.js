@@ -931,26 +931,15 @@ function removeAircraftLayers(hex) {
 
 // 6. Map Marker Graphics & Rotation
 function updateMapMarker(ac) {
-    // Choose color based on altitude: Green below 3k, gradated by 1,000 feet steps above 3k
-    let color = '#10b981'; // Green (Below 3k)
-    if (ac.alt >= 3000) {
-        const step = Math.floor((ac.alt - 3000) / 1000);
-        const gradations = [
-            '#eab308', // 3,000 - 4,000 FT (Yellow)
-            '#f97316', // 4,000 - 5,000 FT (Orange)
-            '#f43f5e', // 5,000 - 6,000 FT (Rose)
-            '#ef4444', // 6,000 - 7,000 FT (Red)
-            '#d946ef', // 7,000 - 8,000 FT (Fuchsia)
-            '#a855f7', // 8,000 - 9,000 FT (Purple)
-            '#8b5cf6', // 9,000 - 10,000 FT (Violet)
-            '#6366f1', // 10,000 - 11,000 FT (Indigo)
-            '#3b82f6', // 11,000 - 12,000 FT (Blue)
-            '#0ea5e9', // 12,000 - 13,000 FT (Sky Blue)
-            '#06b6d4', // 13,000 - 14,000 FT (Cyan)
-            '#14b8a6', // 14,000 - 15,000 FT (Teal)
-        ];
-        color = gradations[Math.min(step, gradations.length - 1)];
-    }
+    // Choose color based on altitude: gradated by 1,000 feet steps from ground (0 FT) all the way up to 60,000 FT
+    const clampedAlt = Math.max(0, Math.min(60000, ac.alt));
+    const step = Math.floor(clampedAlt / 1000); // 0 to 60
+    
+    // Calculate hue: start at 140 (emerald green) and descend by 5 degrees per 1,000 ft (covering 300 degrees down to 200/sky blue)
+    let hue = (140 - step * 5) % 360;
+    if (hue < 0) hue += 360;
+    
+    const color = `hsl(${hue}, 85%, 50%)`;
     
     // Determine aircraft type icon from precomputed categoryClass
     const iconType = ac.categoryClass || 'other';
