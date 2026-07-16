@@ -1423,52 +1423,105 @@ async function fetchMissingAircraftInfo(hex, ac) {
         return;
     }
     
-    // 2. Fetch from HexDB if not cached
+    // Mark as searching for the UI status icon
+    ac._isSearching = true;
+    updateUI();
+    
+    let updated = false;
+    let finalTail = '';
+    let finalType = '';
+    let finalDesc = '';
+    let finalOperator = '';
+    
+    // Helper to apply findings
+    const applyFindings = () => {
+        if ((!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '') && finalType) {
+            ac.type = finalType;
+            updated = true;
+        }
+        if ((!ac.desc || ac.desc === 'N/A' || ac.desc === 'Unknown' || ac.desc === '') && finalDesc) {
+            ac.desc = finalDesc;
+            updated = true;
+        }
+        if ((!ac.operator || ac.operator === 'N/A' || ac.operator === 'Unknown' || ac.operator === '') && finalOperator) {
+            ac.operator = finalOperator;
+            updated = true;
+        }
+        if ((!ac.tail || ac.tail === 'N/A' || ac.tail === 'Unknown' || ac.tail === '') && finalTail) {
+            ac.tail = finalTail;
+            updated = true;
+        }
+    };
+    
+    // 2. Fetch from HexDB first
     try {
         const response = await fetch(`https://hexdb.io/api/v1/aircraft/${hexKey}`);
-        if (!response.ok) return;
-        const data = await response.json();
-        
-        if (data && !data.error && data.status !== "404") {
-            let updated = false;
-            
-            // Fill missing Type
-            if ((!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '') && data.ICAOTypeCode) {
-                ac.type = data.ICAOTypeCode;
-                updated = true;
-            }
-            // Fill missing Description
-            if ((!ac.desc || ac.desc === 'N/A' || ac.desc === 'Unknown' || ac.desc === '') && data.Type) {
-                ac.desc = data.Manufacturer ? `${data.Manufacturer} ${data.Type}` : data.Type;
-                updated = true;
-            }
-            // Fill missing Operator
-            if ((!ac.operator || ac.operator === 'N/A' || ac.operator === 'Unknown' || ac.operator === '') && data.OperatorFlagCode) {
-                ac.operator = data.OperatorFlagCode;
-                updated = true;
-            }
-            // Fill missing Tail
-            if ((!ac.tail || ac.tail === 'N/A' || ac.tail === 'Unknown' || ac.tail === '') && data.Registration) {
-                ac.tail = data.Registration;
-                updated = true;
-            }
-            
-            if (updated) {
-                // Save to local cache
-                aircraftInfoDb[hexKey] = {
-                    type: data.ICAOTypeCode || '',
-                    desc: data.Manufacturer ? `${data.Manufacturer} ${data.Type}` : (data.Type || ''),
-                    operator: data.OperatorFlagCode || '',
-                    tail: data.Registration || ''
-                };
-                saveAircraftDb();
-                
-                updateUI(); // Real-time block update
+        if (response.ok) {
+            const data = await response.json();
+            if (data && !data.error && data.status !== "404") {
+                finalType = data.ICAOTypeCode || '';
+                finalDesc = data.Manufacturer ? `${data.Manufacturer} ${data.Type}` : (data.Type || '');
+                finalOperator = data.OperatorFlagCode || '';
+                finalTail = data.Registration || '';
+                applyFindings();
             }
         }
-    } catch (e) {
-        console.warn("Internet search lookup failed for", hex, e);
+    } catch (e) {}
+    
+    // 3. Fallback to Planespotters API if still missing data
+    if (!updated) {
+        try {
+            const psResponse = await fetch(`https://api.planespotters.net/pub/photos/hex/${hexKey}`);
+            if (psResponse.ok) {
+                const psData = await psResponse.json();
+                if (psData && psData.photos && psData.photos.length > 0 && psData.photos[0].profile) {
+                    const prof = psData.photos[0].profile;
+                    finalTail = prof.registration || finalTail;
+                    finalDesc = prof.type || finalDesc;
+                    finalType = prof.type ? prof.type.substring(0, 4) : finalType; // Approx ICAO
+                    finalOperator = prof.airline || finalOperator;
+                    applyFindings();
+                }
+            }
+        } catch(e) {}
     }
+    
+    // 4. Fallback to scraping a simple Google/DuckDuckGo search via CORS proxy
+    if (!updated && (ac.tail && ac.tail !== 'N/A' && ac.tail !== 'Unknown')) {
+        try {
+            const query = encodeURIComponent(`aircraft ${ac.tail}`);
+            const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent('https://lite.duckduckgo.com/lite/?q=' + query)}`;
+            const ddgRes = await fetch(proxyUrl);
+            if (ddgRes.ok) {
+                const html = await ddgRes.text();
+                // Simple naive extraction: look for the first search result snippet
+                const snippetMatch = html.match(/<td class='result-snippet'>([\s\S]*?)<\/td>/i);
+                if (snippetMatch) {
+                    const snippet = snippetMatch[1].replace(/<[^>]+>/g, '').trim();
+                    if (!ac.desc || ac.desc === 'N/A') {
+                        finalDesc = snippet.length > 40 ? snippet.substring(0, 37) + '...' : snippet;
+                        applyFindings();
+                    }
+                }
+            }
+        } catch(e) {}
+    }
+    
+    // Finalize
+    ac._isSearching = false;
+    
+    if (updated) {
+        // Save to local cache
+        aircraftInfoDb[hexKey] = {
+            type: ac.type,
+            desc: ac.desc,
+            operator: ac.operator,
+            tail: ac.tail
+        };
+        saveAircraftDb();
+    }
+    
+    updateUI(); // Real-time block update
 }
 
 function updateUI() {
@@ -1540,8 +1593,10 @@ function updateUI() {
         
         const vspeedText = ac.vspeed > 0 ? `+${ac.vspeed}` : ac.vspeed;
         
+        const spinnerHtml = ac._isSearching ? `<i class="fa-solid fa-spinner fa-spin" style="color: #60a5fa; margin-right: 6px;" title="Searching internet for missing info..."></i>` : '';
+        
         tr.innerHTML = `
-            <td><strong>${ac.callsign}</strong></td>
+            <td>${spinnerHtml}<strong>${ac.callsign}</strong></td>
             <td>${ac.tail}</td>
             <td>${ac.hex.toUpperCase()}</td>
             <td>${ac.type}</td>
