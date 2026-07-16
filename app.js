@@ -1610,14 +1610,6 @@ function updateUI() {
     let selectedRow = null;
     
     filteredAircraft.forEach(ac => {
-        // Trigger background internet search if mission info is missing
-        if (!ac._infoRequested && 
-            (!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '' ||
-             !ac.operator || ac.operator === 'N/A' || ac.operator === 'Unknown' || ac.operator === '' ||
-             !ac.desc || ac.desc === 'N/A' || ac.desc === 'Unknown' || ac.desc === '')) {
-            fetchMissingAircraftInfo(ac.hex, ac);
-        }
-        
         const tr = document.createElement('tr');
         if (selectedHex === ac.hex) {
             tr.className = 'selected';
@@ -1626,6 +1618,14 @@ function updateUI() {
         
         tr.addEventListener('click', () => {
             selectAircraft(ac.hex);
+            
+            // Trigger background internet search ONLY on click if mission info is missing
+            if (!ac._infoRequested && 
+                (!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '' ||
+                 !ac.operator || ac.operator === 'N/A' || ac.operator === 'Unknown' || ac.operator === '' ||
+                 !ac.desc || ac.desc === 'N/A' || ac.desc === 'Unknown' || ac.desc === '')) {
+                fetchMissingAircraftInfo(ac.hex, ac);
+            }
         });
         
         const vspeedText = ac.vspeed > 0 ? `+${ac.vspeed}` : ac.vspeed;
