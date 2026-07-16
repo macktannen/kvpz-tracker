@@ -1575,19 +1575,22 @@ async function fetchMissingAircraftInfo(hex) {
     
         // 3. Google Gemini AI Query (If API Key is available)
         const currentLiveAc = aircraftCache[hexKey] || {};
-        const searchParam = (currentLiveAc.tail && currentLiveAc.tail !== 'N/A' && currentLiveAc.tail !== 'Unknown') ? currentLiveAc.tail : (currentLiveAc.callsign && currentLiveAc.callsign.trim());
+        const acTail = (currentLiveAc.tail && currentLiveAc.tail !== 'N/A' && currentLiveAc.tail !== 'Unknown') ? currentLiveAc.tail : '';
+        const acCall = (currentLiveAc.callsign && currentLiveAc.callsign.trim() !== '') ? currentLiveAc.callsign.trim() : '';
+        const searchParam = `${acTail} ${acCall}`.trim();
         
         if (!updated && searchParam && geminiApiKey) {
             try {
                 console.log(`[Aircraft Search] Querying Gemini AI for ${searchParam}...`);
-                const prompt = `Identify aircraft tail number or callsign: ${searchParam}. Return ONLY a raw JSON object with keys 'type' (the 4-letter ICAO type designator) and 'desc' (the full manufacturer and model name). If unknown, do your best guess based on standard aviation registries. Do not wrap in markdown code blocks. Just the raw JSON.`;
+                const prompt = `Identify aircraft by tail number and/or callsign: "${searchParam}". Use Google Search to find real-time registry information if needed. Return ONLY a raw JSON object with keys 'type' (the 4-letter ICAO type designator) and 'desc' (the full manufacturer and model name). If unknown, do your best guess based on standard aviation registries. Do not wrap in markdown code blocks. Just the raw JSON.`;
                 
                 const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
                 const aiRes = await fetch(geminiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }]
+                        contents: [{ parts: [{ text: prompt }] }],
+                        tools: [{ googleSearch: {} }]
                     })
                 });
                 
