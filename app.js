@@ -1395,9 +1395,11 @@ async function fetchMissingAircraftInfo(hex, ac) {
     ac._infoRequested = true;
     
     const hexKey = hex.toLowerCase();
+    console.log(`[Aircraft Search] Starting background lookup for ${hexKey}...`);
     
     // 1. Check local cache first
     if (aircraftInfoDb[hexKey]) {
+        console.log(`[Aircraft Search] Found cached data for ${hexKey}`);
         let updatedFromCache = false;
         const cached = aircraftInfoDb[hexKey];
         if ((!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '') && cached.type) {
@@ -1455,58 +1457,77 @@ async function fetchMissingAircraftInfo(hex, ac) {
     
     // 2. Fetch from HexDB first
     try {
+        console.log(`[Aircraft Search] Querying HexDB for ${hexKey}...`);
         const response = await fetch(`https://hexdb.io/api/v1/aircraft/${hexKey}`);
         if (response.ok) {
             const data = await response.json();
             if (data && !data.error && data.status !== "404") {
+                console.log(`[Aircraft Search] HexDB success for ${hexKey}`, data);
                 finalType = data.ICAOTypeCode || '';
                 finalDesc = data.Manufacturer ? `${data.Manufacturer} ${data.Type}` : (data.Type || '');
                 finalOperator = data.OperatorFlagCode || '';
                 finalTail = data.Registration || '';
                 applyFindings();
+            } else {
+                console.log(`[Aircraft Search] HexDB returned no data for ${hexKey}`);
             }
         }
-    } catch (e) {}
+    } catch (e) {
+        console.log(`[Aircraft Search] HexDB fetch failed for ${hexKey}`, e);
+    }
     
     // 3. Fallback to Planespotters API if still missing data
     if (!updated) {
         try {
+            console.log(`[Aircraft Search] Querying Planespotters for ${hexKey}...`);
             const psResponse = await fetch(`https://api.planespotters.net/pub/photos/hex/${hexKey}`);
             if (psResponse.ok) {
                 const psData = await psResponse.json();
                 if (psData && psData.photos && psData.photos.length > 0 && psData.photos[0].profile) {
+                    console.log(`[Aircraft Search] Planespotters success for ${hexKey}`, psData.photos[0].profile);
                     const prof = psData.photos[0].profile;
                     finalTail = prof.registration || finalTail;
                     finalDesc = prof.type || finalDesc;
                     finalType = prof.type ? prof.type.substring(0, 4) : finalType; // Approx ICAO
                     finalOperator = prof.airline || finalOperator;
                     applyFindings();
+                } else {
+                    console.log(`[Aircraft Search] Planespotters returned no data for ${hexKey}`);
                 }
             }
-        } catch(e) {}
+        } catch(e) {
+            console.log(`[Aircraft Search] Planespotters fetch failed for ${hexKey}`, e);
+        }
     }
     
     // 4. Fallback to scraping a simple Google/DuckDuckGo search via CORS proxy
     const searchParam = (ac.tail && ac.tail !== 'N/A' && ac.tail !== 'Unknown') ? ac.tail : (ac.callsign && ac.callsign.trim());
     if (!updated && searchParam) {
         try {
+            console.log(`[Aircraft Search] Querying DuckDuckGo fallback for ${searchParam}...`);
             const query = encodeURIComponent(`aircraft ${searchParam}`);
-            // Fix corsproxy.io syntax: it does not use ?url=
-            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent('https://lite.duckduckgo.com/lite/?q=' + query)}`;
+            const ddgUrl = `https://lite.duckduckgo.com/lite/?q=${query}`;
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(ddgUrl)}`;
             const ddgRes = await fetch(proxyUrl);
             if (ddgRes.ok) {
-                const html = await ddgRes.text();
+                const json = await ddgRes.json();
+                const html = json.contents;
                 // Simple naive extraction: look for the first search result snippet
                 const snippetMatch = html.match(/<td class='result-snippet'>([\s\S]*?)<\/td>/i);
                 if (snippetMatch) {
                     const snippet = snippetMatch[1].replace(/<[^>]+>/g, '').trim();
+                    console.log(`[Aircraft Search] DuckDuckGo snippet found:`, snippet);
                     if (!ac.desc || ac.desc === 'N/A') {
                         finalDesc = snippet.length > 40 ? snippet.substring(0, 37) + '...' : snippet;
                         applyFindings();
                     }
+                } else {
+                    console.log(`[Aircraft Search] DuckDuckGo no snippet matched for ${searchParam}`);
                 }
             }
-        } catch(e) {}
+        } catch(e) {
+            console.log(`[Aircraft Search] DuckDuckGo fetch failed for ${searchParam}`, e);
+        }
     }
     
     // Finalize
