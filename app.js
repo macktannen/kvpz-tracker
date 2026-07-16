@@ -47,6 +47,8 @@ let operationsLog = [];
 let powerlineGroup = null;
 const activeSearches = new Set(); // Tracks hex codes currently being searched over the internet
 const searchedHexes = new Set(); // Tracks hex codes we already attempted to search this session
+const autoSearchQueue = []; // Queue for throttling background searches
+let isAutoSearchProcessing = false;
 let autoSearch = false;
 let geminiApiKey = ''; // Gemini AI Key
 let lastBboxStr = "";
@@ -1747,12 +1749,11 @@ function updateUI() {
                                !ac.operator || ac.operator === 'N/A' || ac.operator === 'Unknown' || ac.operator === '' ||
                                !ac.desc || ac.desc === 'N/A' || ac.desc === 'Unknown' || ac.desc === '');
         
-        // Auto-search logic
+        // Auto-search logic (Throttled via Queue to prevent Gemini 429 Rate Limits)
         if (autoSearch && isMissingData && !activeSearches.has(hexKey) && !searchedHexes.has(hexKey)) {
-            // Trigger asynchronously to avoid blocking UI rendering
-            setTimeout(() => {
-                fetchMissingAircraftInfo(ac.hex);
-            }, 50);
+            searchedHexes.add(hexKey);
+            autoSearchQueue.push(ac.hex);
+            processAutoSearchQueue();
         }
         
         tr.addEventListener('click', () => {
@@ -2088,5 +2089,28 @@ async function updatePowerlines() {
     } catch (error) {
         console.warn("Error fetching OSM powerline data from Overpass API:", error);
     }
+}
+
+// Process Auto-Search Queue sequentially to respect API Rate Limits (max 15 RPM for Gemini free tier)
+async function processAutoSearchQueue() {
+    if (isAutoSearchProcessing || autoSearchQueue.length === 0) return;
+    isAutoSearchProcessing = true;
+    
+    while (autoSearchQueue.length > 0) {
+        if (!autoSearch) {
+            autoSearchQueue.length = 0; // Clear queue if auto-search was toggled off
+            break;
+        }
+        const hex = autoSearchQueue.shift();
+        
+        // Skip if they manually searched it while it was in queue
+        if (!activeSearches.has(hex.toLowerCase())) {
+            await fetchMissingAircraftInfo(hex);
+            // Wait 4.2 seconds before the next request (Ensures max 14 requests per minute)
+            await new Promise(r => setTimeout(r, 4200));
+        }
+    }
+    
+    isAutoSearchProcessing = false;
 }
 
