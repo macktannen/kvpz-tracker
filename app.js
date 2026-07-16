@@ -39,6 +39,7 @@ let airfieldGroup; // Leaflet LayerGroup for KVPZ beacons/rings
 let aircraftMarkers = {}; // hex -> L.marker
 let aircraftTrails = {}; // hex -> L.polyline
 let aircraftCache = {}; // hex -> aircraft state data
+let aircraftInfoDb = {}; // hex -> persistent cached aircraft info (Type, Operator, etc.)
 let selectedHex = null;
 let currentFilter = 'all';
 let searchFilter = '';
@@ -72,8 +73,9 @@ let darkMatter, osm, voyager, satellite;
 
 // Initialize the Application
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Load map toggles & settings memory from localStorage first
+    // 1. Load map toggles, settings, and aircraft cache from localStorage first
     loadMapSettings();
+    loadAircraftDb();
     
     // Set checkbox inputs to their corresponding state values
     document.getElementById('toggle-rings').checked = showRings;
@@ -1392,8 +1394,38 @@ async function fetchMissingAircraftInfo(hex, ac) {
     if (ac._infoRequested) return;
     ac._infoRequested = true;
     
+    const hexKey = hex.toLowerCase();
+    
+    // 1. Check local cache first
+    if (aircraftInfoDb[hexKey]) {
+        let updatedFromCache = false;
+        const cached = aircraftInfoDb[hexKey];
+        if ((!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '') && cached.type) {
+            ac.type = cached.type;
+            updatedFromCache = true;
+        }
+        if ((!ac.desc || ac.desc === 'N/A' || ac.desc === 'Unknown' || ac.desc === '') && cached.desc) {
+            ac.desc = cached.desc;
+            updatedFromCache = true;
+        }
+        if ((!ac.operator || ac.operator === 'N/A' || ac.operator === 'Unknown' || ac.operator === '') && cached.operator) {
+            ac.operator = cached.operator;
+            updatedFromCache = true;
+        }
+        if ((!ac.tail || ac.tail === 'N/A' || ac.tail === 'Unknown' || ac.tail === '') && cached.tail) {
+            ac.tail = cached.tail;
+            updatedFromCache = true;
+        }
+        
+        if (updatedFromCache) {
+            updateUI();
+        }
+        return;
+    }
+    
+    // 2. Fetch from HexDB if not cached
     try {
-        const response = await fetch(`https://hexdb.io/api/v1/aircraft/${hex.toLowerCase()}`);
+        const response = await fetch(`https://hexdb.io/api/v1/aircraft/${hexKey}`);
         if (!response.ok) return;
         const data = await response.json();
         
@@ -1422,6 +1454,15 @@ async function fetchMissingAircraftInfo(hex, ac) {
             }
             
             if (updated) {
+                // Save to local cache
+                aircraftInfoDb[hexKey] = {
+                    type: data.ICAOTypeCode || '',
+                    desc: data.Manufacturer ? `${data.Manufacturer} ${data.Type}` : (data.Type || ''),
+                    operator: data.OperatorFlagCode || '',
+                    tail: data.Registration || ''
+                };
+                saveAircraftDb();
+                
                 updateUI(); // Real-time block update
             }
         }
@@ -1566,6 +1607,27 @@ function handleSearch(e) {
 }
 
 // 9. Map Configurations Storage Utilities
+function loadAircraftDb() {
+    try {
+        const stored = safeGetItem('kvpz_aircraft_db');
+        if (stored) {
+            aircraftInfoDb = JSON.parse(stored);
+        }
+    } catch(e) {}
+}
+
+function saveAircraftDb() {
+    try {
+        // limit cache size to ~2000 entries to prevent localstorage overflow
+        const keys = Object.keys(aircraftInfoDb);
+        if (keys.length > 2000) {
+            const oldKeys = keys.slice(0, keys.length - 1000);
+            oldKeys.forEach(k => delete aircraftInfoDb[k]);
+        }
+        safeSetItem('kvpz_aircraft_db', JSON.stringify(aircraftInfoDb));
+    } catch(e) {}
+}
+
 function loadMapSettings() {
     try {
         const stored = safeGetItem('kvpz_map_settings');
