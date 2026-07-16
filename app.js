@@ -792,9 +792,10 @@ function processAircraft(aircraftList) {
         
         // Parse fields
         const callsign = (ac.flight || ac.r || 'N/A').trim();
-        const tail = ac.r || 'N/A';
-        const type = ac.t || 'N/A';
-        const desc = ac.desc || 'N/A';
+        let tail = ac.r || 'N/A';
+        let type = ac.t || 'N/A';
+        let desc = ac.desc || 'N/A';
+        let operator = ac.ownOp || 'N/A';
         const alt = ac.alt_baro === 'ground' ? 0 : (parseInt(ac.alt_baro) || 0);
         const speed = parseInt(ac.gs) || 0;
         const vspeed = parseInt(ac.baro_rate) || 0;
@@ -803,9 +804,27 @@ function processAircraft(aircraftList) {
         const lon = ac.lon;
         // Always calculate geodesic distance relative to KVPZ coordinates to prevent map panning from affecting operations logging
         const dist = (lat && lon) ? getDistanceNM(lat, lon, KVPZ_COORDS[0], KVPZ_COORDS[1]) : 999.0;
-        const operator = ac.ownOp || 'Private';
         const category = ac.category || '';
         const categoryClass = getAircraftCategory(ac);
+        
+        // Prevent raw radar feed from wiping out data we worked hard to find via background search!
+        const hexKey = hex.toLowerCase();
+        const cachedDb = aircraftInfoDb[hexKey];
+        const prevState = aircraftCache[hex];
+        
+        const preserveData = (current, dbVal, prevVal) => {
+            if (!current || current === 'N/A' || current === 'Unknown' || current === '') {
+                if (dbVal && dbVal !== 'N/A' && dbVal !== 'Unknown' && dbVal !== '') return dbVal;
+                if (prevVal && prevVal !== 'N/A' && prevVal !== 'Unknown' && prevVal !== '') return prevVal;
+            }
+            return current || 'N/A';
+        };
+
+        tail = preserveData(tail, cachedDb?.tail, prevState?.tail);
+        type = preserveData(type, cachedDb?.type, prevState?.type);
+        desc = preserveData(desc, cachedDb?.desc, prevState?.desc);
+        operator = preserveData(operator, cachedDb?.operator, prevState?.operator);
+        if (operator === 'N/A') operator = 'Private';
         
         const currentState = {
             hex, callsign, tail, type, desc, alt, speed, vspeed, heading, dist, operator, lat, lon, category, categoryClass,
@@ -813,8 +832,8 @@ function processAircraft(aircraftList) {
         };
         
         // Operations State Logic (Check KVPZ-exclusive transitions from cache)
-        const prevState = aircraftCache[hex];
         
+
         if (prevState) {
             // Existing aircraft: update logs & stats
             currentState.trail = prevState.trail ? [...prevState.trail, [lat, lon]].slice(-30) : [[lat, lon]];
