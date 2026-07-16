@@ -1584,7 +1584,7 @@ async function fetchMissingAircraftInfo(hex) {
                 console.log(`[Aircraft Search] Querying Gemini AI for ${searchParam}...`);
                 const prompt = `Identify aircraft by tail number and/or callsign: "${searchParam}". Use Google Search to find real-time registry information if needed. Return ONLY a raw JSON object with keys 'type' (the 4-letter ICAO type designator) and 'desc' (the full manufacturer and model name). If unknown, do your best guess based on standard aviation registries. Do not wrap in markdown code blocks. Just the raw JSON.`;
                 
-                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiApiKey}`;
                 const aiRes = await fetch(geminiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
