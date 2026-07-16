@@ -46,6 +46,8 @@ let searchFilter = '';
 let operationsLog = [];
 let powerlineGroup = null;
 const activeSearches = new Set(); // Tracks hex codes currently being searched over the internet
+const searchedHexes = new Set(); // Tracks hex codes we already attempted to search this session
+let autoSearch = false;
 let lastBboxStr = "";
 let arrivalCount = 0;
 let departureCount = 0;
@@ -92,6 +94,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('filter-helo').checked = showHelo;
     document.getElementById('filter-mil').checked = showMil;
     document.getElementById('filter-other').checked = showOther;
+    
+    // Automation state
+    autoSearch = safeGetItem('kvpz_auto_search', 'false') === 'true';
+    document.getElementById('toggle-auto-search').checked = autoSearch;
     
     // Set initial active map style tab
     const savedStyle = safeGetItem('kvpz_map_base_layer', 'light');
@@ -247,6 +253,12 @@ document.addEventListener('DOMContentLoaded', () => {
         showHigh = e.target.checked;
         saveMapSettings();
         refreshAllAircraftLayers();
+    });
+    
+    document.getElementById('toggle-auto-search').addEventListener('change', (e) => {
+        autoSearch = e.target.checked;
+        safeSetItem('kvpz_auto_search', autoSearch);
+        updateUI(); // Immediately trigger searches if enabled
     });
 
     document.getElementById('filter-comm-jet').addEventListener('change', (e) => {
@@ -1415,6 +1427,9 @@ async function fetchMissingAircraftInfo(hex) {
     // Prevent concurrent searches for the same aircraft
     if (activeSearches.has(hexKey)) return;
     
+    // Mark as attempted in this session
+    searchedHexes.add(hexKey);
+    
     console.log(`[Aircraft Search] Starting background lookup for ${hexKey}...`);
     activeSearches.add(hexKey);
     updateUI(); // Show spinner immediately
@@ -1646,22 +1661,31 @@ function updateUI() {
             selectedRow = tr;
         }
         
+        const hexKey = ac.hex.toLowerCase();
+        const isMissingData = (!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '' ||
+                               !ac.operator || ac.operator === 'N/A' || ac.operator === 'Unknown' || ac.operator === '' ||
+                               !ac.desc || ac.desc === 'N/A' || ac.desc === 'Unknown' || ac.desc === '');
+        
+        // Auto-search logic
+        if (autoSearch && isMissingData && !activeSearches.has(hexKey) && !searchedHexes.has(hexKey)) {
+            // Trigger asynchronously to avoid blocking UI rendering
+            setTimeout(() => {
+                fetchMissingAircraftInfo(ac.hex);
+            }, 50);
+        }
+        
         tr.addEventListener('click', () => {
             selectAircraft(ac.hex);
             
-            // Trigger background internet search ONLY on click if mission info is missing
-            const hexKey = ac.hex.toLowerCase();
-            if (!activeSearches.has(hexKey) && 
-                (!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '' ||
-                 !ac.operator || ac.operator === 'N/A' || ac.operator === 'Unknown' || ac.operator === '' ||
-                 !ac.desc || ac.desc === 'N/A' || ac.desc === 'Unknown' || ac.desc === '')) {
+            // Manual click forces a search even if previously attempted and failed
+            if (!activeSearches.has(hexKey) && isMissingData) {
                 fetchMissingAircraftInfo(ac.hex);
             }
         });
         
         const vspeedText = ac.vspeed > 0 ? `+${ac.vspeed}` : ac.vspeed;
         
-        const isSearching = activeSearches.has(ac.hex.toLowerCase());
+        const isSearching = activeSearches.has(hexKey);
         const spinnerHtml = isSearching ? `<i class="fa-solid fa-spinner fa-spin" style="color: #60a5fa; margin-right: 6px;" title="Searching internet for missing info..."></i>` : '';
         
         tr.innerHTML = `
