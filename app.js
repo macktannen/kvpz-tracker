@@ -1487,10 +1487,12 @@ async function fetchMissingAircraftInfo(hex, ac) {
     }
     
     // 4. Fallback to scraping a simple Google/DuckDuckGo search via CORS proxy
-    if (!updated && (ac.tail && ac.tail !== 'N/A' && ac.tail !== 'Unknown')) {
+    const searchParam = (ac.tail && ac.tail !== 'N/A' && ac.tail !== 'Unknown') ? ac.tail : (ac.callsign && ac.callsign.trim());
+    if (!updated && searchParam) {
         try {
-            const query = encodeURIComponent(`aircraft ${ac.tail}`);
-            const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent('https://lite.duckduckgo.com/lite/?q=' + query)}`;
+            const query = encodeURIComponent(`aircraft ${searchParam}`);
+            // Fix corsproxy.io syntax: it does not use ?url=
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent('https://lite.duckduckgo.com/lite/?q=' + query)}`;
             const ddgRes = await fetch(proxyUrl);
             if (ddgRes.ok) {
                 const html = await ddgRes.text();
