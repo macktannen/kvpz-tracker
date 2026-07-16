@@ -48,6 +48,7 @@ let powerlineGroup = null;
 const activeSearches = new Set(); // Tracks hex codes currently being searched over the internet
 const searchedHexes = new Set(); // Tracks hex codes we already attempted to search this session
 let autoSearch = false;
+let geminiApiKey = ''; // Gemini AI Key
 let lastBboxStr = "";
 let arrivalCount = 0;
 let departureCount = 0;
@@ -98,6 +99,35 @@ document.addEventListener('DOMContentLoaded', () => {
     // Automation state
     autoSearch = safeGetItem('kvpz_auto_search', 'false') === 'true';
     document.getElementById('toggle-auto-search').checked = autoSearch;
+    
+    // Gemini API Setup
+    geminiApiKey = safeGetItem('kvpz_gemini_api_key', '');
+    const geminiInput = document.getElementById('gemini-api-key');
+    const geminiStatus = document.getElementById('gemini-status');
+    if (geminiApiKey) {
+        geminiInput.value = geminiApiKey;
+        geminiStatus.textContent = "Saved";
+        geminiStatus.style.color = "#4ade80"; // Green
+    }
+    
+    document.getElementById('btn-save-gemini').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const key = geminiInput.value.trim();
+        if (key) {
+            safeSetItem('kvpz_gemini_api_key', key);
+            geminiApiKey = key;
+            geminiStatus.textContent = "Saved";
+            geminiStatus.style.color = "#4ade80";
+        } else {
+            safeRemoveItem('kvpz_gemini_api_key');
+            geminiApiKey = '';
+            geminiStatus.textContent = "Not Saved";
+            geminiStatus.style.color = "var(--color-text-muted)";
+        }
+    });
+    
+    // Prevent dropdown from closing when clicking inside Gemini input
+    geminiInput.addEventListener('click', e => e.stopPropagation());
     
     // Set initial active map style tab
     const savedStyle = safeGetItem('kvpz_map_base_layer', 'light');
@@ -1543,9 +1573,56 @@ async function fetchMissingAircraftInfo(hex) {
         }
     }
     
-        // 4. Fallback to scraping a simple Google/DuckDuckGo search via CORS proxy
+        // 3. Google Gemini AI Query (If API Key is available)
         const currentLiveAc = aircraftCache[hexKey] || {};
         const searchParam = (currentLiveAc.tail && currentLiveAc.tail !== 'N/A' && currentLiveAc.tail !== 'Unknown') ? currentLiveAc.tail : (currentLiveAc.callsign && currentLiveAc.callsign.trim());
+        
+        if (!updated && searchParam && geminiApiKey) {
+            try {
+                console.log(`[Aircraft Search] Querying Gemini AI for ${searchParam}...`);
+                const prompt = `Identify aircraft tail number or callsign: ${searchParam}. Return ONLY a raw JSON object with keys 'type' (the 4-letter ICAO type designator) and 'desc' (the full manufacturer and model name). If unknown, do your best guess based on standard aviation registries. Do not wrap in markdown code blocks. Just the raw JSON.`;
+                
+                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+                const aiRes = await fetch(geminiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }]
+                    })
+                });
+                
+                if (aiRes.ok) {
+                    const aiData = await aiRes.json();
+                    if (aiData.candidates && aiData.candidates.length > 0) {
+                        let textResp = aiData.candidates[0].content.parts[0].text.trim();
+                        // Strip markdown formatting if AI accidentally included it
+                        if (textResp.startsWith('```json')) textResp = textResp.replace(/^```json/, '');
+                        if (textResp.startsWith('```')) textResp = textResp.replace(/^```/, '');
+                        if (textResp.endsWith('```')) textResp = textResp.substring(0, textResp.length - 3);
+                        
+                        try {
+                            const parsed = JSON.parse(textResp);
+                            if (parsed.type) {
+                                finalType = parsed.type;
+                                finalDesc = parsed.desc || 'AI Extracted Info';
+                                console.log(`[Aircraft Search] Gemini AI Identified ${searchParam}:`, parsed);
+                                applyFindings();
+                            }
+                        } catch(parseErr) {
+                            console.log(`[Aircraft Search] Failed to parse Gemini JSON:`, textResp);
+                        }
+                    }
+                } else if (aiRes.status === 429) {
+                    console.warn(`[Aircraft Search] Gemini AI Rate Limit Hit! Falling back to DDG.`);
+                } else {
+                    console.warn(`[Aircraft Search] Gemini AI Error ${aiRes.status}`);
+                }
+            } catch(e) {
+                console.log(`[Aircraft Search] Gemini AI fetch failed`, e);
+            }
+        }
+        
+        // 4. Fallback to scraping a simple Google/DuckDuckGo search via CORS proxy (If Gemini failed or no key)
         if (!updated && searchParam) {
             try {
                 console.log(`[Aircraft Search] Querying DuckDuckGo fallback for ${searchParam}...`);
