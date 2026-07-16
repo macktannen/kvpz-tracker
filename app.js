@@ -1517,10 +1517,24 @@ async function fetchMissingAircraftInfo(hex, ac) {
                 if (snippetMatch) {
                     const snippet = snippetMatch[1].replace(/<[^>]+>/g, '').trim();
                     console.log(`[Aircraft Search] DuckDuckGo snippet found:`, snippet);
+                    
+                    // 1. Set description if missing
                     if (!ac.desc || ac.desc === 'N/A') {
                         finalDesc = snippet.length > 40 ? snippet.substring(0, 37) + '...' : snippet;
-                        applyFindings();
                     }
+                    
+                    // 2. Set type if missing by extracting the first significant word (e.g. "Cessna", "Boeing")
+                    if (!ac.type || ac.type === 'N/A') {
+                        const words = snippet.replace(/[^a-zA-Z0-9\s-]/g, '').split(/\s+/);
+                        const possibleType = words.find(w => w.length >= 3 && !['the','this','and','for','aircraft','flight'].includes(w.toLowerCase()));
+                        if (possibleType) {
+                            finalType = possibleType.substring(0, 4).toUpperCase();
+                        } else {
+                            finalType = "SRCH"; // Generic indicator that we searched it
+                        }
+                    }
+                    
+                    applyFindings();
                 } else {
                     console.log(`[Aircraft Search] DuckDuckGo no snippet matched for ${searchParam}`);
                 }
