@@ -45,6 +45,7 @@ let currentFilter = 'all';
 let searchFilter = '';
 let operationsLog = [];
 let powerlineGroup = null;
+const activeSearches = new Set(); // Tracks hex codes currently being searched over the internet
 let lastBboxStr = "";
 let arrivalCount = 0;
 let departureCount = 0;
@@ -1388,72 +1389,80 @@ function updateCounters() {
     document.getElementById('count-overflights').textContent = overflights;
 }
 
-// 8. Flight List spreadsheet & filtering
-// Internet Search for missing aircraft mission information
-async function fetchMissingAircraftInfo(hex, ac) {
-    if (ac._infoRequested) return;
-    ac._infoRequested = true;
-    
+// 8. Flight List spreadsheet & filteri// Internet Search for missing aircraft mission information
+async function fetchMissingAircraftInfo(hex) {
     const hexKey = hex.toLowerCase();
+    
+    // Prevent concurrent searches for the same aircraft
+    if (activeSearches.has(hexKey)) return;
+    
     console.log(`[Aircraft Search] Starting background lookup for ${hexKey}...`);
+    activeSearches.add(hexKey);
+    updateUI(); // Show spinner immediately
     
-    // 1. Check local cache first
-    if (aircraftInfoDb[hexKey]) {
-        console.log(`[Aircraft Search] Found cached data for ${hexKey}`);
-        let updatedFromCache = false;
-        const cached = aircraftInfoDb[hexKey];
-        if ((!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '') && cached.type) {
-            ac.type = cached.type;
-            updatedFromCache = true;
+    try {
+        // 1. Check local cache first
+        if (aircraftInfoDb[hexKey]) {
+            console.log(`[Aircraft Search] Found cached data for ${hexKey}`);
+            let updatedFromCache = false;
+            const cached = aircraftInfoDb[hexKey];
+            
+            // Get the live aircraft object from the cache (it may have updated during processing)
+            const liveAc = aircraftCache[hexKey];
+            if (liveAc) {
+                if ((!liveAc.type || liveAc.type === 'N/A' || liveAc.type === 'Unknown' || liveAc.type === '') && cached.type) {
+                    liveAc.type = cached.type;
+                    updatedFromCache = true;
+                }
+                if ((!liveAc.desc || liveAc.desc === 'N/A' || liveAc.desc === 'Unknown' || liveAc.desc === '') && cached.desc) {
+                    liveAc.desc = cached.desc;
+                    updatedFromCache = true;
+                }
+                if ((!liveAc.operator || liveAc.operator === 'N/A' || liveAc.operator === 'Unknown' || liveAc.operator === '') && cached.operator) {
+                    liveAc.operator = cached.operator;
+                    updatedFromCache = true;
+                }
+                if ((!liveAc.tail || liveAc.tail === 'N/A' || liveAc.tail === 'Unknown' || liveAc.tail === '') && cached.tail) {
+                    liveAc.tail = cached.tail;
+                    updatedFromCache = true;
+                }
+            }
+            
+            if (updatedFromCache) {
+                return;
+            }
+            if (updatedFromCache) {
+                return;
+            }
         }
-        if ((!ac.desc || ac.desc === 'N/A' || ac.desc === 'Unknown' || ac.desc === '') && cached.desc) {
-            ac.desc = cached.desc;
-            updatedFromCache = true;
-        }
-        if ((!ac.operator || ac.operator === 'N/A' || ac.operator === 'Unknown' || ac.operator === '') && cached.operator) {
-            ac.operator = cached.operator;
-            updatedFromCache = true;
-        }
-        if ((!ac.tail || ac.tail === 'N/A' || ac.tail === 'Unknown' || ac.tail === '') && cached.tail) {
-            ac.tail = cached.tail;
-            updatedFromCache = true;
-        }
+        let updated = false;
+        let finalTail = '';
+        let finalType = '';
+        let finalDesc = '';
+        let finalOperator = '';
         
-        if (updatedFromCache) {
-            updateUI();
-        }
-        return;
-    }
-    
-    // Mark as searching for the UI status icon
-    ac._isSearching = true;
-    updateUI();
-    
-    let updated = false;
-    let finalTail = '';
-    let finalType = '';
-    let finalDesc = '';
-    let finalOperator = '';
-    
-    // Helper to apply findings
-    const applyFindings = () => {
-        if ((!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '') && finalType) {
-            ac.type = finalType;
-            updated = true;
-        }
-        if ((!ac.desc || ac.desc === 'N/A' || ac.desc === 'Unknown' || ac.desc === '') && finalDesc) {
-            ac.desc = finalDesc;
-            updated = true;
-        }
-        if ((!ac.operator || ac.operator === 'N/A' || ac.operator === 'Unknown' || ac.operator === '') && finalOperator) {
-            ac.operator = finalOperator;
-            updated = true;
-        }
-        if ((!ac.tail || ac.tail === 'N/A' || ac.tail === 'Unknown' || ac.tail === '') && finalTail) {
-            ac.tail = finalTail;
-            updated = true;
-        }
-    };
+        // Helper to apply findings to the live cache object
+        const applyFindings = () => {
+            const liveAc = aircraftCache[hexKey];
+            if (!liveAc) return;
+            
+            if ((!liveAc.type || liveAc.type === 'N/A' || liveAc.type === 'Unknown' || liveAc.type === '') && finalType) {
+                liveAc.type = finalType;
+                updated = true;
+            }
+            if ((!liveAc.desc || liveAc.desc === 'N/A' || liveAc.desc === 'Unknown' || liveAc.desc === '') && finalDesc) {
+                liveAc.desc = finalDesc;
+                updated = true;
+            }
+            if ((!liveAc.operator || liveAc.operator === 'N/A' || liveAc.operator === 'Unknown' || liveAc.operator === '') && finalOperator) {
+                liveAc.operator = finalOperator;
+                updated = true;
+            }
+            if ((!liveAc.tail || liveAc.tail === 'N/A' || liveAc.tail === 'Unknown' || liveAc.tail === '') && finalTail) {
+                liveAc.tail = finalTail;
+                updated = true;
+            }
+        };
     
     // 2. Fetch from HexDB first
     try {
@@ -1500,12 +1509,13 @@ async function fetchMissingAircraftInfo(hex, ac) {
         }
     }
     
-    // 4. Fallback to scraping a simple Google/DuckDuckGo search via CORS proxy
-    const searchParam = (ac.tail && ac.tail !== 'N/A' && ac.tail !== 'Unknown') ? ac.tail : (ac.callsign && ac.callsign.trim());
-    if (!updated && searchParam) {
-        try {
-            console.log(`[Aircraft Search] Querying DuckDuckGo fallback for ${searchParam}...`);
-            const query = encodeURIComponent(`aircraft ${searchParam}`);
+        // 4. Fallback to scraping a simple Google/DuckDuckGo search via CORS proxy
+        const currentLiveAc = aircraftCache[hexKey] || {};
+        const searchParam = (currentLiveAc.tail && currentLiveAc.tail !== 'N/A' && currentLiveAc.tail !== 'Unknown') ? currentLiveAc.tail : (currentLiveAc.callsign && currentLiveAc.callsign.trim());
+        if (!updated && searchParam) {
+            try {
+                console.log(`[Aircraft Search] Querying DuckDuckGo fallback for ${searchParam}...`);
+                const query = encodeURIComponent(`aircraft ${searchParam}`);
             const ddgUrl = `https://lite.duckduckgo.com/lite/?q=${query}`;
             const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(ddgUrl)}`;
             const ddgRes = await fetch(proxyUrl);
@@ -1543,22 +1553,23 @@ async function fetchMissingAircraftInfo(hex, ac) {
             console.log(`[Aircraft Search] DuckDuckGo fetch failed for ${searchParam}`, e);
         }
     }
-    
-    // Finalize
-    ac._isSearching = false;
-    
-    if (updated) {
-        // Save to local cache
-        aircraftInfoDb[hexKey] = {
-            type: ac.type,
-            desc: ac.desc,
-            operator: ac.operator,
-            tail: ac.tail
-        };
-        saveAircraftDb();
+        if (updated) {
+            const liveAc = aircraftCache[hexKey];
+            if (liveAc) {
+                // Save to local cache
+                aircraftInfoDb[hexKey] = {
+                    type: liveAc.type,
+                    desc: liveAc.desc,
+                    operator: liveAc.operator,
+                    tail: liveAc.tail
+                };
+                saveAircraftDb();
+            }
+        }
+    } finally {
+        activeSearches.delete(hexKey);
+        updateUI(); // Real-time block update
     }
-    
-    updateUI(); // Real-time block update
 }
 
 function updateUI() {
@@ -1620,17 +1631,19 @@ function updateUI() {
             selectAircraft(ac.hex);
             
             // Trigger background internet search ONLY on click if mission info is missing
-            if (!ac._infoRequested && 
+            const hexKey = ac.hex.toLowerCase();
+            if (!activeSearches.has(hexKey) && 
                 (!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '' ||
                  !ac.operator || ac.operator === 'N/A' || ac.operator === 'Unknown' || ac.operator === '' ||
                  !ac.desc || ac.desc === 'N/A' || ac.desc === 'Unknown' || ac.desc === '')) {
-                fetchMissingAircraftInfo(ac.hex, ac);
+                fetchMissingAircraftInfo(ac.hex);
             }
         });
         
         const vspeedText = ac.vspeed > 0 ? `+${ac.vspeed}` : ac.vspeed;
         
-        const spinnerHtml = ac._isSearching ? `<i class="fa-solid fa-spinner fa-spin" style="color: #60a5fa; margin-right: 6px;" title="Searching internet for missing info..."></i>` : '';
+        const isSearching = activeSearches.has(ac.hex.toLowerCase());
+        const spinnerHtml = isSearching ? `<i class="fa-solid fa-spinner fa-spin" style="color: #60a5fa; margin-right: 6px;" title="Searching internet for missing info..."></i>` : '';
         
         tr.innerHTML = `
             <td>${spinnerHtml}<strong>${ac.callsign}</strong></td>
