@@ -1595,10 +1595,11 @@ async function fetchMissingAircraftInfo(hex) {
                     const aiData = await aiRes.json();
                     if (aiData.candidates && aiData.candidates.length > 0) {
                         let textResp = aiData.candidates[0].content.parts[0].text.trim();
-                        // Strip markdown formatting if AI accidentally included it
-                        if (textResp.startsWith('```json')) textResp = textResp.replace(/^```json/, '');
-                        if (textResp.startsWith('```')) textResp = textResp.replace(/^```/, '');
-                        if (textResp.endsWith('```')) textResp = textResp.substring(0, textResp.length - 3);
+                        // Robustly extract the JSON object using regex to ignore markdown backticks and newlines
+                        const jsonMatch = textResp.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            textResp = jsonMatch[0];
+                        }
                         
                         try {
                             const parsed = JSON.parse(textResp);
