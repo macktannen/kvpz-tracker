@@ -1387,6 +1387,49 @@ function updateCounters() {
 }
 
 // 8. Flight List spreadsheet & filtering
+// Internet Search for missing aircraft mission information
+async function fetchMissingAircraftInfo(hex, ac) {
+    if (ac._infoRequested) return;
+    ac._infoRequested = true;
+    
+    try {
+        const response = await fetch(`https://hexdb.io/api/v1/aircraft/${hex.toLowerCase()}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        
+        if (data && !data.error && data.status !== "404") {
+            let updated = false;
+            
+            // Fill missing Type
+            if ((!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '') && data.ICAOTypeCode) {
+                ac.type = data.ICAOTypeCode;
+                updated = true;
+            }
+            // Fill missing Description
+            if ((!ac.desc || ac.desc === 'N/A' || ac.desc === 'Unknown' || ac.desc === '') && data.Type) {
+                ac.desc = data.Manufacturer ? `${data.Manufacturer} ${data.Type}` : data.Type;
+                updated = true;
+            }
+            // Fill missing Operator
+            if ((!ac.operator || ac.operator === 'N/A' || ac.operator === 'Unknown' || ac.operator === '') && data.OperatorFlagCode) {
+                ac.operator = data.OperatorFlagCode;
+                updated = true;
+            }
+            // Fill missing Tail
+            if ((!ac.tail || ac.tail === 'N/A' || ac.tail === 'Unknown' || ac.tail === '') && data.Registration) {
+                ac.tail = data.Registration;
+                updated = true;
+            }
+            
+            if (updated) {
+                updateUI(); // Real-time block update
+            }
+        }
+    } catch (e) {
+        console.warn("Internet search lookup failed for", hex, e);
+    }
+}
+
 function updateUI() {
     const tbody = document.getElementById('flight-table-body');
     tbody.innerHTML = '';
@@ -1436,6 +1479,14 @@ function updateUI() {
     let selectedRow = null;
     
     filteredAircraft.forEach(ac => {
+        // Trigger background internet search if mission info is missing
+        if (!ac._infoRequested && 
+            (!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '' ||
+             !ac.operator || ac.operator === 'N/A' || ac.operator === 'Unknown' || ac.operator === '' ||
+             !ac.desc || ac.desc === 'N/A' || ac.desc === 'Unknown' || ac.desc === '')) {
+            fetchMissingAircraftInfo(ac.hex, ac);
+        }
+        
         const tr = document.createElement('tr');
         if (selectedHex === ac.hex) {
             tr.className = 'selected';
