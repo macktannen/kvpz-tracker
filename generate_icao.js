@@ -10,18 +10,18 @@ async function main() {
     const categories = {};
     
     for (let i = 1; i < lines.length; i++) {
-        // Handle CSV split with possible quotes
-        // We can just use a simple regex split for CSV
-        const cols = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-        if (!cols || cols.length < 7) {
-            const raw = lines[i].split(',');
-            if (raw.length >= 7) {
-                cols.length = 0;
-                cols.push(...raw);
-            } else {
-                continue;
-            }
+        // Handle CSV split correctly (split by comma, ignoring quotes for simplicity since this file doesn't have nested commas in the first 4 columns)
+        // Or just use a simple regex for CSV:
+        const cols = [];
+        let cur = '', inQuote = false;
+        for (const char of lines[i]) {
+            if (char === '"') inQuote = !inQuote;
+            else if (char === ',' && !inQuote) { cols.push(cur); cur = ''; }
+            else cur += char;
         }
+        cols.push(cur);
+        
+        if (cols.length < 7) continue;
         
         let mfr = (cols[0] || '').replace(/"/g, '').trim().toUpperCase();
         let model = (cols[1] || '').replace(/"/g, '').trim().toUpperCase();
@@ -37,6 +37,10 @@ async function main() {
         // 1. Helicopter
         if (desc.includes('HELICOPTER') || desc.includes('GYROCOPTER')) {
             cat = 'helicopter';
+        }
+        // 1.5 Farm (Air Tractor)
+        else if (mfr.includes('AIR TRACTOR')) {
+            cat = 'farm';
         }
         // 2. Military
         else if (
@@ -83,16 +87,18 @@ async function main() {
         }
         
         // Final overrides
-        if (icao.startsWith('B7') || icao.startsWith('A3') || ['B38M', 'B39M', 'A20N', 'A21N', 'BCS1', 'BCS3', 'E135', 'E145', 'E170', 'E190'].includes(icao)) {
-            cat = 'commercial-jet';
-        }
-        if (icao.startsWith('C5') || icao.startsWith('C6') || icao.startsWith('C7') || icao.startsWith('LJ') || icao.startsWith('FA') || icao.startsWith('GLF') || icao.startsWith('GLEX')) {
-            if (!['C5', 'C130'].includes(icao)) {
-                cat = 'business-jet';
+        if (cat !== 'farm') {
+            if (icao.startsWith('B7') || icao.startsWith('A3') || ['B38M', 'B39M', 'A20N', 'A21N', 'BCS1', 'BCS3', 'E135', 'E145', 'E170', 'E190'].includes(icao)) {
+                cat = 'commercial-jet';
             }
-        }
-        if (['F15', 'F16', 'F18', 'F22', 'F35', 'A10', 'B1', 'B2', 'B52', 'C17', 'C5', 'C130', 'K35R', 'KC46', 'T38', 'T6'].includes(icao)) {
-            cat = 'military';
+            if (icao.startsWith('C5') || icao.startsWith('C6') || icao.startsWith('C7') || icao.startsWith('LJ') || icao.startsWith('FA') || icao.startsWith('GLF') || icao.startsWith('GLEX')) {
+                if (!['C5', 'C130'].includes(icao)) {
+                    cat = 'business-jet';
+                }
+            }
+            if (['F15', 'F16', 'F18', 'F22', 'F35', 'A10', 'B1', 'B2', 'B52', 'C17', 'C5', 'C130', 'K35R', 'KC46', 'T38', 'T6'].includes(icao)) {
+                cat = 'military';
+            }
         }
         
         categories[icao] = cat;

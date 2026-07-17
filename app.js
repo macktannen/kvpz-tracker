@@ -96,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('filter-biz-jet').checked = showBizJet;
     document.getElementById('filter-helo').checked = showHelo;
     document.getElementById('filter-mil').checked = showMil;
+    document.getElementById('filter-farm').checked = showFarm;
     document.getElementById('filter-other').checked = showOther;
     
     // Automation state
@@ -319,6 +320,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('filter-mil').addEventListener('change', (e) => {
         showMil = e.target.checked;
+        saveMapSettings();
+        refreshAllAircraftLayers();
+    });
+
+    document.getElementById('filter-farm').addEventListener('change', (e) => {
+        showFarm = e.target.checked;
         saveMapSettings();
         refreshAllAircraftLayers();
     });
@@ -1175,6 +1182,7 @@ function updateMapMarker(ac) {
         'airplane': 'GA Airplane',
         'helicopter': 'Helicopter',
         'military': 'Military Aircraft',
+        'farm': 'Farm / Crop Duster',
         'other': 'Other / Glider'
     };
     const categoryLabel = categoryNames[ac.categoryClass] || 'Other / Glider';
@@ -1808,7 +1816,7 @@ async function fetchMissingAircraftInfo(hex) {
                 'helicopter': 'Rotorcraft', 'glider': 'Glider', 'lighter_than_air': 'Balloon / Blimp',
                 'uav': 'Unmanned Aerial Vehicle', 'space': 'Spacecraft', 'ultralight': 'Ultralight',
                 'parachute': 'Parachute', 'point_obstacle': 'Point Obstacle', 'military': 'Military Aircraft',
-                'other': 'Other / Glider'
+                'farm': 'Farm / Crop Duster', 'other': 'Other / Glider'
             };
             const categoryLabel = categoryNames[liveAc.categoryClass] || 'Other / Glider';
             const vspeedText = liveAc.vspeed > 0 ? `+${liveAc.vspeed.toLocaleString()} FPM` : (liveAc.vspeed < 0 ? `${liveAc.vspeed.toLocaleString()} FPM` : 'Level');
@@ -2021,8 +2029,9 @@ function loadMapSettings() {
             showAirplane = settings.showAirplane !== undefined ? settings.showAirplane : true;
             showBizJet = settings.showBizJet !== undefined ? settings.showBizJet : true;
             showHelo = settings.showHelo !== undefined ? settings.showHelo : true;
-            showMil = settings.showMil !== undefined ? settings.showMil : true;
-            showOther = settings.showOther !== undefined ? settings.showOther : true;
+            if (settings.showMil !== undefined) showMil = settings.showMil;
+            if (settings.showFarm !== undefined) showFarm = settings.showFarm;
+            if (settings.showOther !== undefined) showOther = settings.showOther;
             controlsCollapsed = settings.controlsCollapsed !== undefined ? settings.controlsCollapsed : false;
         }
     } catch (e) {
@@ -2034,7 +2043,7 @@ function saveMapSettings() {
     try {
         const settings = { 
             showRings, showLabels, showTrails, showPowerlines, showLow, showMed, showHigh, 
-            showCommJet, showAirplane, showBizJet, showHelo, showMil, showOther,
+            showCommJet, showAirplane, showBizJet, showHelo, showMil, showFarm, showOther,
             controlsCollapsed 
         };
         safeSetItem('kvpz_map_settings', JSON.stringify(settings));
