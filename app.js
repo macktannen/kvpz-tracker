@@ -808,45 +808,73 @@ async function fetchAircraftData() {
             { name: "ADSB.lol", url: `https://api.adsb.lol/v2/point/${latStr}/${lonStr}/${radiusNM}` }
         ];
         
-        let data = null;
-        let activeEndpointName = "";
-        
-        for (const ep of endpoints) {
-            try {
-                // Use a 4-second timeout to quickly fallback if a server is hanging
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 4000);
-                
-                const response = await fetch(ep.url, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                
-                if (response.ok) {
-                    data = await response.json();
-                    activeEndpointName = ep.name;
-                    break;
-                }
-            } catch (err) {
-                console.warn(`[Radar] ADSB feed ${ep.name} failed, falling back...`);
-            }
-        }
-        
-        if (!data) {
-            throw new Error("All ADSB feeds are currently offline or unreachable.");
-        }
-        
-        let mergedAircraft = {};
-        if (data && Array.isArray(data.ac)) {
-            data.ac.forEach(ac => {
-                if (ac.hex) {
-                    mergedAircraft[ac.hex] = ac;
+        const fetchPromises = endpoints.map(ep => {
+            return new Promise(async (resolve, reject) => {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 4000);
+                    const response = await fetch(ep.url, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (response.ok) {
+                        const data = await response.json();
+                        resolve({ name: ep.name, data });
+                    } else {
+                        reject(new Error(`HTTP ${response.status}`));
+                    }
+                } catch (err) {
+                    reject(err);
                 }
             });
+        });
+
+        const results = await Promise.allSettled(fetchPromises);
+        
+        let mergedAircraft = {};
+        let activeEndpointNames = [];
+        
+        results.forEach(result => {
+            if (result.status === 'fulfilled' && result.value.data && Array.isArray(result.value.data.ac)) {
+                activeEndpointNames.push(result.value.name);
+                result.value.data.ac.forEach(ac => {
+                    if (ac.hex) {
+                        if (!mergedAircraft[ac.hex]) {
+                            mergedAircraft[ac.hex] = { ...ac };
+                        } else {
+                            const existing = mergedAircraft[ac.hex];
+                            // Fill in missing metadata by combining feeds
+                            if ((!existing.flight || existing.flight.trim() === '') && ac.flight) existing.flight = ac.flight;
+                            if ((!existing.r || existing.r === '') && ac.r) existing.r = ac.r;
+                            if ((!existing.t || existing.t === '') && ac.t) existing.t = ac.t;
+                            if ((!existing.desc || existing.desc === '') && ac.desc) existing.desc = ac.desc;
+                            if ((!existing.ownOp || existing.ownOp === '') && ac.ownOp) existing.ownOp = ac.ownOp;
+                            
+                            // Prefer fresher position data (seen_pos is seconds ago, lower is fresher)
+                            if (ac.seen_pos !== undefined && existing.seen_pos !== undefined && ac.seen_pos < existing.seen_pos) {
+                                existing.lat = ac.lat;
+                                existing.lon = ac.lon;
+                                existing.alt_baro = ac.alt_baro;
+                                existing.gs = ac.gs;
+                                existing.track = ac.track;
+                                existing.baro_rate = ac.baro_rate;
+                                existing.seen_pos = ac.seen_pos;
+                            }
+                        }
+                    }
+                });
+            } else if (result.status === 'rejected') {
+                console.warn(`[Radar] A feed failed to load:`, result.reason);
+            }
+        });
+        
+        if (activeEndpointNames.length === 0) {
+            throw new Error("All ADSB feeds are currently offline or unreachable.");
         }
         
         const mergedList = Object.values(mergedAircraft);
         
         pulseIndicator.className = "pulse-indicator status-live";
-        statusText.textContent = `${activeEndpointName} Active (${radiusNM} NM Coverage) • Updated ${new Date().toLocaleTimeString([], {hour12:false})}`;
+        const feedLabel = activeEndpointNames.length > 1 ? `Multi-Feed Merged (${activeEndpointNames.length})` : activeEndpointNames[0];
+        statusText.textContent = `${feedLabel} Active (${radiusNM} NM Coverage) • Updated ${new Date().toLocaleTimeString([], {hour12:false})}`;
         
         processAircraft(mergedList);
         
