@@ -502,6 +502,15 @@ function getAircraftCategory(ac) {
                        type.startsWith('da4') || type.startsWith('da2');
     if (isAirplane) return 'airplane';
 
+    // 6. Catch-all: Anything that HAS a known type or description should default to 'airplane' 
+    // instead of 'other'. Only truly unknown/missing data should be 'other'.
+    const hasType = type && type !== 'n/a' && type !== 'unknown' && type !== 'srch';
+    const hasDesc = desc && desc !== 'n/a' && desc !== 'unknown';
+    
+    if (hasType || hasDesc) {
+        return 'airplane';
+    }
+
     return 'other';
 }
 
