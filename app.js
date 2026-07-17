@@ -2056,9 +2056,8 @@ function submitStandardSearch() {
     const text = input.value.trim();
     if (!text) return;
     
-    // Open standard Google Search in a floating popup window instead of a new tab
-    const url = `https://www.google.com/search?q=${encodeURIComponent(text)}`;
-    window.open(url, 'SearchPopup', 'width=1000,height=800,left=150,top=100');
+    // Open standard Google Search in a new tab
+    window.open(`https://www.google.com/search?q=${encodeURIComponent(text)}`, '_blank');
     
     // Update portal links
     updateSearchPortalLinks(text);
@@ -2082,16 +2081,16 @@ function updateSearchPortalLinks(query) {
     
     container.innerHTML = `
         <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.4rem;">
-            <a href="#" onclick="window.open('https://www.google.com/search?q=${encodeURIComponent(cleanQuery)}', 'SearchPopup', 'width=1000,height=800,left=150,top=100'); return false;" class="portal-link">
+            <a href="https://www.google.com/search?q=${encodeURIComponent(cleanQuery)}" target="_blank" class="portal-link">
                 <i class="fa-brands fa-google"></i> Google Search: "${cleanQuery}"
             </a>
-            <a href="#" onclick="window.open('https://registry.faa.gov/aircraftinquiry/Search/NNumberResult?nNumberTxt=${encodeURIComponent(faaTxt)}', 'SearchPopup', 'width=1000,height=800,left=150,top=100'); return false;" class="portal-link">
+            <a href="https://registry.faa.gov/aircraftinquiry/Search/NNumberResult?nNumberTxt=${encodeURIComponent(faaTxt)}" target="_blank" class="portal-link">
                 <i class="fa-solid fa-building"></i> FAA Registry Lookup
             </a>
-            <a href="#" onclick="window.open('https://www.flightaware.com/resources/registration/${encodeURIComponent(cleanQuery)}', 'SearchPopup', 'width=1000,height=800,left=150,top=100'); return false;" class="portal-link">
+            <a href="https://www.flightaware.com/resources/registration/${encodeURIComponent(cleanQuery)}" target="_blank" class="portal-link">
                 <i class="fa-solid fa-plane-departure"></i> FlightAware Registry
             </a>
-            <a href="#" onclick="window.open('https://www.flightradar24.com/data/aircraft/${encodeURIComponent(cleanQuery)}', 'SearchPopup', 'width=1000,height=800,left=150,top=100'); return false;" class="portal-link">
+            <a href="https://www.flightradar24.com/data/aircraft/${encodeURIComponent(cleanQuery)}" target="_blank" class="portal-link">
                 <i class="fa-solid fa-clock-rotate-left"></i> Flightradar24 History
             </a>
         </div>
