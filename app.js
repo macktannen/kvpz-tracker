@@ -1135,7 +1135,7 @@ function updateMapMarker(ac) {
         // Default "Other": Sleek glider profile with extra long narrow wings
         iconHtml = `
             <svg class="plane-icon-svg" width="28" height="28" viewBox="0 0 512 512" style="transform: rotate(${ac.heading}deg);">
-                <path fill="${color}" stroke="#090d16" stroke-width="13" d="M256 60c-8 0-14 8-14 16v120L16 204v20l226 8v140l-30 20v14l44-10 44 10v-14l-30-20V232l226-8v-20L270 196V76c0-8-6-16-14-16z"/>
+                <path fill="${color}" stroke="#090d16" stroke-width="24" stroke-linejoin="round" d="M256 60 L420 420 L256 340 L92 420 Z"/>
             </svg>
         `;
     }
