@@ -1519,7 +1519,42 @@ function updateCounters() {
     document.getElementById('count-overflights').textContent = overflights;
 }
 
-// 8. Flight List spreadsheet & filteri// Internet Search for missing aircraft mission information
+// ==========================================
+// Mathematical ICAO Hex to US N-Number Converter
+// ==========================================
+function icaoToReg(icao) {
+    const hex = parseInt(icao, 16);
+    if (isNaN(hex) || hex < 0xA00001 || hex > 0xADFFFF) return null;
+    
+    const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const getLetters601 = (r) => {
+        if (r === 0) return "";
+        r -= 1;
+        if (r < 24) return ALPHABET[r];
+        r -= 24;
+        return ALPHABET[Math.floor(r / 24)] + ALPHABET[r % 24];
+    };
+    
+    let offset = hex - 0xA00001;
+    let d1 = Math.floor(offset / 101711) + 1;
+    let rem = offset % 101711;
+    let prefix = "N" + d1;
+    
+    if (rem < 601) return prefix + getLetters601(rem);
+    rem -= 601;
+    if (rem < 6010) return prefix + Math.floor(rem / 601) + getLetters601(rem % 601);
+    rem -= 6010;
+    if (rem < 60100) return prefix + Math.floor(rem / 601).toString().padStart(2, '0') + getLetters601(rem % 601);
+    rem -= 60100;
+    if (rem < 25000) return prefix + Math.floor(rem / 25).toString().padStart(3, '0') + (rem % 25 === 0 ? "" : ALPHABET[(rem % 25) - 1]);
+    rem -= 25000;
+    return prefix + rem.toString().padStart(4, '0');
+}
+
+
+// ==========================================
+// AIRCRAFT DETAILS FETCHING (Multi-Source Fallback)
+// ==========================================
 async function fetchMissingAircraftInfo(hex) {
     const hexKey = hex.toLowerCase();
     
@@ -1646,7 +1681,39 @@ async function fetchMissingAircraftInfo(hex) {
         }
     }
     
-        // 3. Google Gemini AI Query (If API Key is available)
+    // 4. Mathematical N-Number Reverse-Engineering Fallback (US Aircraft Only)
+    if (!updated && hexKey.match(/^A[0-9A-F]{5}$/i)) {
+        try {
+            const computedReg = icaoToReg(hexKey);
+            if (computedReg) {
+                console.log(`[Aircraft Search] Mathematically decoded Tail Number: ${computedReg}`);
+                if (!finalTail) {
+                    finalTail = computedReg;
+                    applyFindings(); // Instantly update UI with the decoded tail number
+                }
+                
+                console.log(`[Aircraft Search] Querying Planespotters (by Reg) for ${computedReg}...`);
+                const psRegResponse = await fetch(`https://api.planespotters.net/pub/photos/reg/${computedReg}`);
+                if (psRegResponse.ok) {
+                    const psRegData = await psRegResponse.json();
+                    if (psRegData && psRegData.photos && psRegData.photos.length > 0 && psRegData.photos[0].profile) {
+                        console.log(`[Aircraft Search] Planespotters (Reg) success for ${computedReg}`, psRegData.photos[0].profile);
+                        const prof = psRegData.photos[0].profile;
+                        finalDesc = prof.type || finalDesc;
+                        finalType = prof.type ? prof.type.substring(0, 4) : finalType; // Approx ICAO
+                        finalOperator = prof.airline || finalOperator;
+                        applyFindings();
+                    } else {
+                        console.log(`[Aircraft Search] Planespotters (Reg) returned no photos for ${computedReg}`);
+                    }
+                }
+            }
+        } catch(e) {
+            console.log(`[Aircraft Search] Planespotters (Reg) fetch failed for ${hexKey}`, e);
+        }
+    }
+    
+        // 5. Google Gemini AI Query (If API Key is available)
         const currentLiveAc = aircraftCache[hexKey] || {};
         const acTail = (currentLiveAc.tail && currentLiveAc.tail !== 'N/A' && currentLiveAc.tail !== 'Unknown') ? currentLiveAc.tail : '';
         const acCall = (currentLiveAc.callsign && currentLiveAc.callsign.trim() !== '') ? currentLiveAc.callsign.trim() : '';
