@@ -1541,10 +1541,14 @@ async function fetchMissingAircraftInfo(hex) {
             }
             
             if (updatedFromCache) {
-                return;
-            }
-            if (updatedFromCache) {
-                return;
+                // Check if it's still missing vital info (type or desc)
+                const isStillMissing = (!liveAc.type || liveAc.type === 'N/A' || liveAc.type === 'Unknown' || liveAc.type === '') || 
+                                       (!liveAc.desc || liveAc.desc === 'N/A' || liveAc.desc === 'Unknown' || liveAc.desc === '');
+                
+                if (!isStillMissing) {
+                    return; // Fully satisfied by cache
+                }
+                console.log(`[Aircraft Search] Cached data incomplete (Missing Type/Desc) for ${hexKey}. Continuing search...`);
             }
         }
         let updated = false;
