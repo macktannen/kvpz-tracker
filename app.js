@@ -1120,6 +1120,18 @@ function updateMapMarker(ac) {
                 <circle cx="256" cy="256" r="14" fill="${color}" stroke="#090d16" stroke-width="4" />
             </svg>
         `;
+    } else if (iconType === 'farm') {
+        // Distinctive crop duster shape: long slim nose, wide straight low wing, horizontal spray bar underneath
+        iconHtml = `
+            <svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${ac.heading}deg);">
+                <!-- Main body & wings -->
+                <path fill="${color}" stroke="#090d16" stroke-width="14" d="M256 16c-8 0-14 6-14 14v170L10 200v36l232-15v105l-45 35v25l45-15 14 5 14-5 45 15v-25l-45-35V221l232 15v-36L270 200V30c0-8-6-14-14-14z"/>
+                <!-- Spray bar -->
+                <rect x="50" y="225" width="412" height="10" rx="5" fill="none" stroke="${color}" stroke-width="12" />
+                <!-- Cockpit bump -->
+                <path fill="#090d16" d="M246 160h20v25h-20z"/>
+            </svg>
+        `;
     } else if (iconType === 'military') {
         // Directional delta wedge triangle inside a tactical radar circle to signify military
         iconHtml = `
