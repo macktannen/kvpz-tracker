@@ -69,6 +69,7 @@ let showAirplane = true;
 let showBizJet = true;
 let showHelo = true;
 let showMil = true;
+let showFarm = true;
 let showOther = true;
 let controlsCollapsed = false;
 let rangeRingLayers = []; // Stores range rings and labels
