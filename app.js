@@ -406,12 +406,12 @@ function getAircraftCategory(ac) {
         return 'military';
     }
 
-    const callsign = (ac.flight || ac.r || '').trim().toUpperCase();
-    const tail = (ac.r || '').trim().toUpperCase();
+    const callsign = (ac.flight || ac.callsign || ac.r || '').trim().toUpperCase();
+    const tail = (ac.r || ac.tail || '').trim().toUpperCase();
     const desc = (ac.desc || '').toLowerCase();
     const type = (ac.t || ac.type || '').toLowerCase();
     const cat = (ac.category || '');
-    const op = (ac.ownOp || '').toLowerCase();
+    const op = (ac.ownOp || ac.operator || '').toLowerCase();
 
     // 2. Identify military callsign patterns (common prefixes and names)
     const milCallsignPrefixes = [
@@ -849,7 +849,6 @@ function processAircraft(aircraftList) {
         // Always calculate geodesic distance relative to KVPZ coordinates to prevent map panning from affecting operations logging
         const dist = (lat && lon) ? getDistanceNM(lat, lon, KVPZ_COORDS[0], KVPZ_COORDS[1]) : 999.0;
         const category = ac.category || '';
-        const categoryClass = getAircraftCategory(ac);
         
         // Prevent raw radar feed from wiping out data we worked hard to find via background search!
         const hexKey = hex.toLowerCase();
@@ -869,6 +868,11 @@ function processAircraft(aircraftList) {
         desc = preserveData(desc, cachedDb?.desc, prevState?.desc);
         operator = preserveData(operator, cachedDb?.operator, prevState?.operator);
         if (operator === 'N/A') operator = 'Private';
+        
+        const categoryClass = getAircraftCategory({
+            ...ac,
+            callsign, tail, type, desc, operator
+        });
         
         const currentState = {
             hex, callsign, tail, type, desc, alt, speed, vspeed, heading, dist, operator, lat, lon, category, categoryClass,
@@ -1527,6 +1531,10 @@ async function fetchMissingAircraftInfo(hex) {
             if ((!liveAc.tail || liveAc.tail === 'N/A' || liveAc.tail === 'Unknown' || liveAc.tail === '') && finalTail) {
                 liveAc.tail = finalTail;
                 updated = true;
+            }
+            
+            if (updated) {
+                liveAc.categoryClass = getAircraftCategory(liveAc);
             }
         };
     
