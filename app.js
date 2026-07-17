@@ -435,11 +435,27 @@ function getAircraftCategory(ac) {
     // 4. Combine callsign / tail heuristic
     const isCallsignDiffFromTail = callsign.length > 0 && tail.length > 0 && callsign !== tail;
     
+    // 2. Exact exhaustive dictionary match (over 8000+ codes loaded from icao_categories.js)
+    const upperType = type.toUpperCase();
+    if (typeof ICAO_CATEGORIES !== 'undefined' && ICAO_CATEGORIES[upperType]) {
+        // If it's a known helicopter or military, trust the dictionary immediately
+        if (ICAO_CATEGORIES[upperType] === 'helicopter') return 'helicopter';
+        if (ICAO_CATEGORIES[upperType] === 'military') return 'military';
+        
+        // However, if the dictionary says it's a general airplane/bizjet but our callsign heuristic says it's military, trust the military heuristic
+        if (isMilCallsign || (isPurelyNumericTail && isCallsignDiffFromTail)) {
+            return 'military';
+        }
+        
+        return ICAO_CATEGORIES[upperType];
+    }
+    
+    // Fallback: If dictionary didn't have it, rely on military callsign/tail heuristic
     if (isMilCallsign || (isPurelyNumericTail && isCallsignDiffFromTail)) {
         return 'military';
     }
     
-    // 2. Helicopters
+    // 3. Helicopters (Fallback description checks)
     const isHelo = desc.includes('helicopter') || desc.includes('rotorcraft') || desc.includes('copter') || 
                    desc.includes('bell') || desc.includes('sikorsky') || desc.includes('agusta') || 
                    desc.includes('robinson') || desc.includes('eurocopter') || desc.includes('airbus helicopters') ||
