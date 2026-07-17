@@ -802,13 +802,37 @@ async function fetchAircraftData() {
         const latStr = center.lat.toFixed(4);
         const lonStr = center.lng.toFixed(4);
         
-        const urlAirplanesLive = `https://api.airplanes.live/v2/point/${latStr}/${lonStr}/${radiusNM}`;
+        const endpoints = [
+            { name: "Airplanes.live", url: `https://api.airplanes.live/v2/point/${latStr}/${lonStr}/${radiusNM}` },
+            { name: "ADSB.fi", url: `https://api.adsb.fi/v2/point/${latStr}/${lonStr}/${radiusNM}` },
+            { name: "ADSB.lol", url: `https://api.adsb.lol/v2/point/${latStr}/${lonStr}/${radiusNM}` }
+        ];
         
-        const response = await fetch(urlAirplanesLive);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+        let data = null;
+        let activeEndpointName = "";
+        
+        for (const ep of endpoints) {
+            try {
+                // Use a 4-second timeout to quickly fallback if a server is hanging
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000);
+                
+                const response = await fetch(ep.url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    data = await response.json();
+                    activeEndpointName = ep.name;
+                    break;
+                }
+            } catch (err) {
+                console.warn(`[Radar] ADSB feed ${ep.name} failed, falling back...`);
+            }
         }
-        const data = await response.json();
+        
+        if (!data) {
+            throw new Error("All ADSB feeds are currently offline or unreachable.");
+        }
         
         let mergedAircraft = {};
         if (data && Array.isArray(data.ac)) {
@@ -822,7 +846,7 @@ async function fetchAircraftData() {
         const mergedList = Object.values(mergedAircraft);
         
         pulseIndicator.className = "pulse-indicator status-live";
-        statusText.textContent = `Airplanes.live Active (${radiusNM} NM Coverage) • Updated ${new Date().toLocaleTimeString([], {hour12:false})}`;
+        statusText.textContent = `${activeEndpointName} Active (${radiusNM} NM Coverage) • Updated ${new Date().toLocaleTimeString([], {hour12:false})}`;
         
         processAircraft(mergedList);
         
