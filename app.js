@@ -1696,6 +1696,41 @@ async function fetchMissingAircraftInfo(hex) {
     } finally {
         activeSearches.delete(hexKey);
         updateUI(); // Real-time block update
+        
+        // Force immediate map marker tooltip update
+        const liveAc = aircraftCache[hexKey];
+        if (liveAc && aircraftMarkers[hexKey]) {
+            const categoryNames = {
+                'light': 'Light (General Aviation)', 'small': 'Small Commuter', 'large': 'Large Airliner',
+                'heavy': 'Heavy Airliner', 'high_vortex': 'High Vortex Large', 'fighter': 'High Perf. Fighter',
+                'helicopter': 'Rotorcraft', 'glider': 'Glider', 'lighter_than_air': 'Balloon / Blimp',
+                'uav': 'Unmanned Aerial Vehicle', 'space': 'Spacecraft', 'ultralight': 'Ultralight',
+                'parachute': 'Parachute', 'point_obstacle': 'Point Obstacle', 'military': 'Military Aircraft',
+                'other': 'Other / Glider'
+            };
+            const categoryLabel = categoryNames[liveAc.categoryClass] || 'Other / Glider';
+            const vspeedText = liveAc.vspeed > 0 ? `+${liveAc.vspeed.toLocaleString()} FPM` : (liveAc.vspeed < 0 ? `${liveAc.vspeed.toLocaleString()} FPM` : 'Level');
+            const altText = liveAc.alt === 0 ? 'Ground' : `${liveAc.alt.toLocaleString()} FT`;
+
+            const tooltipContent = `
+                <div class="map-tooltip-content">
+                    <div class="tooltip-header">
+                        <strong>${liveAc.callsign}</strong>
+                        <span class="tooltip-tail">${liveAc.tail !== 'N/A' ? liveAc.tail : ''}</span>
+                    </div>
+                    <div class="tooltip-body">
+                        <div><strong>Category:</strong> ${categoryLabel}</div>
+                        <div><strong>Type:</strong> ${liveAc.type} (${liveAc.desc !== 'N/A' ? liveAc.desc : 'No Desc'})</div>
+                        <div><strong>Altitude:</strong> ${altText}</div>
+                        <div><strong>Speed:</strong> ${liveAc.speed} KT | <strong>Heading:</strong> ${liveAc.heading}°</div>
+                        <div><strong>V-Speed:</strong> ${vspeedText}</div>
+                        <div><strong>Distance:</strong> ${liveAc.dist.toFixed(1)} NM from KVPZ</div>
+                        <div><strong>Operator:</strong> ${liveAc.operator}</div>
+                    </div>
+                </div>
+            `;
+            aircraftMarkers[hexKey].setTooltipContent(tooltipContent);
+        }
     }
 }
 
