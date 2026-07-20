@@ -1325,6 +1325,72 @@ function deleteOperationEvent(timestamp, dateStr, timeStr, callsign) {
     saveAndSyncOperations();
 }
 
+window.locateWorldwide = async function(tail) {
+    if (!tail || tail === 'N/A' || tail === 'Unknown') return;
+    
+    const statusText = document.getElementById('feed-status-text');
+    statusText.innerText = `Searching worldwide for ${tail}...`;
+    statusText.style.color = '#fbbf24';
+    
+    try {
+        let hex = null;
+        
+        // 1. Look in local db
+        for (const [h, info] of Object.entries(aircraftInfoDb)) {
+            if (info.tail === tail) {
+                hex = h;
+                break;
+            }
+        }
+        
+        // 2. Query reg endpoint
+        if (!hex) {
+            const res = await fetch(`https://api.airplanes.live/v2/reg/${tail}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.ac && data.ac.length > 0) {
+                    hex = data.ac[0].hex;
+                }
+            }
+        }
+        
+        if (!hex) {
+            alert(`Could not determine hex code for ${tail} to locate it worldwide.`);
+            statusText.innerText = 'Aircraft not found globally.';
+            return;
+        }
+        
+        // 3. Fetch live global location by hex
+        const res = await fetch(`https://api.airplanes.live/v2/hex/${hex}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.ac && data.ac.length > 0) {
+                const ac = data.ac[0];
+                if (ac.lat && ac.lon) {
+                    // Process it into memory so it renders
+                    processAircraft(data.ac);
+                    
+                    // Fly map to the coordinates globally
+                    map.flyTo([ac.lat, ac.lon], 9, { animate: true, duration: 1.5 });
+                    
+                    // Select the aircraft (once Leaflet settles)
+                    setTimeout(() => selectAircraft(hex), 1500);
+                    
+                    statusText.innerText = `Located ${tail} at ${ac.lat.toFixed(2)}, ${ac.lon.toFixed(2)}`;
+                    statusText.style.color = '#34d399';
+                    return;
+                }
+            }
+        }
+        
+        alert(`Aircraft ${tail} is not currently broadcasting live ADS-B data anywhere in the world.`);
+        statusText.innerText = 'Aircraft offline globally.';
+    } catch(e) {
+        console.error("Error locating worldwide:", e);
+        alert(`Error locating ${tail} worldwide.`);
+    }
+};
+
 function updateOpsLog() {
     const logList = document.getElementById('ops-log-list');
     logList.innerHTML = '';
@@ -1373,7 +1439,10 @@ function updateOpsLog() {
         header.className = 'ops-group-header';
         header.innerHTML = `
             <div class="ops-group-left">
-                <span class="ops-group-tail"><i class="fa-solid fa-plane"></i> ${group.tail}</span>
+                <span class="ops-group-tail">
+                    <i class="fa-solid fa-plane globe-zoom" title="Find current live location worldwide" onclick="event.stopPropagation(); locateWorldwide('${group.tail}')"></i> 
+                    ${group.tail}
+                </span>
                 <span class="ops-group-type">(${group.type})</span>
             </div>
             <div class="ops-group-badges">
