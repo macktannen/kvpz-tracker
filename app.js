@@ -904,6 +904,13 @@ function processAircraft(aircraftList) {
         operator = preserveData(operator, cachedDb?.operator, prevState?.operator, isManual);
         if (operator === 'N/A') operator = 'Private';
         
+        // Manual Military Override
+        if (cachedDb && cachedDb.manualMil) {
+            ac.mil = cachedDb.mil;
+        } else if (prevState && prevState.mil !== undefined) {
+            ac.mil = ac.mil || prevState.mil; // Preserve mil if previously set
+        }
+        
         const categoryClass = getAircraftCategory({
             ...ac,
             callsign, tail, type, desc, operator
@@ -911,6 +918,7 @@ function processAircraft(aircraftList) {
         
         const currentState = {
             hex, callsign, tail, type, desc, alt, speed, vspeed, heading, dist, operator, lat, lon, category, categoryClass,
+            mil: ac.mil,
             lastSeen: now
         };
         
@@ -1864,6 +1872,26 @@ async function fetchMissingAircraftInfo(hex) {
     }
 }
 
+window.handleMilToggle = function(checkbox, hex) {
+    const hexKey = hex.toLowerCase();
+    const isMil = checkbox.checked ? 1 : 0;
+    
+    // Update live cache
+    if (aircraftCache[hexKey]) {
+        aircraftCache[hexKey].mil = isMil;
+        aircraftCache[hexKey].categoryClass = getAircraftCategory(aircraftCache[hexKey]);
+        updateMapMarker(aircraftCache[hexKey]);
+    }
+    
+    // Update persistent DB
+    if (!aircraftInfoDb[hexKey]) aircraftInfoDb[hexKey] = { hex: hex, callsign: 'N/A', tail: 'N/A', type: 'N/A', desc: 'N/A', operator: 'N/A' };
+    aircraftInfoDb[hexKey].mil = isMil;
+    aircraftInfoDb[hexKey].manualMil = true;
+    saveAircraftDb();
+    
+    refreshAllAircraftLayers();
+};
+
 window.handleManualEntry = function(element, hex, field) {
     window.isEditingTable = false;
     const value = element.innerText.trim();
@@ -1982,6 +2010,7 @@ function updateUI() {
             <td>${spinnerHtml}<strong>${ac.callsign}</strong></td>
             <td>${ac.tail}</td>
             <td>${ac.hex.toUpperCase()}</td>
+            <td><input type="checkbox" onchange="handleMilToggle(this, '${ac.hex}')" ${ac.mil ? 'checked' : ''} title="Manual Military Override"></td>
             <td><span class="editable-cell" contenteditable="true" spellcheck="false" 
                 onfocus="window.isEditingTable=true"
                 onblur="handleManualEntry(this, '${ac.hex}', 'type')" 
