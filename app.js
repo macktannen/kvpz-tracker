@@ -1865,8 +1865,12 @@ async function fetchMissingAircraftInfo(hex) {
 }
 
 window.handleManualEntry = function(element, hex, field) {
+    window.isEditingTable = false;
     const value = element.innerText.trim();
-    if (!value || value === 'N/A' || value === 'Unknown') return; // Don't save empty/invalid manually
+    if (!value || value === 'N/A' || value === 'Unknown') {
+        updateUI(); // Force a re-render to restore the original value visually
+        return;
+    }
     
     // Update live cache
     const hexKey = hex.toLowerCase();
@@ -1888,9 +1892,12 @@ window.handleManualEntry = function(element, hex, field) {
     
     // Trigger map update
     refreshAllAircraftLayers();
+    updateUI(); // Manually trigger since we unpaused it
 };
 
 function updateUI() {
+    if (window.isEditingTable) return;
+    
     const tbody = document.getElementById('flight-table-body');
     tbody.innerHTML = '';
     
@@ -1976,9 +1983,11 @@ function updateUI() {
             <td>${ac.tail}</td>
             <td>${ac.hex.toUpperCase()}</td>
             <td><span class="editable-cell" contenteditable="true" spellcheck="false" 
+                onfocus="window.isEditingTable=true"
                 onblur="handleManualEntry(this, '${ac.hex}', 'type')" 
                 onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">${ac.type}</span></td>
             <td><span class="editable-cell" contenteditable="true" spellcheck="false" 
+                onfocus="window.isEditingTable=true"
                 onblur="handleManualEntry(this, '${ac.hex}', 'desc')" 
                 onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">${ac.desc}</span></td>
             <td>${ac.alt.toLocaleString()} FT</td>
