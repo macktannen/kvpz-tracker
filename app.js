@@ -886,7 +886,10 @@ function processAircraft(aircraftList) {
         const cachedDb = aircraftInfoDb[hexKey];
         const prevState = aircraftCache[hex];
         
-        const preserveData = (current, dbVal, prevVal) => {
+        const preserveData = (current, dbVal, prevVal, isManual) => {
+            if (isManual && dbVal && dbVal !== 'N/A' && dbVal !== 'Unknown' && dbVal !== '') {
+                return dbVal; // Manual overrides everything
+            }
             if (!current || current === 'N/A' || current === 'Unknown' || current === '') {
                 if (dbVal && dbVal !== 'N/A' && dbVal !== 'Unknown' && dbVal !== '') return dbVal;
                 if (prevVal && prevVal !== 'N/A' && prevVal !== 'Unknown' && prevVal !== '') return prevVal;
@@ -894,10 +897,11 @@ function processAircraft(aircraftList) {
             return current || 'N/A';
         };
 
-        tail = preserveData(tail, cachedDb?.tail, prevState?.tail);
-        type = preserveData(type, cachedDb?.type, prevState?.type);
-        desc = preserveData(desc, cachedDb?.desc, prevState?.desc);
-        operator = preserveData(operator, cachedDb?.operator, prevState?.operator);
+        const isManual = cachedDb && cachedDb.manual;
+        tail = preserveData(tail, cachedDb?.tail, prevState?.tail, isManual);
+        type = preserveData(type, cachedDb?.type, prevState?.type, isManual);
+        desc = preserveData(desc, cachedDb?.desc, prevState?.desc, isManual);
+        operator = preserveData(operator, cachedDb?.operator, prevState?.operator, isManual);
         if (operator === 'N/A') operator = 'Private';
         
         const categoryClass = getAircraftCategory({
@@ -1806,12 +1810,15 @@ async function fetchMissingAircraftInfo(hex) {
         if (updated) {
             const liveAc = aircraftCache[hexKey];
             if (liveAc) {
-                // Save to local cache
-                aircraftInfoDb[hexKey] = {
+                // Save to cache memory immediately
+                cachedDb[hexKey] = {
+                    ...cachedDb[hexKey],
+                    hex: liveAc.hex,
+                    callsign: liveAc.callsign,
+                    tail: liveAc.tail,
                     type: liveAc.type,
                     desc: liveAc.desc,
-                    operator: liveAc.operator,
-                    tail: liveAc.tail
+                    operator: liveAc.operator
                 };
                 saveAircraftDb();
             }
@@ -1856,6 +1863,32 @@ async function fetchMissingAircraftInfo(hex) {
         }
     }
 }
+
+window.handleManualEntry = function(element, hex, field) {
+    const value = element.innerText.trim();
+    if (!value || value === 'N/A' || value === 'Unknown') return; // Don't save empty/invalid manually
+    
+    // Update live cache
+    const hexKey = hex.toLowerCase();
+    if (aircraftCache[hexKey]) {
+        aircraftCache[hexKey][field] = value;
+        // Re-evaluate category
+        aircraftCache[hexKey].categoryClass = getAircraftCategory(aircraftCache[hexKey]);
+        updateMapMarker(aircraftCache[hexKey]);
+    }
+    
+    // Update persistent DB
+    if (!aircraftInfoDb[hexKey]) aircraftInfoDb[hexKey] = { hex: hex, callsign: 'N/A', tail: 'N/A', type: 'N/A', desc: 'N/A', operator: 'N/A' };
+    aircraftInfoDb[hexKey][field] = value;
+    aircraftInfoDb[hexKey].manual = true; // Flag to prevent auto-search overriding it
+    saveAircraftDb();
+    
+    // Remove from active search queue if it's there
+    searchedHexes.add(hexKey); 
+    
+    // Trigger map update
+    refreshAllAircraftLayers();
+};
 
 function updateUI() {
     const tbody = document.getElementById('flight-table-body');
@@ -1942,8 +1975,12 @@ function updateUI() {
             <td>${spinnerHtml}<strong>${ac.callsign}</strong></td>
             <td>${ac.tail}</td>
             <td>${ac.hex.toUpperCase()}</td>
-            <td>${ac.type}</td>
-            <td>${ac.desc}</td>
+            <td><span class="editable-cell" contenteditable="true" spellcheck="false" 
+                onblur="handleManualEntry(this, '${ac.hex}', 'type')" 
+                onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">${ac.type}</span></td>
+            <td><span class="editable-cell" contenteditable="true" spellcheck="false" 
+                onblur="handleManualEntry(this, '${ac.hex}', 'desc')" 
+                onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">${ac.desc}</span></td>
             <td>${ac.alt.toLocaleString()} FT</td>
             <td>${ac.speed} KT</td>
             <td style="color: ${ac.vspeed > 0 ? '#10b981' : (ac.vspeed < 0 ? '#ef4444' : '#fff')};">${vspeedText} FPM</td>
