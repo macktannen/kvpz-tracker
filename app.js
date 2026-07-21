@@ -944,13 +944,13 @@ function processAircraft(aircraftList) {
             
             // Check for active landing roll (within 2.5 miles of runway, low altitude, and ground speed/vspeed drop)
             if (currentState.opType === 'arrival' && dist < 2.5 && alt < 1200 && (speed < 45 || vspeed < -300) && !prevState.logged && !currentState.logged) {
-                logOperation(callsign, type, 'arrival', `Landed KVPZ (Speed: ${speed} KT, Alt: ${alt} FT)`, tail);
+                logOperation(hex, callsign, type, 'arrival', `Landed KVPZ (Speed: ${speed} KT, Alt: ${alt} FT)`, tail);
                 currentState.logged = true;
             }
             
             // 2. KVPZ DEPARTURE TRIGGER (Ground to Air takeoff transition)
             if (prevState.dist < 2.5 && prevState.alt < 1500 && vspeed > 200 && !prevState.logged && !currentState.logged) {
-                logOperation(callsign, type, 'departure', `Departed KVPZ, climbing through ${alt} ft`, tail);
+                logOperation(hex, callsign, type, 'departure', `Departed KVPZ, climbing through ${alt} ft`, tail);
                 currentState.logged = true;
                 currentState.opType = 'departure';
             }
@@ -968,7 +968,7 @@ function processAircraft(aircraftList) {
             // KVPZ DEPARTURE TRIGGER (First appearing from KVPZ)
             // Option 1 Optimized: First appear close (< 5.0 NM) and at low altitude (< 3000 ft) while climbing (> 100 FPM)
             if (dist < 5.0 && alt < 3000 && vspeed > 100) {
-                logOperation(callsign, type, 'departure', `Departed KVPZ, climbing through ${alt} ft`, tail);
+                logOperation(hex, callsign, type, 'departure', `Departed KVPZ, climbing through ${alt} ft`, tail);
                 currentState.logged = true;
                 currentState.opType = 'departure';
             } else {
@@ -991,9 +991,9 @@ function processAircraft(aircraftList) {
             currentState.logged = true;
             currentState.opType = direction;
             if (direction === 'arrival') {
-                logOperation(callsign, type, 'arrival', `Geofence Landing KVPZ (Alt: ${alt} FT, Dist: ${dist.toFixed(2)} NM)`, tail);
+                logOperation(hex, callsign, type, 'arrival', `Geofence Landing KVPZ (Alt: ${alt} FT, Dist: ${dist.toFixed(2)} NM)`, tail);
             } else {
-                logOperation(callsign, type, 'departure', `Geofence Departure KVPZ (Alt: ${alt} FT, Dist: ${dist.toFixed(2)} NM)`, tail);
+                logOperation(hex, callsign, type, 'departure', `Geofence Departure KVPZ (Alt: ${alt} FT, Dist: ${dist.toFixed(2)} NM)`, tail);
             }
         }
         
@@ -1012,7 +1012,7 @@ function processAircraft(aircraftList) {
             const isAnyDisappearingClose = lastState.dist < 5.0; // Any aircraft last seen within 5 NM
             
             if (timeSinceLastSeen < 45000 && (isTargetedArrival || isAnyDisappearingClose) && !lastState.logged) {
-                logOperation(lastState.callsign, lastState.type, 'arrival', `Landed KVPZ (Last seen ${lastState.dist.toFixed(1)} NM out, ${lastState.alt} FT)`, lastState.tail);
+                logOperation(lastState.hex, lastState.callsign, lastState.type, 'arrival', `Landed KVPZ (Last seen ${lastState.dist.toFixed(1)} NM out, ${lastState.alt} FT)`, lastState.tail);
                 lastState.logged = true;
             }
             
@@ -1274,12 +1274,13 @@ function updateMapMarker(ac) {
 }
 
 // 7. Operations Logger
-function logOperation(callsign, type, opType, description, tail) {
+function logOperation(hex, callsign, type, opType, description, tail) {
     const now = new Date();
     const logItem = {
         timestamp: now.getTime(), // Miliseconds for 30-day age filtering
         dateStr: now.toLocaleDateString(),
         timeStr: now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        hex,
         callsign,
         type,
         opType,
@@ -1403,12 +1404,25 @@ function updateOpsLog() {
     // Group operations by tail number (fallback to callsign if tail is missing/N/A)
     const groups = {};
     operationsLog.forEach(log => {
-        const key = (log.tail && log.tail !== 'N/A') ? log.tail : (log.callsign || 'Unknown');
+        // Resolve dynamic tail and type if we have it in our persistent database
+        let resolvedTail = (log.tail && log.tail !== 'N/A') ? log.tail : (log.callsign || 'Unknown');
+        let resolvedType = log.type || 'N/A';
+        
+        if (log.hex && aircraftInfoDb[log.hex]) {
+            if (aircraftInfoDb[log.hex].tail && aircraftInfoDb[log.hex].tail !== 'N/A') {
+                resolvedTail = aircraftInfoDb[log.hex].tail;
+            }
+            if (aircraftInfoDb[log.hex].type && aircraftInfoDb[log.hex].type !== 'N/A') {
+                resolvedType = aircraftInfoDb[log.hex].type;
+            }
+        }
+        
+        const key = resolvedTail;
         if (!groups[key]) {
             groups[key] = {
                 tail: key,
                 callsign: log.callsign || key,
-                type: log.type || 'N/A',
+                type: resolvedType,
                 arrivals: 0,
                 departures: 0,
                 newestTimestamp: 0,
@@ -1544,6 +1558,18 @@ function loadOperationsLogMemory() {
             
             // Filter out logs older than 30 days, preserving legacy logs with undefined timestamps
             operationsLog = allLogs.filter(log => !log || log.timestamp === undefined || log.timestamp >= oneMonthAgo);
+            
+            // Migration: Add hex to old logs if possible
+            operationsLog.forEach(log => {
+                if (!log.hex) {
+                    for (const [hex, info] of Object.entries(aircraftInfoDb)) {
+                        if (info.tail === log.tail || info.callsign === log.callsign) {
+                            log.hex = hex;
+                            break;
+                        }
+                    }
+                }
+            });
             
             // Re-save pruned list
             safeSetItem('kvpz_operations_log', JSON.stringify(operationsLog));
