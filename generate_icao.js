@@ -67,19 +67,18 @@ async function main() {
                 cat = 'commercial-jet';
             }
         }
-        else if (eng === 'TURBOPROP' && wtc === 'M' && (mfr.includes('ATR') || mfr.includes('DE HAVILLAND') || mfr.includes('BOMBARDIER') || mfr.includes('SAAB') || mfr.includes('FOKKER'))) {
-            // Large regional turboprops
-            cat = 'commercial-jet'; // Group them visually with airliners
-        }
         // 4. Business Jets
         else if (eng === 'JET' && (wtc === 'L' || wtc === 'M')) {
             if (mfr.includes('GULFSTREAM') || mfr.includes('CESSNA') || mfr.includes('DASSAULT') || mfr.includes('LEARJET') || mfr.includes('HONDA') || mfr.includes('PILATUS') || mfr.includes('BOMBARDIER') || mfr.includes('EMBRAER') || mfr.includes('HAWKER') || mfr.includes('RAYTHEON') || mfr.includes('BEECH') || model.includes('CITATION') || model.includes('FALCON') || model.includes('ECLIPSE')) {
                 cat = 'business-jet';
             } else {
-                // Some small military trainers or unknown light jets. Default to bizjet if light jet and not obviously GA
                 if (wtc === 'L') cat = 'business-jet';
                 else cat = 'commercial-jet'; 
             }
+        }
+        // 4.5 Business Props (Turboprops, PC-12, King Airs, TBMs, Caravans, etc.)
+        else if (eng === 'TURBOPROP' || model.includes('PC-12') || model.includes('PC12') || model.includes('KING AIR') || model.includes('TBM') || model.includes('CARAVAN') || model.includes('MERIDIAN') || model.includes('CONQUEST') || model.includes('AVANTI')) {
+            cat = 'business-prop';
         }
         // 5. Airplane
         else {
@@ -88,6 +87,9 @@ async function main() {
         
         // Final overrides
         if (cat !== 'farm') {
+            if (['PC12', 'PC6', 'BE20', 'BE30', 'B200', 'B350', 'BE9L', 'BE90', 'C90', 'BE99', 'BE10', 'TBM7', 'TBM8', 'TBM9', 'TBM6', 'SOCA', 'P46T', 'C208', 'KODI', 'AC90', 'AC95', 'AC690', 'AC840', 'P180', 'PAY2', 'PAY3', 'PAY4', 'PA31T', 'PA42', 'C441', 'C425', 'SW4', 'SW3', 'SA227', 'MU2', 'C402', 'C414', 'C421', 'C404', 'C340', 'PA31', 'BE58', 'BE55', 'BE60', 'PA34', 'E120', 'SF34', 'D228', 'DH8A', 'DH8B', 'DH8C', 'DH8D', 'AT43', 'AT45', 'AT72', 'AT75', 'AT76', 'JS31', 'JS32', 'JS41'].includes(icao)) {
+                cat = 'business-prop';
+            }
             if (icao.startsWith('B7') || icao.startsWith('A3') || ['B38M', 'B39M', 'A20N', 'A21N', 'BCS1', 'BCS3', 'E135', 'E145', 'E170', 'E190'].includes(icao)) {
                 cat = 'commercial-jet';
             }

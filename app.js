@@ -67,6 +67,7 @@ let showHigh = true;
 let showCommJet = true;
 let showAirplane = true;
 let showBizJet = true;
+let showBProp = true;
 let showHelo = true;
 let showMil = true;
 let showFarm = true;
@@ -95,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('filter-comm-jet').checked = showCommJet;
     document.getElementById('filter-airplane').checked = showAirplane;
     document.getElementById('filter-biz-jet').checked = showBizJet;
+    document.getElementById('filter-biz-prop').checked = showBProp;
     document.getElementById('filter-helo').checked = showHelo;
     document.getElementById('filter-mil').checked = showMil;
     document.getElementById('filter-farm').checked = showFarm;
@@ -313,6 +315,12 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshAllAircraftLayers();
     });
 
+    document.getElementById('filter-biz-prop').addEventListener('change', (e) => {
+        showBProp = e.target.checked;
+        saveMapSettings();
+        refreshAllAircraftLayers();
+    });
+
     document.getElementById('filter-helo').addEventListener('change', (e) => {
         showHelo = e.target.checked;
         saveMapSettings();
@@ -403,8 +411,10 @@ function isTypeVisible(ac) {
     if (typeClass === 'commercial-jet') return showCommJet;
     if (typeClass === 'airplane') return showAirplane;
     if (typeClass === 'business-jet') return showBizJet;
+    if (typeClass === 'business-prop') return showBProp;
     if (typeClass === 'helicopter') return showHelo;
     if (typeClass === 'military') return showMil;
+    if (typeClass === 'farm') return showFarm;
     return showOther;
 }
 
@@ -496,6 +506,18 @@ function getAircraftCategory(ac) {
                      type.includes('lr45') || type.includes('lr60') || type.includes('fa20') ||
                      type.includes('fa50') || type.includes('e55p') || type.includes('e50p');
     if (isBizJet) return 'business-jet';
+
+    // 3.5 Business Props (Turboprops, PC-12, King Airs, TBMs, Caravans, etc.)
+    const isBizProp = desc.includes('turboprop') || desc.includes('pc-12') || desc.includes('pc12') ||
+                      desc.includes('king air') || desc.includes('tbm') || desc.includes('caravan') ||
+                      desc.includes('meridian') || desc.includes('conquest') || desc.includes('avanti') || desc.includes('kodiak') ||
+                      type.startsWith('pc12') || type.startsWith('pc6') || type.startsWith('be20') || type.startsWith('be30') ||
+                      type.startsWith('b200') || type.startsWith('b350') || type.startsWith('be9') ||
+                      type.startsWith('tbm') || type.startsWith('c208') || type.startsWith('p46t') ||
+                      type.startsWith('p180') || type.startsWith('kodi') || type.startsWith('ac69') ||
+                      type.startsWith('c441') || type.startsWith('c425') || type.startsWith('sw4') || type.startsWith('pay') ||
+                      type.startsWith('c402') || type.startsWith('c414') || type.startsWith('c421') || type.startsWith('pa31');
+    if (isBizProp) return 'business-prop';
 
     // 4. Commercial Jets (large airline passenger/cargo jets)
     const isCommJet = desc.includes('boeing') || desc.includes('airbus') || 
@@ -1170,6 +1192,24 @@ function updateMapMarker(ac) {
                 <rect x="288" y="335" width="16" height="40" rx="6" fill="${color}" stroke="#090d16" stroke-width="5" />
             </svg>
         `;
+    } else if (iconType === 'business-prop') {
+        // Distinctive executive turboprop / twin prop profile with T-tail and wing engine nacelles + prop discs
+        iconHtml = `
+            <svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${ac.heading}deg);">
+                <!-- Executive Turboprop airframe: T-tail profile -->
+                <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round"
+                      d="M 256,30 C 246,30 238,42 238,60 L 238,190 L 40,215 L 40,245 L 238,230 L 238,380 L 170,430 L 170,455 L 256,435 L 342,455 L 342,430 L 274,380 L 274,230 L 472,245 L 472,215 L 274,190 L 274,60 C 274,42 266,30 256,30 Z"/>
+                <!-- Left engine nacelle & prop disc spinner -->
+                <rect x="145" y="195" width="22" height="50" rx="6" fill="${color}" stroke="#090d16" stroke-width="6"/>
+                <line x1="130" y1="195" x2="182" y2="195" stroke="#090d16" stroke-width="10" stroke-linecap="round"/>
+                <line x1="130" y1="195" x2="182" y2="195" stroke="${color}" stroke-width="4" stroke-linecap="round"/>
+
+                <!-- Right engine nacelle & prop disc spinner -->
+                <rect x="345" y="195" width="22" height="50" rx="6" fill="${color}" stroke="#090d16" stroke-width="6"/>
+                <line x1="330" y1="195" x2="382" y2="195" stroke="#090d16" stroke-width="10" stroke-linecap="round"/>
+                <line x1="330" y1="195" x2="382" y2="195" stroke="${color}" stroke-width="4" stroke-linecap="round"/>
+            </svg>
+        `;
     } else if (iconType === 'airplane') {
         // Straight-wing general aviation light propeller aircraft with prop line spinner
         iconHtml = `
@@ -1204,6 +1244,7 @@ function updateMapMarker(ac) {
     const categoryNames = {
         'commercial-jet': 'Commercial Jet',
         'business-jet': 'Business Jet',
+        'business-prop': 'Business Prop',
         'airplane': 'GA Airplane',
         'helicopter': 'Helicopter',
         'military': 'Military Aircraft',
@@ -2211,6 +2252,7 @@ function loadMapSettings() {
             showCommJet = settings.showCommJet !== undefined ? settings.showCommJet : true;
             showAirplane = settings.showAirplane !== undefined ? settings.showAirplane : true;
             showBizJet = settings.showBizJet !== undefined ? settings.showBizJet : true;
+            if (settings.showBProp !== undefined) showBProp = settings.showBProp;
             showHelo = settings.showHelo !== undefined ? settings.showHelo : true;
             if (settings.showMil !== undefined) showMil = settings.showMil;
             if (settings.showFarm !== undefined) showFarm = settings.showFarm;
@@ -2226,7 +2268,7 @@ function saveMapSettings() {
     try {
         const settings = { 
             showRings, showLabels, showTrails, showPowerlines, showLow, showMed, showHigh, 
-            showCommJet, showAirplane, showBizJet, showHelo, showMil, showFarm, showOther,
+            showCommJet, showAirplane, showBizJet, showBProp, showHelo, showMil, showFarm, showOther,
             controlsCollapsed 
         };
         safeSetItem('kvpz_map_settings', JSON.stringify(settings));
