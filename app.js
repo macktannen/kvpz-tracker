@@ -45,6 +45,8 @@ let currentFilter = 'all';
 let searchFilter = '';
 let operationsLog = [];
 let powerlineGroup = null;
+let powerlineCache = {}; // id -> { id, latlngs, tags }
+const fetchedPowerlineTiles = new Set(); // set of grid tile keys already requested
 const activeSearches = new Set(); // Tracks hex codes currently being searched over the internet
 const searchedHexes = new Set(); // Tracks hex codes we already attempted to search this session
 const autoSearchQueue = []; // Queue for throttling background searches
@@ -2347,16 +2349,99 @@ function updateSearchPortalLinks(query) {
     `;
 }
 
-// 12. OSM Powerlines Renderer (Overpass API)
+// 12. OSM Powerlines Renderer (Overpass API with Local Cache)
+function loadPowerlineCache() {
+    try {
+        const stored = safeGetItem('kvpz_powerline_cache');
+        if (stored) {
+            powerlineCache = JSON.parse(stored);
+        }
+    } catch (e) {
+        console.error("Error loading powerline cache from localStorage:", e);
+    }
+}
+
+function savePowerlineCache() {
+    try {
+        safeSetItem('kvpz_powerline_cache', JSON.stringify(powerlineCache));
+    } catch (e) {
+        console.warn("Error saving powerline cache to localStorage:", e);
+    }
+}
+
+function renderPowerlinesFromCache() {
+    if (!map || !powerlineGroup) return;
+    powerlineGroup.clearLayers();
+    if (!showPowerlines) return;
+
+    const bounds = map.getBounds();
+    // Pad bounds slightly (0.05 deg) so border lines don't get clipped
+    const pad = 0.05;
+    const south = bounds.getSouth() - pad;
+    const north = bounds.getNorth() + pad;
+    const west = bounds.getWest() - pad;
+    const east = bounds.getEast() + pad;
+
+    let renderedCount = 0;
+
+    Object.values(powerlineCache).forEach(item => {
+        if (!item || !item.latlngs || item.latlngs.length < 2) return;
+
+        // Render if any point of the polyline falls within padded map bounds
+        const isVisible = item.latlngs.some(pt => pt[0] >= south && pt[0] <= north && pt[1] >= west && pt[1] <= east);
+        if (!isVisible) return;
+
+        renderedCount++;
+
+        // Double-stroke neon glow technique
+        // 1. Semi-transparent thick background pink line for glow
+        L.polyline(item.latlngs, {
+            color: '#ff007f',
+            weight: 6,
+            opacity: 0.35,
+            dashArray: 'none',
+            interactive: false
+        }).addTo(powerlineGroup);
+
+        // 2. High-brightness thin solid pink line on top
+        const mainLine = L.polyline(item.latlngs, {
+            color: '#ff1493', // Deep Pink / Highlighter Pink
+            weight: 2.2,
+            opacity: 0.95,
+            dashArray: 'none'
+        }).addTo(powerlineGroup);
+
+        // Tooltip formatting
+        const tags = item.tags || {};
+        let tooltipContent = 'Power Line';
+        if (tags.voltage) {
+            const kv = parseInt(tags.voltage) / 1000;
+            tooltipContent = `Transmission Line (${kv} kV)`;
+        } else if (tags.cables) {
+            tooltipContent = `Power Line (${tags.cables} cables)`;
+        }
+
+        if (tags.operator) {
+            tooltipContent += ` - ${tags.operator}`;
+        }
+
+        mainLine.bindTooltip(tooltipContent, { sticky: true });
+    });
+}
+
 function initPowerlines() {
     powerlineGroup = L.layerGroup().addTo(map);
+    
+    // Load local storage cache on startup
+    loadPowerlineCache();
+    renderPowerlinesFromCache();
     
     // Refresh powerlines whenever map movement finishes
     map.on('moveend', () => {
         updatePowerlines();
     });
     
-    // Initial load
+    // Initial load & coverage check
     updatePowerlines();
 }
 
@@ -2369,6 +2454,9 @@ async function updatePowerlines() {
         return;
     }
     
+    // Render existing cached powerlines immediately (zero lag)
+    renderPowerlinesFromCache();
+
     const zoom = map.getZoom();
     const bounds = map.getBounds();
     const south = bounds.getSouth().toFixed(4);
@@ -2377,16 +2465,38 @@ async function updatePowerlines() {
     const east = bounds.getEast().toFixed(4);
     
     const bboxStr = `${south},${west},${north},${east}`;
-    if (bboxStr === lastBboxStr) return; // Map viewport did not change
+    if (bboxStr === lastBboxStr) return; // Viewport did not change
     lastBboxStr = bboxStr;
-    
+
+    // Check grid tile coverage (~0.05 deg grid step)
+    const step = 0.05;
+    const minX = Math.floor(bounds.getWest() / step);
+    const maxX = Math.floor(bounds.getEast() / step);
+    const minY = Math.floor(bounds.getSouth() / step);
+    const maxY = Math.floor(bounds.getNorth() / step);
+
+    const neededTileKeys = [];
+    const isDetailed = zoom >= 13;
+    for (let x = minX; x <= maxX; x++) {
+        for (let y = minY; y <= maxY; y++) {
+            const tileKey = `${x}_${y}_z${isDetailed ? 'D' : 'M'}`;
+            if (!fetchedPowerlineTiles.has(tileKey)) {
+                neededTileKeys.push(tileKey);
+            }
+        }
+    }
+
+    // If viewport is fully covered by previously fetched tiles, skip Overpass API call!
+    if (neededTileKeys.length === 0) {
+        console.log("[Powerlines] Viewport fully covered by local cache. Skipping Overpass API fetch.");
+        return;
+    }
+
     // Build query to strictly pull powerlines inside the state of Indiana area intersecting the viewport
     let overpassQuery;
-    if (zoom >= 13) {
-        // Pull major and minor lines inside Indiana when zoomed in close
+    if (isDetailed) {
         overpassQuery = `[out:json][timeout:25];area["ISO3166-2"="US-IN"]->.indiana;(way["power"="line"](area.indiana)(${bboxStr});way["power"="minor_line"](area.indiana)(${bboxStr}););out geom;`;
     } else {
-        // Only pull major transmission lines inside Indiana when zoomed out to prevent payload lag
         overpassQuery = `[out:json][timeout:25];area["ISO3166-2"="US-IN"]->.indiana;(way["power"="line"](area.indiana)(${bboxStr}););out geom;`;
     }
     
@@ -2397,10 +2507,7 @@ async function updatePowerlines() {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         
-        // Clear old powerline paths
-        powerlineGroup.clearLayers();
-        
-        let activeCount = 0;
+        let newCount = 0;
         let skippedCount = 0;
         
         if (data && Array.isArray(data.elements)) {
@@ -2428,45 +2535,31 @@ async function updatePowerlines() {
                         return;
                     }
                     
-                    activeCount++;
                     const latlngs = el.geometry.map(pt => [pt.lat, pt.lon]);
+                    const elId = el.id || `${latlngs[0][0]}_${latlngs[0][1]}`;
                     
-                    // Double-stroke neon glow technique
-                    // 1. Semi-transparent thick background pink line for glow
-                    L.polyline(latlngs, {
-                        color: '#ff007f',
-                        weight: 6,
-                        opacity: 0.35,
-                        dashArray: 'none',
-                        interactive: false
-                    }).addTo(powerlineGroup);
-                    
-                    // 2. High-brightness thin solid pink line on top
-                    const mainLine = L.polyline(latlngs, {
-                        color: '#ff1493', // Deep Pink / Highlighter Pink
-                        weight: 2.2,
-                        opacity: 0.95,
-                        dashArray: 'none'
-                    }).addTo(powerlineGroup);
-                    
-                    // Add tooltips with power line attributes if present
-                    let tooltipContent = 'Power Line';
-                    if (tags.voltage) {
-                        const kv = parseInt(tags.voltage) / 1000;
-                        tooltipContent = `Transmission Line (${kv} kV)`;
-                    } else if (tags.cables) {
-                        tooltipContent = `Power Line (${tags.cables} cables)`;
+                    if (!powerlineCache[elId]) {
+                        newCount++;
                     }
                     
-                    if (tags.operator) {
-                        tooltipContent += ` - ${tags.operator}`;
-                    }
-                    
-                    mainLine.bindTooltip(tooltipContent, { sticky: true });
+                    powerlineCache[elId] = {
+                        id: elId,
+                        latlngs: latlngs,
+                        tags: tags
+                    };
                 }
             });
+            
+            // Mark tile keys as fetched
+            neededTileKeys.forEach(k => fetchedPowerlineTiles.add(k));
+            
+            if (newCount > 0) {
+                savePowerlineCache();
+            }
         }
-        console.log(`OSM Powerlines Loaded: ${activeCount} active, ${skippedCount} skipped (Duke/AEP exclusion)`);
+        
+        console.log(`OSM Powerlines: ${newCount} new added to local cache (${Object.keys(powerlineCache).length} total cached), ${skippedCount} skipped (Duke/AEP exclusion)`);
+        renderPowerlinesFromCache();
     } catch (error) {
         console.warn("Error fetching OSM powerline data from Overpass API:", error);
     }
