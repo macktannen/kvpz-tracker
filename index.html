@@ -243,6 +243,16 @@
                         <label><input type="checkbox" id="toggle-powerlines" checked> Power Lines</label>
                         <label><input type="checkbox" id="toggle-radar" checked> Live Doppler Radar</label>
                         <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 0.4rem 0;">
+                        <h4>Marker Color Mode</h4>
+                        <div style="display: flex; gap: 0.3rem; margin-top: 0.3rem; margin-bottom: 0.3rem;">
+                            <button class="color-mode-btn active" id="btn-color-altitude" onclick="setMarkerColorMode('altitude')">
+                                <i class="fa-solid fa-layer-group"></i> Altitude
+                            </button>
+                            <button class="color-mode-btn" id="btn-color-speed" onclick="setMarkerColorMode('speed')">
+                                <i class="fa-solid fa-gauge-high"></i> Speed (KT)
+                            </button>
+                        </div>
+                        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 0.4rem 0;">
                         <h4>Altitude Filters</h4>
                         <label><span class="color-dot dot-low"></span> <input type="checkbox" id="toggle-low" checked> Low (&lt;3k ft)</label>
                         <label><span class="color-dot dot-med"></span> <input type="checkbox" id="toggle-med" checked> Mid (3k-12k ft)</label>

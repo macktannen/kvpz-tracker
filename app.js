@@ -1579,17 +1579,51 @@ function removeAircraftLayers(hex) {
     }
 }
 
+let markerColorMode = safeGetItem('kvpz_marker_color_mode', 'altitude'); // 'altitude' or 'speed'
+
+function getAircraftColor(ac) {
+    if (markerColorMode === 'speed') {
+        const speed = Math.max(0, parseInt(ac.speed) || 0);
+        if (speed < 40) return '#9ca3af'; // Ground / Taxiing (< 40 KT): Cool Silver / Gray
+        if (speed < 100) return '#22c55e'; // Slow GA Flight (40 - 100 KT): Neon Lime Green
+        if (speed < 180) return '#f59e0b'; // Medium Prop / Twin (100 - 180 KT): Bright Amber Yellow
+        if (speed < 300) return '#ff6600'; // Fast Turboprop / Light Jet (180 - 300 KT): Vibrant Orange
+        if (speed < 450) return '#ef4444'; // High Speed Jet / Airliner (300 - 450 KT): Electric Crimson Red
+        return '#d946ef'; // 450+ KT Supersonic / Jet: Electric Magenta Pink
+    }
+
+    // Color Mode: Altitude (High-Contrast Popping Spectrum)
+    const alt = Math.max(0, parseInt(ac.alt) || 0);
+    if (alt < 1000) return '#ff4500'; // Surface / Ground (< 1,000 FT): Intense Orange-Red
+    if (alt < 3000) return '#ffcc00'; // Pattern / Low (1,000 - 3,000 FT): Vivid Canary Yellow
+    if (alt < 7000) return '#00ff66'; // Low Cruise (3,000 - 7,000 FT): Electric Neon Green
+    if (alt < 14000) return '#00f0ff'; // Mid Cruise (7,000 - 14,000 FT): Vibrant Cyan / Electric Turquoise
+    if (alt < 25000) return '#3b82f6'; // High Jet (14,000 - 25,000 FT): Royal Electric Blue
+    if (alt < 36000) return '#a855f7'; // FL300 High Jet (25,000 - 36,000 FT): Deep Purple
+    return '#ec4899'; // FL360+ Ultra High (> 36,000 FT): Electric Magenta / Hot Pink
+}
+
+window.setMarkerColorMode = function(mode) {
+    markerColorMode = mode;
+    safeSetItem('kvpz_marker_color_mode', mode);
+    
+    const btnAlt = document.getElementById('btn-color-altitude');
+    const btnSpd = document.getElementById('btn-color-speed');
+    if (btnAlt && btnSpd) {
+        btnAlt.classList.toggle('active', mode === 'altitude');
+        btnSpd.classList.toggle('active', mode === 'speed');
+    }
+    
+    Object.values(aircraftCache).forEach(ac => {
+        if (ac.lat && ac.lon) {
+            updateMapMarker(ac);
+        }
+    });
+};
+
 // 6. Map Marker Graphics & Rotation
 function updateMapMarker(ac) {
-    // Choose color based on altitude: gradated by 1,000 feet steps from ground (0 FT) all the way up to 60,000 FT
-    const clampedAlt = Math.max(0, Math.min(60000, ac.alt));
-    const step = Math.floor(clampedAlt / 1000); // 0 to 60
-    
-    // Calculate hue: start at 140 (emerald green) and descend by 5 degrees per 1,000 ft (covering 300 degrees down to 200/sky blue)
-    let hue = (140 - step * 5) % 360;
-    if (hue < 0) hue += 360;
-    
-    const color = `hsl(${hue}, 85%, 50%)`;
+    const color = getAircraftColor(ac);
     
     // Determine aircraft type icon from precomputed categoryClass
     const iconType = ac.categoryClass || 'other';
