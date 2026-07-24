@@ -1878,19 +1878,174 @@ function getAircraftIconSvg(ac, color) {
         </svg>`;
     }
 
-    // 16. Commercial Airliner (A320, B738, B737, B752, B763, A321, E190, BOEING, AIRBUS)
+    // 11. F-16 Fighting Falcon (Cropped delta wing, strake blend, single engine nozzle)
+    if (matchType(['F16','FIGHTING FALCON'])) {
+        return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- F-16 Planform: Nose probe, chined LEX strakes, cropped 40 deg delta wing, single engine tail -->
+            <path fill="${color}" stroke="#090d16" stroke-width="13" stroke-linejoin="round" d="M 256,15 L 246,110 L 210,210 L 60,330 L 60,360 L 225,320 L 225,430 L 160,465 L 205,465 L 256,440 L 307,465 L 352,465 L 287,430 L 287,320 L 452,360 L 452,330 L 302,210 L 266,110 Z"/>
+            <circle cx="256" cy="450" r="14" fill="#090d16"/>
+        </svg>`;
+    }
+
+    // 12. F/A-18 Hornet & Super Hornet / Growler (Twin canted tails, sweeping LEX, twin engines)
+    if (matchType(['F18','FA18','EA18','HORNET','SUPER HORNET','GROWLER'])) {
+        return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- F/A-18 Planform: Long LEX strakes, square wingtip missile rails, twin engines, canted vertical tails -->
+            <path fill="${color}" stroke="#090d16" stroke-width="13" stroke-linejoin="round" d="M 256,20 L 240,110 L 200,210 L 40,285 L 40,315 L 225,290 L 225,415 L 140,470 L 195,470 L 256,430 L 317,470 L 372,470 L 287,415 L 287,290 L 472,315 L 472,285 L 312,210 L 272,110 Z"/>
+            <rect x="210" y="440" width="16" height="26" rx="4" fill="#090d16"/>
+            <rect x="286" y="440" width="16" height="26" rx="4" fill="#090d16"/>
+        </svg>`;
+    }
+
+    // 13. F-22 Raptor (42 deg stealth diamond wing, flat vector nozzles, canted stealth fins)
+    if (matchType(['F22','RAPTOR'])) {
+        return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- F-22 Stealth Diamond Planform: 42 deg leading sweep, 17 deg trailing sweep -->
+            <path fill="${color}" stroke="#090d16" stroke-width="13" stroke-linejoin="round" d="M 256,15 L 220,130 L 30,300 L 95,350 L 220,310 L 220,420 L 145,475 L 210,475 L 256,445 L 302,475 L 367,475 L 292,420 L 292,310 L 417,350 L 482,300 L 292,130 Z"/>
+            <rect x="215" y="450" width="22" height="18" fill="#090d16"/>
+            <rect x="275" y="450" width="22" height="18" fill="#090d16"/>
+        </svg>`;
+    }
+
+    // 14. F-35 Lightning II (Stealth trapezoidal wing, broad fuselage chine, canted tails)
+    if (matchType(['F35','LIGHTNING'])) {
+        return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- F-35 Stealth Planform -->
+            <path fill="${color}" stroke="#090d16" stroke-width="13" stroke-linejoin="round" d="M 256,20 L 225,120 L 50,290 L 100,340 L 225,305 L 225,415 L 155,470 L 210,470 L 256,440 L 302,470 L 357,470 L 287,415 L 287,305 L 412,340 L 462,290 L 287,120 Z"/>
+            <circle cx="256" cy="445" r="16" fill="#090d16"/>
+        </svg>`;
+    }
+
+    // 15. F-15 Eagle / Strike Eagle / EX (Large 45 deg delta-trapezoid wing, dual side air intakes, twin upright vertical tails)
+    if (matchType(['F15','EGL','EAGLE','STRIKE EAGLE'])) {
+        return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- F-15 Planform: Dual side air scoops, 45 deg main wing, twin vertical tails -->
+            <path fill="${color}" stroke="#090d16" stroke-width="13" stroke-linejoin="round" d="M 256,15 L 240,70 L 215,100 L 215,200 L 35,320 L 35,350 L 225,300 L 225,430 L 140,475 L 195,475 L 256,435 L 317,475 L 372,475 L 287,430 L 287,300 L 477,350 L 477,320 L 297,200 L 297,100 L 272,70 Z"/>
+            <rect x="210" y="445" width="18" height="25" fill="#090d16"/>
+            <rect x="284" y="445" width="18" height="25" fill="#090d16"/>
+        </svg>`;
+    }
+
+    // 16. A-10 Thunderbolt II Warthog (Straight high-lift wing with 11 pylons, twin high engines, twin fins)
+    if (matchType(['A10','WARTHOG','THUNDERBOLT'])) {
+        return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- A-10 Warthog Planform: Straight wing, 2 rear-mounted turbofans, twin vertical fins -->
+            <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,30 L 235,160 L 15,160 L 15,225 L 235,220 L 235,400 L 160,400 L 160,460 L 180,460 L 180,430 L 256,430 L 332,430 L 332,460 L 352,460 L 352,400 L 277,400 L 277,220 L 497,225 L 497,160 L 277,160 Z"/>
+            <!-- High-mounted twin turbofan nacelles -->
+            <rect x="180" y="310" width="30" height="65" rx="10" fill="#090d16" stroke="${color}" stroke-width="4"/>
+            <rect x="302" y="310" width="30" height="65" rx="10" fill="#090d16" stroke="${color}" stroke-width="4"/>
+        </svg>`;
+    }
+
+    // 17. B-52 Stratofortress (47 deg wing sweep, 4 twin-engine pods, outrigger wheels)
+    if (matchType(['B52','STRATOFORTRESS'])) {
+        return `<svg class="plane-icon-svg" width="38" height="38" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- B-52 Planform: Massive 47 deg swept wings -->
+            <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,10 C 244,10 236,25 236,45 L 236,170 L 10,310 L 10,340 L 236,260 L 236,430 L 165,475 L 165,495 L 256,475 L 347,495 L 347,475 L 276,430 L 276,260 L 502,340 L 502,310 L 276,170 L 276,45 C 276,25 268,10 256,10 Z"/>
+            <!-- 4 Twin Engine Pods -->
+            <rect x="100" y="270" width="20" height="42" rx="4" fill="#090d16"/>
+            <rect x="160" y="240" width="20" height="42" rx="4" fill="#090d16"/>
+            <rect x="332" y="240" width="20" height="42" rx="4" fill="#090d16"/>
+            <rect x="392" y="270" width="20" height="42" rx="4" fill="#090d16"/>
+        </svg>`;
+    }
+
+    // 18. B-1B Lancer (Swing wing, blended wing-body, 4 engine nacelles under wing root)
+    if (matchType(['B1','LANCER'])) {
+        return `<svg class="plane-icon-svg" width="34" height="34" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- B-1B Lancer Planform: Blended wing-body -->
+            <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,15 L 240,110 L 195,190 L 40,320 L 40,350 L 220,300 L 220,440 L 175,475 L 175,495 L 256,475 L 337,495 L 337,475 L 292,440 L 292,300 L 472,350 L 472,320 L 317,190 L 272,110 Z"/>
+            <rect x="185" y="280" width="28" height="50" rx="6" fill="#090d16"/>
+            <rect x="299" y="280" width="28" height="50" rx="6" fill="#090d16"/>
+        </svg>`;
+    }
+
+    // 19. B-2 Spirit / B-21 Raider (Pure Stealth Flying Wing Chevron)
+    if (matchType(['B2','B21','SPIRIT','RAIDER','STEALTH BOMBER'])) {
+        return `<svg class="plane-icon-svg" width="36" height="36" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- B-2 Flying Wing Stealth Chevron: Double W trailing edge, 0 tail -->
+            <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,40 L 10,240 L 65,280 L 140,240 L 190,290 L 256,250 L 322,290 L 372,240 L 447,280 L 502,240 Z"/>
+        </svg>`;
+    }
+
+    // 20. Cessna High Wing (C172, C182, C150, C206, C210, SKYHAWK, SKYLANE, CESSNA)
+    if (matchType(['C172','C182','C150','C152','C206','C210','C177','C180','C185','CESSNA','SKYHAWK','SKYLANE'])) {
+        return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- Cessna High Wing: Rectangular high wing, squared tips, wing struts, square tail -->
+            <path fill="${color}" stroke="#090d16" stroke-width="13" stroke-linejoin="round" d="M 256,35 C 246,35 238,48 238,70 L 238,180 L 20,180 L 20,220 L 238,210 L 238,390 L 175,435 L 175,460 L 256,438 L 337,460 L 337,435 L 274,390 L 274,210 L 492,220 L 492,180 L 274,180 L 274,70 C 274,48 266,35 256,35 Z"/>
+            <line x1="190" y1="35" x2="322" y2="35" stroke="#090d16" stroke-width="14" stroke-linecap="round"/>
+            <line x1="190" y1="35" x2="322" y2="35" stroke="${color}" stroke-width="6" stroke-linecap="round"/>
+        </svg>`;
+    }
+
+    // 21. Cirrus SR20/SR22 & Diamond DA40 (Swept low wing, curved wingtips, teardrop canopy, swept T-tail)
+    if (matchType(['SR22','SR20','DA40','DA20','COL4','CIRRUS','DIAMOND'])) {
+        return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- Cirrus SR22 Planform: Swept leading edge, distinctive curved tips, swept tailplane -->
+            <path fill="${color}" stroke="#090d16" stroke-width="13" stroke-linejoin="round" d="M 256,28 C 242,28 234,45 234,70 L 234,190 Q 130,205 30,225 Q 20,245 45,255 L 234,230 L 234,390 L 180,430 L 180,455 L 256,435 L 332,455 L 332,430 L 278,390 L 278,230 L 467,255 Q 492,245 482,225 Q 382,205 278,190 L 278,70 C 278,45 270,28 256,28 Z"/>
+            <line x1="195" y1="28" x2="317" y2="28" stroke="#090d16" stroke-width="12" stroke-linecap="round"/>
+        </svg>`;
+    }
+
+    // 22. Single Engine Turboprop (Pilatus PC-12, TBM 850/900, Cessna 208 Caravan)
+    if (matchType(['PC12','TBM8','TBM9','C208','PAY2','PC24','M500','M600','PILATUS','TBM'])) {
+        return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- PC-12 Planform: High aspect ratio wing, T-tail, turboprop exhaust nose -->
+            <path fill="${color}" stroke="#090d16" stroke-width="13" stroke-linejoin="round" d="M 256,20 C 244,20 236,35 236,55 L 236,185 L 30,210 L 30,240 L 236,225 L 236,400 L 160,435 L 160,460 L 256,440 L 352,460 L 352,435 L 276,400 L 276,225 L 482,240 L 482,210 L 276,185 L 276,55 C 276,35 268,20 256,20 Z"/>
+            <line x1="175" y1="20" x2="337" y2="20" stroke="#090d16" stroke-width="16" stroke-linecap="round"/>
+            <line x1="175" y1="20" x2="337" y2="20" stroke="${color}" stroke-width="6" stroke-linecap="round"/>
+        </svg>`;
+    }
+
+    // 23. Beechcraft King Air / Twin Turboprop (BE20, BE30, B350, BE58 Baron, KING AIR)
+    if (matchType(['BE20','BE30','BE9L','BE58','B350','PA31','PAY4','C402','C414','C421','DHC6','KING AIR','SUPER KING']) || cat === 'business-prop') {
+        return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- King Air Planform: Twin nacelles on low wing with 4-blade prop spinners, T-tail -->
+            <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,30 C 246,30 238,42 238,60 L 238,190 L 40,215 L 40,245 L 238,230 L 238,380 L 170,430 L 170,455 L 256,435 L 342,455 L 342,430 L 274,380 L 274,230 L 472,245 L 472,215 L 274,190 L 274,60 C 274,42 266,30 256,30 Z"/>
+            <rect x="145" y="195" width="22" height="50" rx="6" fill="${color}" stroke="#090d16" stroke-width="6"/>
+            <line x1="130" y1="195" x2="182" y2="195" stroke="#090d16" stroke-width="10" stroke-linecap="round"/>
+            <rect x="345" y="195" width="22" height="50" rx="6" fill="${color}" stroke="#090d16" stroke-width="6"/>
+            <line x1="330" y1="195" x2="382" y2="195" stroke="#090d16" stroke-width="10" stroke-linecap="round"/>
+        </svg>`;
+    }
+
+    // 24. Executive Business Jet (Gulfstream, Citation, Learjet, Challenger, Phenom)
+    if (matchType(['C56X','C25A','GLF5','GLF6','GLF4','GLF8','E55P','CL30','FA50','LJ35','LJ45','LJ60','E50P','HA4T','GULFSTREAM','CITATION','HAWKER','PHENOM','CHALLENGER']) || cat === 'business-jet') {
+        return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- Gulfstream / Bizjet Planform: Swept supercritical wings with winglets, dual rear-fuselage jet engines, T-tail -->
+            <path fill="${color}" stroke="#090d16" stroke-width="13" stroke-linejoin="round" d="M256 20c-8 0-14 8-14 18v150L60 290v30l182-45v80c-15 4-26 12-26 25v65l38-12 38 12v-65c0-13-11-21-26-25v-80l182 45v-30L270 188V38c0-10-6-18-14-18z"/>
+            <rect x="204" y="335" width="18" height="42" rx="6" fill="${color}" stroke="#090d16" stroke-width="5" />
+            <rect x="290" y="335" width="18" height="42" rx="6" fill="${color}" stroke="#090d16" stroke-width="5" />
+        </svg>`;
+    }
+
+    // 25. Heavy Widebody Jumbo Jet (Boeing 747 Queen of the Skies, Airbus A380)
+    if (matchType(['B744','B748','A388','A359','B77W','B772','B763','B789','B788','DC10','MD11','BOEING 747','AIRBUS A380','JUMBO'])) {
+        return `<svg class="plane-icon-svg" width="36" height="36" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- Boeing 747 Planform: 37.5 deg swept wings, upper deck hump, 4 wing-hung turbofans -->
+            <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M256 10c-14 0-24 12-24 26v140L10 270v45l222-40v120l-70 50v25l104-20 104 20v-25l-70-50V275l222 40v-45L280 176V36c0-14-10-26-24-26z"/>
+            <rect x="110" y="240" width="26" height="55" rx="8" fill="${color}" stroke="#090d16" stroke-width="6" />
+            <rect x="155" y="230" width="26" height="55" rx="8" fill="${color}" stroke="#090d16" stroke-width="6" />
+            <rect x="331" y="230" width="26" height="55" rx="8" fill="${color}" stroke="#090d16" stroke-width="6" />
+            <rect x="376" y="240" width="26" height="55" rx="8" fill="${color}" stroke="#090d16" stroke-width="6" />
+        </svg>`;
+    }
+
+    // 26. Commercial Airliner (Boeing 737, Airbus A320, A321, E190, CRJ)
     if (matchType(['A320','B738','B737','B752','A321','A319','E190','E175','BOEING','AIRBUS','EMBRAER']) || cat === 'commercial-jet') {
         return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
-            <path fill="${color}" stroke="#090d16" stroke-width="14" d="M256 16c-12 0-22 10-22 22v140L24 280v40l210-48v112l-64 48v24l86-20 86 20v-24l-64-48V272l210 48v-40L278 178V38c0-12-10-22-22-22z"/>
+            <!-- Boeing 737 / A320 Planform: 32 deg swept wing with winglets, 2 wing-slung turbofans -->
+            <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M256 16c-12 0-22 10-22 22v140L24 280v40l210-48v112l-64 48v24l86-20 86 20v-24l-64-48V272l210 48v-40L278 178V38c0-12-10-22-22-22z"/>
             <rect x="155" y="240" width="24" height="50" rx="8" fill="${color}" stroke="#090d16" stroke-width="6" />
             <rect x="333" y="240" width="24" height="50" rx="8" fill="${color}" stroke="#090d16" stroke-width="6" />
         </svg>`;
     }
 
-    // 17. U.S. Military Transport / Heavy Cargo / Tanker / Recon (C-17, C-130, C-5, KC-135, KC-46, P-8, E-3 AWACS, RC-135)
+    // 27. U.S. Military Transport / Heavy Cargo / Tanker (C-17 Globemaster, C-130 Hercules, C-5 Galaxy, KC-135)
     if (matchType(['C17','C130','C30J','AC13','C5','KC135','C135','KC46','K10','E3TF','E3CF','E8','E6','P8','P3','RC135','U2','C27J','CN23','HERCULES','GLOBEMASTER'])) {
         return `<svg class="plane-icon-svg" width="34" height="34" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
-            <path fill="${color}" stroke="#090d16" stroke-width="14" d="M256 16c-12 0-22 10-22 22v140L15 205v40l219-20v140l-75 50v25l112-25 112 25v-25l-75-50V225l219 20v-40L278 178V38c0-12-10-22-22-22z"/>
+            <!-- High wing tactical military transport with 4 wing-hung engines -->
+            <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M256 16c-12 0-22 10-22 22v140L15 205v40l219-20v140l-75 50v25l112-25 112 25v-25l-75-50V225l219 20v-40L278 178V38c0-12-10-22-22-22z"/>
             <rect x="135" y="210" width="22" height="48" rx="6" fill="#090d16" stroke="${color}" stroke-width="4"/>
             <rect x="185" y="200" width="22" height="48" rx="6" fill="#090d16" stroke="${color}" stroke-width="4"/>
             <rect x="305" y="200" width="22" height="48" rx="6" fill="#090d16" stroke="${color}" stroke-width="4"/>
@@ -1898,36 +2053,32 @@ function getAircraftIconSvg(ac, color) {
         </svg>`;
     }
 
-    // 18. U.S. Military Fighter / Attack / Trainer / Stealth Bomber (F-16, F/A-18, F-22, F-35, F-15, A-10, T-38, T-6, B-1, B-2, B-52)
-    if (ac.mil === 1 || matchType(['F16','F18','FA18','EA18','F22','F35','F15','EGL','A10','AV8B','HAR','T38','T6','T45','T7','B52','B1','B2','B21','MQ9','RQ4','MQ4','FIGHTER','RAPTOR','HORNET','VIPER']) || cat === 'military') {
-        return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
-            <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,20 L 230,140 L 90,310 L 90,345 L 225,290 L 225,410 L 160,465 L 205,465 L 256,430 L 307,465 L 352,465 L 287,410 L 287,290 L 422,345 L 422,310 L 282,140 Z"/>
-        </svg>`;
-    }
-
-    // 19. Crop Duster / Agricultural (AT50, AT80, G164, M18, AIR TRACTOR)
+    // 28. Crop Duster / Agricultural (Air Tractor, Ag-Cat)
     if (matchType(['AT50','AT80','G164','M18','C188','A188','AIR TRACTOR','AG-CAT']) || cat === 'farm') {
         return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
-            <path fill="${color}" stroke="#090d16" stroke-width="14" d="M256 16c-8 0-14 6-14 14v170L10 200v36l232-15v105l-45 35v25l45-15 14 5 14-5 45 15v-25l-45-35V221l232 15v-36L270 200V30c0-8-6-14-14-14z"/>
+            <!-- Air Tractor Crop Duster: Long nose hopper, low wing with spray booms extending outboard -->
+            <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M256 16c-8 0-14 6-14 14v170L10 200v36l232-15v105l-45 35v25l45-15 14 5 14-5 45 15v-25l-45-35V221l232 15v-36L270 200V30c0-8-6-14-14-14z"/>
             <rect x="40" y="225" width="432" height="12" rx="6" fill="none" stroke="${color}" stroke-width="12" />
         </svg>`;
     }
 
-    // 20. Piper & General Low Wing Light Aviation (P28A, P28R, PA28, PA32, PA24, M20T, BE36, CHEROKEE, ARCHER, MOONEY, BONANZA)
+    // 29. Piper Cherokee / Archer & Low Wing GA (Piper, Mooney, Bonanza)
     if (matchType(['P28A','P28R','PA28','PA32','PA24','M20T','BE36','CHEROKEE','ARCHER','ARROW','MOONEY','BONANZA','PIPER'])) {
         return `<svg class="plane-icon-svg" width="28" height="28" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
-            <path fill="${color}" stroke="#090d16" stroke-width="14" d="M 256,35 C 246,35 238,48 238,68 L 238,185 L 25,200 L 25,235 L 238,220 L 238,380 L 180,425 L 180,450 L 256,432 L 332,450 L 332,425 L 274,380 L 274,220 L 487,235 L 487,200 L 274,185 L 274,68 C 274,48 266,35 256,35 Z"/>
+            <!-- Piper Cherokee Planform: Straight Hershey-bar low wing, front spinner line, rectangular tail -->
+            <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,35 C 246,35 238,48 238,68 L 238,185 L 25,200 L 25,235 L 238,220 L 238,380 L 180,425 L 180,450 L 256,432 L 332,450 L 332,425 L 274,380 L 274,220 L 487,235 L 487,200 L 274,185 L 274,68 C 274,48 266,35 256,35 Z"/>
             <line x1="200" y1="35" x2="312" y2="35" stroke="#090d16" stroke-width="12" stroke-linecap="round" />
             <line x1="200" y1="35" x2="312" y2="35" stroke="${color}" stroke-width="5" stroke-linecap="round" />
         </svg>`;
     }
 
-    // 21. Default General Aviation Airplane
+    // 30. Default General Aviation Airplane
     return `<svg class="plane-icon-svg" width="28" height="28" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
-        <path fill="${color}" stroke="#090d16" stroke-width="14" d="M256 40c-10 0-18 8-18 18v134L32 192v36l206 12v120l-48 30v24l66-16 66 16v-24l-48-30V240l206-12v-36L274 192V58c0-10-8-18-18-18z"/>
+        <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M256 40c-10 0-18 8-18 18v134L32 192v36l206 12v120l-48 30v24l66-16 66 16v-24l-48-30V240l206-12v-36L274 192V58c0-10-8-18-18-18z"/>
         <line x1="210" y1="42" x2="302" y2="42" stroke="#090d16" stroke-width="12" stroke-linecap="round" />
         <line x1="210" y1="42" x2="302" y2="42" stroke="${color}" stroke-width="5" stroke-linecap="round" />
     </svg>`;
+}
 }
 
 // 6. Map Marker Graphics & Rotation
