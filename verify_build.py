@@ -182,3 +182,14 @@ if __name__ == '__main__':
         print("\nVERIFICATION SUCCESS: Dashboard & FAA Registry Scraper Proxy are fully operational.")
     else:
         print("\nVERIFICATION FAILURE: Endpoint verification failed.")
+
+    print(f"\n========================================================")
+    print(f"🚀 Local Server is LIVE at: http://localhost:{PORT}")
+    print(f"Keep this window open while using your flight tracker!")
+    print(f"Press Ctrl+C to stop.")
+    print(f"========================================================\n")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\nServer stopped by user.")

@@ -1,5 +1,7 @@
 const http = require('http');
 const url = require('url');
+const fs = require('fs');
+const path = require('path');
 
 // Comprehensive FAA Model -> ICAO Type Designator lookup table
 const MODEL_TO_ICAO = {
@@ -138,8 +140,26 @@ const server = http.createServer(async (req, res) => {
             res.end(JSON.stringify({ error: err.message, tail }));
         }
     } else {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'FAA Scraper Server Running', usage: '/faa?tail=N83HS' }));
+        let filePath = path.join(__dirname, reqUrl.pathname === '/' ? 'index.html' : reqUrl.pathname);
+        fs.readFile(filePath, (err, data) => {
+            if (err) {
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('404 Not Found');
+            } else {
+                const ext = path.extname(filePath).toLowerCase();
+                const mimeTypes = {
+                    '.html': 'text/html',
+                    '.js': 'text/javascript',
+                    '.css': 'text/css',
+                    '.json': 'application/json',
+                    '.png': 'image/png',
+                    '.jpg': 'image/jpeg',
+                    '.svg': 'image/svg+xml'
+                };
+                res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'text/plain' });
+                res.end(data);
+            }
+        });
     }
 });
 
