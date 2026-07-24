@@ -492,10 +492,12 @@ async function checkFAAScraperHealth() {
         `${window.location.origin}/health`,
         'http://localhost:8080/health',
         'http://127.0.0.1:8080/health',
+        'http://localhost:3001/health',
         'http://127.0.0.1:3001/health',
         `${window.location.origin}/faa?tail=N83HS`,
         'http://localhost:8080/faa?tail=N83HS',
         'http://127.0.0.1:8080/faa?tail=N83HS',
+        'http://localhost:3001/faa?tail=N83HS',
         'http://127.0.0.1:3001/faa?tail=N83HS'
     ];
     
@@ -2253,6 +2255,7 @@ async function fetchMissingAircraftInfo(hex, force = false) {
                 `${window.location.origin}/faa?tail=${cleanTail}`,
                 `http://localhost:8080/faa?tail=${cleanTail}`,
                 `http://127.0.0.1:8080/faa?tail=${cleanTail}`,
+                `http://localhost:3001/faa?tail=${cleanTail}`,
                 `http://127.0.0.1:3001/faa?tail=${cleanTail}`
             ];
             
