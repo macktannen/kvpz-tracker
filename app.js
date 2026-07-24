@@ -1622,12 +1622,15 @@ window.setMarkerColorMode = function(mode) {
 };
 
 function getAircraftIconSvg(ac, color) {
-    const type = (ac.type || '').toUpperCase();
+    const type = (ac.type || ac.t || '').toUpperCase();
+    const desc = (ac.desc || '').toUpperCase();
     const cat = (ac.categoryClass || '').toLowerCase();
     const heading = ac.heading || 0;
 
+    const matchType = (codes) => codes.some(c => type.includes(c) || desc.includes(c));
+
     // 1. Helicopter
-    if (cat === 'helicopter' || ['R22','R44','R66','EC35','EC45','H64','B06','B412','AS35','AW139','S76'].includes(type)) {
+    if (cat === 'helicopter' || matchType(['R22','R44','R66','EC35','EC45','H64','B06','B412','AS35','AW139','S76','HELI','COPTER','SIKORSKY','BELL','EUROCOPTER'])) {
         const bodyPath = `M 256,160 C 236,160 220,175 220,205 C 220,205 185,215 185,230 C 185,245 220,255 220,255 L 220,290 C 220,315 242,330 244,360 L 248,440 L 242,445 L 242,455 L 270,455 L 270,445 L 264,440 L 268,360 C 270,330 292,315 292,290 L 292,255 C 292,255 327,245 327,230 C 327,215 292,205 292,205 C 292,175 276,160 256,160 Z`;
         return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <line x1="256" y1="160" x2="256" y2="105" stroke="${color}" stroke-width="6" stroke-linecap="round" />
@@ -1640,7 +1643,7 @@ function getAircraftIconSvg(ac, color) {
     }
 
     // 2. Vintage Biplane (WACO, STAG, PT17, SV4, BUCK, PITTS)
-    if (['WACO','STAG','PT17','SV4','BUCK','PITTS','STAS','N3N','DH82','A75N'].includes(type)) {
+    if (matchType(['WACO','STAG','PT17','SV4','BUCK','PITTS','STAS','N3N','DH82','A75N','BIPLANE'])) {
         return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="14" d="M 256,40 C 244,40 236,55 236,75 L 236,380 L 175,435 L 175,460 L 256,438 L 337,460 L 337,435 L 276,380 L 276,75 C 276,55 268,40 256,40 Z"/>
             <rect x="25" y="145" width="462" height="42" rx="10" fill="${color}" stroke="#090d16" stroke-width="12"/>
@@ -1650,7 +1653,7 @@ function getAircraftIconSvg(ac, color) {
     }
 
     // 3. WWII Warbird Fighter (P51 Mustang, P47, F4U Corsair, Spitfire, P40, T6)
-    if (['P51','P47','F4U','SPIT','P40','T6','B109','FW190','P39','ZERO'].includes(type)) {
+    if (matchType(['P51','P47','F4U','SPIT','P40','T6','B109','FW190','P39','ZERO','MUSTANG','CORSAIR','WARBIRD'])) {
         return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,25 C 242,25 232,45 232,70 L 232,175 Q 120,185 20,230 Q 15,255 40,265 L 232,225 L 232,385 L 170,430 L 170,455 L 256,432 L 342,455 L 342,430 L 280,385 L 280,225 L 472,265 Q 497,255 492,230 Q 392,185 280,175 L 280,70 C 280,45 270,25 256,25 Z"/>
             <ellipse cx="256" cy="205" rx="16" ry="38" fill="#090d16"/>
@@ -1660,7 +1663,7 @@ function getAircraftIconSvg(ac, color) {
     }
 
     // 4. Heavy WWII Bomber / Vintage 4-Engine (B17 Flying Fortress, B24, B29, DC3, C47)
-    if (['B17','B24','B29','DC3','C47','LANC','B25','B26'].includes(type)) {
+    if (matchType(['B17','B24','B29','DC3','C47','LANC','B25','B26','FORTRESS'])) {
         return `<svg class="plane-icon-svg" width="34" height="34" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="14" d="M256 16c-12 0-22 10-22 22v140L15 205v40l219-20v140l-75 50v25l112-25 112 25v-25l-75-50V225l219 20v-40L278 178V38c0-12-10-22-22-22z"/>
             <circle cx="140" cy="200" r="14" fill="${color}" stroke="#090d16" stroke-width="5"/>
@@ -1670,18 +1673,8 @@ function getAircraftIconSvg(ac, color) {
         </svg>`;
     }
 
-    // 5. Tri-Motor Classic Vintage (Ford Tri-Motor ATE3, Ju 52)
-    if (['ATE3','JU52','FOK3'].includes(type)) {
-        return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
-            <path fill="${color}" stroke="#090d16" stroke-width="14" d="M256 30c-10 0-18 10-18 20v140L15 200v35l223-15v140l-65 45v25l96-20 96 20v-25l-65-45V220l223 15v-35L274 190V50c0-10-8-20-18-20z"/>
-            <circle cx="256" cy="45" r="18" fill="#090d16" stroke="${color}" stroke-width="5"/>
-            <circle cx="165" cy="200" r="14" fill="#090d16" stroke="${color}" stroke-width="5"/>
-            <circle cx="347" cy="200" r="14" fill="#090d16" stroke="${color}" stroke-width="5"/>
-        </svg>`;
-    }
-
-    // 6. Canard / Pusher Prop Unique Aircraft (Rutan Long-EZ LNEZ, VariEze, Piaggio Avanti P180, Starship)
-    if (['LNEZ','VARE','P180','STAR','VELO'].includes(type)) {
+    // 5. Canard / Pusher Prop Unique Aircraft (Rutan Long-EZ LNEZ, VariEze, Piaggio Avanti P180, Starship)
+    if (matchType(['LNEZ','VARE','P180','STAR','VELO','RUTAN','AVANTI'])) {
         return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <rect x="140" y="80" width="232" height="24" rx="6" fill="${color}" stroke="#090d16" stroke-width="8"/>
             <path fill="${color}" stroke="#090d16" stroke-width="13" d="M256 30c-6 0-12 6-12 15v220L20 380v35l224-70v45l-35 25v20l47-10 47 10v-20l-35-25v-45l224 70v-35L268 265V45c0-9-6-15-12-15z"/>
@@ -1690,19 +1683,8 @@ function getAircraftIconSvg(ac, color) {
         </svg>`;
     }
 
-    // 7. Twin-Boom Unique Aircraft (P-38 Lightning, OV-10 Bronco, Skymaster C337)
-    if (['P38','OV10','C337','VIXN'].includes(type)) {
-        return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
-            <path fill="${color}" stroke="#090d16" stroke-width="12" d="M 256,40 C 244,40 236,55 236,75 L 236,290 L 276,290 L 276,75 C 276,55 268,40 256,40 Z"/>
-            <rect x="25" y="165" width="462" height="50" rx="10" fill="${color}" stroke="#090d16" stroke-width="12"/>
-            <rect x="145" y="150" width="25" height="280" rx="6" fill="${color}" stroke="#090d16" stroke-width="8"/>
-            <rect x="342" y="150" width="25" height="280" rx="6" fill="${color}" stroke="#090d16" stroke-width="8"/>
-            <rect x="145" y="415" width="222" height="25" rx="6" fill="${color}" stroke="#090d16" stroke-width="8"/>
-        </svg>`;
-    }
-
-    // 8. V-22 Osprey Tiltrotor (V22)
-    if (['V22'].includes(type)) {
+    // 6. V-22 Osprey Tiltrotor (V22, OSPREY)
+    if (matchType(['V22','OSPREY'])) {
         return `<svg class="plane-icon-svg" width="34" height="34" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="14" d="M 256,40 C 242,40 232,55 232,80 L 232,230 L 60,230 L 60,270 L 232,260 L 232,380 L 175,430 L 175,455 L 256,435 L 337,455 L 337,430 L 280,380 L 280,260 L 452,270 L 452,230 L 280,230 L 280,80 C 280,55 270,40 256,40 Z"/>
             <circle cx="50" cy="250" r="45" fill="none" stroke="${color}" stroke-width="12" stroke-dasharray="10 10"/>
@@ -1712,15 +1694,15 @@ function getAircraftIconSvg(ac, color) {
         </svg>`;
     }
 
-    // 9. Concorde / Supersonic Delta (Concorde CONC, SR-71 Blackbird)
-    if (['CONC','SR71','T144'].includes(type)) {
+    // 7. Concorde / Supersonic Delta (Concorde CONC, SR-71 Blackbird)
+    if (matchType(['CONC','SR71','T144','BLACKBIRD','SUPERSONIC'])) {
         return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,10 L 246,140 Q 230,220 90,380 L 90,410 L 236,370 L 236,440 L 210,460 L 256,445 L 302,460 L 276,440 L 276,370 L 422,410 L 422,380 Q 282,220 266,140 Z"/>
         </svg>`;
     }
 
-    // 10. Seaplane / Flying Boat / Water Bomber (CL-215, CL-415, PBY Catalina, Grumman Goose G21)
-    if (['CL21','CL41','PBY','G21','HU16'].includes(type)) {
+    // 8. Seaplane / Flying Boat / Water Bomber (CL-215, CL-415, PBY Catalina, Grumman Goose G21)
+    if (matchType(['CL21','CL41','PBY','G21','HU16','SEAPLANE','AMP'])) {
         return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="14" d="M 256,25 C 238,25 228,45 228,70 L 228,210 L 20,210 L 20,250 L 228,240 L 228,390 L 165,435 L 165,460 L 256,440 L 347,460 L 347,435 L 284,390 L 284,240 L 492,250 L 492,210 L 284,210 L 284,70 C 284,45 274,25 256,25 Z"/>
             <rect x="25" y="250" width="16" height="40" rx="4" fill="#090d16"/>
@@ -1730,16 +1712,16 @@ function getAircraftIconSvg(ac, color) {
         </svg>`;
     }
 
-    // 11. Glider / Sailplane (ASK21, DG50, LS4, DISCS)
-    if (['ASK21','DG50','LS4','DISCS','DG80','AS28'].includes(type)) {
+    // 9. Glider / Sailplane (ASK21, DG50, LS4, DISCS)
+    if (matchType(['ASK21','DG50','LS4','DISCS','DG80','AS28','GLIDER','SAILPLANE'])) {
         return `<svg class="plane-icon-svg" width="34" height="34" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="10" d="M 256,15 C 250,15 246,25 246,40 L 246,450 L 210,470 L 256,460 L 302,470 L 266,450 L 266,40 C 266,25 262,15 256,15 Z"/>
             <rect x="5" y="160" width="502" height="24" rx="6" fill="${color}" stroke="#090d16" stroke-width="8"/>
         </svg>`;
     }
 
-    // 12. Cessna High Wing (C172, C182, C150, C206, C210)
-    if (['C172','C182','C150','C152','C206','C210','C177','C180','C185'].includes(type)) {
+    // 10. Cessna High Wing (C172, C182, C150, C206, C210, SKYHAWK, SKYLANE)
+    if (matchType(['C172','C182','C150','C152','C206','C210','C177','C180','C185','CESSNA','SKYHAWK','SKYLANE'])) {
         return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="13" d="M 256,35 C 248,35 240,45 240,65 L 240,180 L 20,180 L 20,215 L 240,205 L 240,380 L 180,430 L 180,455 L 256,435 L 332,455 L 332,430 L 272,380 L 272,205 L 492,215 L 492,180 L 272,180 L 272,65 C 272,45 264,35 256,35 Z"/>
             <line x1="190" y1="35" x2="322" y2="35" stroke="#090d16" stroke-width="14" stroke-linecap="round"/>
@@ -1747,16 +1729,16 @@ function getAircraftIconSvg(ac, color) {
         </svg>`;
     }
 
-    // 13. Cirrus / Sleek Low Wing (SR22, SR20, DA40, DA20, COL4)
-    if (['SR22','SR20','DA40','DA20','COL4'].includes(type)) {
+    // 11. Cirrus / Diamond Sleek Low Wing (SR22, SR20, DA40, DA20, COL4)
+    if (matchType(['SR22','SR20','DA40','DA20','COL4','CIRRUS','DIAMOND'])) {
         return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="12" d="M 256,30 C 244,30 236,44 236,65 L 236,190 Q 140,205 30,225 Q 25,245 45,255 L 236,230 L 236,380 L 185,425 L 185,450 L 256,432 L 327,450 L 327,425 L 276,380 L 276,230 L 467,255 Q 487,245 482,225 Q 372,205 276,190 L 276,65 C 276,44 268,30 256,30 Z"/>
             <line x1="200" y1="30" x2="312" y2="30" stroke="#090d16" stroke-width="12" stroke-linecap="round"/>
         </svg>`;
     }
 
-    // 14. Single Engine Turboprop (PC12, TBM8, TBM9, C208, PAY2, PC24)
-    if (['PC12','TBM8','TBM9','C208','PAY2','PC24','M500','M600'].includes(type)) {
+    // 12. Single Engine Turboprop (PC12, TBM8, TBM9, C208, PAY2, PC24)
+    if (matchType(['PC12','TBM8','TBM9','C208','PAY2','PC24','M500','M600','PILATUS','TBM'])) {
         return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="13" stroke-linejoin="round" d="M 256,20 C 246,20 238,35 238,55 L 238,185 L 40,210 L 40,240 L 238,225 L 238,390 L 160,430 L 160,455 L 256,435 L 352,455 L 352,430 L 274,390 L 274,225 L 472,240 L 472,210 L 274,185 L 274,55 C 274,35 266,20 256,20 Z"/>
             <line x1="175" y1="20" x2="337" y2="20" stroke="#090d16" stroke-width="16" stroke-linecap="round"/>
@@ -1764,8 +1746,8 @@ function getAircraftIconSvg(ac, color) {
         </svg>`;
     }
 
-    // 15. Twin Engine Turboprop (BE20, BE30, BE9L, BE58, B350, PA31, PAY4)
-    if (['BE20','BE30','BE9L','BE58','B350','PA31','PAY4','C402','C414','C421','DHC6'].includes(type) || cat === 'business-prop') {
+    // 13. Twin Engine Turboprop / Executive Prop (BE20, BE30, BE9L, BE58, B350, PA31, PAY4, KING AIR)
+    if (matchType(['BE20','BE30','BE9L','BE58','B350','PA31','PAY4','C402','C414','C421','DHC6','KING AIR','SUPER KING']) || cat === 'business-prop') {
         return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,30 C 246,30 238,42 238,60 L 238,190 L 40,215 L 40,245 L 238,230 L 238,380 L 170,430 L 170,455 L 256,435 L 342,455 L 342,430 L 274,380 L 274,230 L 472,245 L 472,215 L 274,190 L 274,60 C 274,42 266,30 256,30 Z"/>
             <rect x="145" y="195" width="22" height="50" rx="6" fill="${color}" stroke="#090d16" stroke-width="6"/>
@@ -1775,8 +1757,8 @@ function getAircraftIconSvg(ac, color) {
         </svg>`;
     }
 
-    // 16. Executive Business Jet (C56X, C25A, GLF5, GLF6, E55P, CL30, FA50)
-    if (['C56X','C25A','GLF5','GLF6','GLF4','GLF8','E55P','CL30','FA50','LJ35','LJ45','LJ60','E50P','HA4T'].includes(type) || cat === 'business-jet') {
+    // 14. Executive Business Jet (C56X, C25A, GLF5, GLF6, E55P, CL30, FA50, GULFSTREAM, CITATION)
+    if (matchType(['C56X','C25A','GLF5','GLF6','GLF4','GLF8','E55P','CL30','FA50','LJ35','LJ45','LJ60','E50P','HA4T','GULFSTREAM','CITATION','HAWKER','PHENOM','CHALLENGER']) || cat === 'business-jet') {
         return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="13" d="M256 20c-8 0-14 8-14 18v150L60 290v30l182-45v80c-15 4-26 12-26 25v65l38-12 38 12v-65c0-13-11-21-26-25v-80l182 45v-30L270 188V38c0-10-6-18-14-18z"/>
             <rect x="204" y="335" width="18" height="42" rx="6" fill="${color}" stroke="#090d16" stroke-width="5" />
@@ -1784,8 +1766,19 @@ function getAircraftIconSvg(ac, color) {
         </svg>`;
     }
 
-    // 17. Commercial Airliner (A320, B738, B737, B752, B763, B777, B789, A321, E190, CRJ9)
-    if (['A320','B738','B737','B752','B763','B777','B789','A321','A319','E190','E175','CRJ2','CRJ7','CRJ9'].includes(type) || cat === 'commercial-jet') {
+    // 15. Heavy Widebody Jumbo Jet (B744, B748, A388, A350, B777, DC10, MD11, B767, B787)
+    if (matchType(['B744','B748','A388','A359','B77W','B772','B763','B789','B788','DC10','MD11','BOEING 747','AIRBUS A380'])) {
+        return `<svg class="plane-icon-svg" width="36" height="36" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <path fill="${color}" stroke="#090d16" stroke-width="14" d="M256 10c-14 0-24 12-24 26v140L10 270v45l222-40v120l-70 50v25l104-20 104 20v-25l-70-50V275l222 40v-45L280 176V36c0-14-10-26-24-26z"/>
+            <rect x="110" y="240" width="26" height="55" rx="8" fill="${color}" stroke="#090d16" stroke-width="6" />
+            <rect x="155" y="230" width="26" height="55" rx="8" fill="${color}" stroke="#090d16" stroke-width="6" />
+            <rect x="331" y="230" width="26" height="55" rx="8" fill="${color}" stroke="#090d16" stroke-width="6" />
+            <rect x="376" y="240" width="26" height="55" rx="8" fill="${color}" stroke="#090d16" stroke-width="6" />
+        </svg>`;
+    }
+
+    // 16. Commercial Airliner (A320, B738, B737, B752, B763, A321, E190, BOEING, AIRBUS)
+    if (matchType(['A320','B738','B737','B752','A321','A319','E190','E175','BOEING','AIRBUS','EMBRAER']) || cat === 'commercial-jet') {
         return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="14" d="M256 16c-12 0-22 10-22 22v140L24 280v40l210-48v112l-64 48v24l86-20 86 20v-24l-64-48V272l210 48v-40L278 178V38c0-12-10-22-22-22z"/>
             <rect x="155" y="240" width="24" height="50" rx="8" fill="${color}" stroke="#090d16" stroke-width="6" />
@@ -1793,10 +1786,9 @@ function getAircraftIconSvg(ac, color) {
         </svg>`;
     }
 
-    // 18. U.S. Military Transport / Heavy Cargo / Tanker / Recon (C-17, C-130, C-5, KC-135, KC-46, P-8, E-3 AWACS, RC-135)
-    if (['C17','C130','C30J','AC13','C5','KC135','C135','KC46','K10','E3TF','E3CF','E8','E6','P8','P3','RC135','U2','C27J','CN23'].includes(type)) {
+    // 17. U.S. Military Transport / Heavy Cargo / Tanker / Recon (C-17, C-130, C-5, KC-135, KC-46, P-8, E-3 AWACS, RC-135)
+    if (matchType(['C17','C130','C30J','AC13','C5','KC135','C135','KC46','K10','E3TF','E3CF','E8','E6','P8','P3','RC135','U2','C27J','CN23','HERCULES','GLOBEMASTER'])) {
         return `<svg class="plane-icon-svg" width="34" height="34" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
-            <!-- High wing tactical military transport with 4 wing-hung engines -->
             <path fill="${color}" stroke="#090d16" stroke-width="14" d="M256 16c-12 0-22 10-22 22v140L15 205v40l219-20v140l-75 50v25l112-25 112 25v-25l-75-50V225l219 20v-40L278 178V38c0-12-10-22-22-22z"/>
             <rect x="135" y="210" width="22" height="48" rx="6" fill="#090d16" stroke="${color}" stroke-width="4"/>
             <rect x="185" y="200" width="22" height="48" rx="6" fill="#090d16" stroke="${color}" stroke-width="4"/>
@@ -1805,22 +1797,31 @@ function getAircraftIconSvg(ac, color) {
         </svg>`;
     }
 
-    // 19. U.S. Military Fighter / Attack / Trainer / Bomber (F-16, F/A-18, F-22, F-35, F-15, A-10, T-38, T-6, B-1, B-2, B-52)
-    if (ac.mil === 1 || ['F16','F18','FA18','EA18','F22','F35','F15','EGL','A10','AV8B','HAR','T38','T6','T45','T7','B52','B1','B2','B21','MQ9','RQ4','MQ4'].includes(type) || cat === 'military') {
+    // 18. U.S. Military Fighter / Attack / Trainer / Stealth Bomber (F-16, F/A-18, F-22, F-35, F-15, A-10, T-38, T-6, B-1, B-2, B-52)
+    if (ac.mil === 1 || matchType(['F16','F18','FA18','EA18','F22','F35','F15','EGL','A10','AV8B','HAR','T38','T6','T45','T7','B52','B1','B2','B21','MQ9','RQ4','MQ4','FIGHTER','RAPTOR','HORNET','VIPER']) || cat === 'military') {
         return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,20 L 230,140 L 90,310 L 90,345 L 225,290 L 225,410 L 160,465 L 205,465 L 256,430 L 307,465 L 352,465 L 287,410 L 287,290 L 422,345 L 422,310 L 282,140 Z"/>
         </svg>`;
     }
 
-    // 19. Crop Duster / Agricultural (AT50, AT80, G164, M18)
-    if (['AT50','AT80','G164','M18','C188','A188'].includes(type) || cat === 'farm') {
+    // 19. Crop Duster / Agricultural (AT50, AT80, G164, M18, AIR TRACTOR)
+    if (matchType(['AT50','AT80','G164','M18','C188','A188','AIR TRACTOR','AG-CAT']) || cat === 'farm') {
         return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="14" d="M256 16c-8 0-14 6-14 14v170L10 200v36l232-15v105l-45 35v25l45-15 14 5 14-5 45 15v-25l-45-35V221l232 15v-36L270 200V30c0-8-6-14-14-14z"/>
             <rect x="40" y="225" width="432" height="12" rx="6" fill="none" stroke="${color}" stroke-width="12" />
         </svg>`;
     }
 
-    // 20. General Light Aviation Airplane (Piper, Beech, Mooney, etc.)
+    // 20. Piper & General Low Wing Light Aviation (P28A, P28R, PA28, PA32, PA24, M20T, BE36, CHEROKEE, ARCHER, MOONEY, BONANZA)
+    if (matchType(['P28A','P28R','PA28','PA32','PA24','M20T','BE36','CHEROKEE','ARCHER','ARROW','MOONEY','BONANZA','PIPER'])) {
+        return `<svg class="plane-icon-svg" width="28" height="28" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <path fill="${color}" stroke="#090d16" stroke-width="14" d="M 256,35 C 246,35 238,48 238,68 L 238,185 L 25,200 L 25,235 L 238,220 L 238,380 L 180,425 L 180,450 L 256,432 L 332,450 L 332,425 L 274,380 L 274,220 L 487,235 L 487,200 L 274,185 L 274,68 C 274,48 266,35 256,35 Z"/>
+            <line x1="200" y1="35" x2="312" y2="35" stroke="#090d16" stroke-width="12" stroke-linecap="round" />
+            <line x1="200" y1="35" x2="312" y2="35" stroke="${color}" stroke-width="5" stroke-linecap="round" />
+        </svg>`;
+    }
+
+    // 21. Default General Aviation Airplane
     return `<svg class="plane-icon-svg" width="28" height="28" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
         <path fill="${color}" stroke="#090d16" stroke-width="14" d="M256 40c-10 0-18 8-18 18v134L32 192v36l206 12v120l-48 30v24l66-16 66 16v-24l-48-30V240l206-12v-36L274 192V58c0-10-8-18-18-18z"/>
         <line x1="210" y1="42" x2="302" y2="42" stroke="#090d16" stroke-width="12" stroke-linecap="round" />
