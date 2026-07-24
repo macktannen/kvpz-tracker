@@ -1956,11 +1956,16 @@ function updateMapMarker(ac) {
     const color = getAircraftColor(ac);
     const iconHtml = getAircraftIconSvg(ac, color);
     
-    // Custom DivIcon containing SVG plane icon and label
+    // Check if identified as military (by manual checkbox, type, description, operator, or raw mil flag)
+    const isMil = (ac.mil === 1 || ac.mil === true || ac.mil === '1' || String(ac.mil).toLowerCase() === 'true' || ac.categoryClass === 'military');
+    const milRingHtml = isMil ? `<div class="mil-target-ring" title="Military Identified Aircraft"></div>` : '';
+
+    // Custom DivIcon containing SVG plane icon, military ring, and label
     const customIcon = L.divIcon({
         className: 'custom-plane-icon',
         html: `
-            <div class="plane-marker-container">
+            <div class="plane-marker-container" style="position: relative;">
+                ${milRingHtml}
                 ${iconHtml}
                 <div class="plane-label" style="border-color: ${color};">${ac.callsign}</div>
             </div>
