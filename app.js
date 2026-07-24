@@ -1793,8 +1793,20 @@ function getAircraftIconSvg(ac, color) {
         </svg>`;
     }
 
-    // 18. Military Jet / Fighter (F16, F18, F22, F35, A10, T38)
-    if (['F16','F18','F22','F35','A10','T38','T6','F15','B52','B1','B2','C17','C130'].includes(type) || cat === 'military') {
+    // 18. U.S. Military Transport / Heavy Cargo / Tanker / Recon (C-17, C-130, C-5, KC-135, KC-46, P-8, E-3 AWACS, RC-135)
+    if (['C17','C130','C30J','AC13','C5','KC135','C135','KC46','K10','E3TF','E3CF','E8','E6','P8','P3','RC135','U2','C27J','CN23'].includes(type)) {
+        return `<svg class="plane-icon-svg" width="34" height="34" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- High wing tactical military transport with 4 wing-hung engines -->
+            <path fill="${color}" stroke="#090d16" stroke-width="14" d="M256 16c-12 0-22 10-22 22v140L15 205v40l219-20v140l-75 50v25l112-25 112 25v-25l-75-50V225l219 20v-40L278 178V38c0-12-10-22-22-22z"/>
+            <rect x="135" y="210" width="22" height="48" rx="6" fill="#090d16" stroke="${color}" stroke-width="4"/>
+            <rect x="185" y="200" width="22" height="48" rx="6" fill="#090d16" stroke="${color}" stroke-width="4"/>
+            <rect x="305" y="200" width="22" height="48" rx="6" fill="#090d16" stroke="${color}" stroke-width="4"/>
+            <rect x="355" y="210" width="22" height="48" rx="6" fill="#090d16" stroke="${color}" stroke-width="4"/>
+        </svg>`;
+    }
+
+    // 19. U.S. Military Fighter / Attack / Trainer / Bomber (F-16, F/A-18, F-22, F-35, F-15, A-10, T-38, T-6, B-1, B-2, B-52)
+    if (ac.mil === 1 || ['F16','F18','FA18','EA18','F22','F35','F15','EGL','A10','AV8B','HAR','T38','T6','T45','T7','B52','B1','B2','B21','MQ9','RQ4','MQ4'].includes(type) || cat === 'military') {
         return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,20 L 230,140 L 90,310 L 90,345 L 225,290 L 225,410 L 160,465 L 205,465 L 256,430 L 307,465 L 352,465 L 287,410 L 287,290 L 422,345 L 422,310 L 282,140 Z"/>
         </svg>`;
