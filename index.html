@@ -376,13 +376,19 @@
                     </div>
                     <small style="color: var(--color-text-muted); display: block; margin-top: 0.5rem; font-size: 0.72rem;">Streams your plane's live coordinates to your KVPZ Radar every 5 seconds in the background!</small>
                 </div>
+
+                <div style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 0.75rem; text-align: center;">
+                    <button onclick="clearSpidertracksFeed()" style="background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; font-weight: 700; padding: 0.45rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.82rem;">
+                        <i class="fa-solid fa-trash-can"></i> Remove All SpiderTracks Markers From Map
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="icao_categories.js?v=78"></script>
-    <script src="app.js?v=78"></script>
+    <script src="icao_categories.js?v=79"></script>
+    <script src="app.js?v=79"></script>
 </body>
 </html>

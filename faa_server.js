@@ -124,6 +124,12 @@ const server = http.createServer(async (req, res) => {
 let spidertracksStore = {};
 
     if (reqUrl.pathname === '/spidertracks') {
+        if (req.method === 'DELETE') {
+            spidertracksStore = {};
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ status: 'ok', cleared: true }));
+            return;
+        }
         if (req.method === 'POST') {
             let body = '';
             req.on('data', chunk => body += chunk);

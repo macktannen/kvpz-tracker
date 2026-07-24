@@ -3203,3 +3203,27 @@ window.sendManualSpiderPos = async function() {
     closeSpidertracksModal();
 };
 
+window.clearSpidertracksFeed = async function() {
+    Object.keys(aircraftCache).forEach(hex => {
+        if (hex.startsWith('spider_') || (aircraftCache[hex] && aircraftCache[hex].source === 'Spidertracks Satellite')) {
+            removeAircraftLayers(hex);
+            delete aircraftCache[hex];
+        }
+    });
+
+    const endpoints = [
+        `${window.location.origin}/spidertracks`,
+        'http://localhost:8080/spidertracks',
+        'http://127.0.0.1:3001/spidertracks'
+    ];
+    for (const ep of endpoints) {
+        try {
+            await fetch(ep, { method: 'DELETE' });
+        } catch(e) {}
+    }
+
+    updateUI();
+    closeSpidertracksModal();
+    alert("🗑️ All SpiderTracks markers have been removed from the map!");
+};
+
