@@ -866,26 +866,69 @@ async function fetchTAF() {
     const tafBox = document.getElementById('taf-content-box');
     if (!tafBox) return;
     
+    // 1. Primary: Official NOAA NWS API (Native CORS Support)
     try {
-        const response = await fetch('https://aviationweather.gov/api/data/taf?ids=KGYY,KSBN,KLAF&format=json');
-        if (!response.ok) throw new Error('TAF API status ' + response.status);
-        
-        const data = await response.json();
-        if (Array.isArray(data)) {
-            data.forEach(item => {
-                const stn = (item.icaoId || item.name || '').toUpperCase();
-                if (stn) {
-                    tafDataMap[stn] = item;
+        const response = await fetch('https://api.weather.gov/products/types/TAF', {
+            headers: { 'User-Agent': 'KVPZ-Tracker (contact@example.com)' }
+        });
+        if (response.ok) {
+            const data = await response.json();
+            const graph = data['@graph'] || [];
+            const targetOffices = ['KLOT', 'KIWX', 'KIND'];
+            const officeItems = graph.filter(x => targetOffices.includes(x.issuingOffice));
+
+            for (const item of officeItems.slice(0, 15)) {
+                if (tafDataMap['KGYY'] && tafDataMap['KSBN'] && tafDataMap['KLAF']) break;
+                
+                const pr = await fetch(item['@id'], {
+                    headers: { 'User-Agent': 'KVPZ-Tracker (contact@example.com)' }
+                });
+                if (pr.ok) {
+                    const pd = await pr.json();
+                    const txt = pd.productText || '';
+                    
+                    ['KGYY', 'KSBN', 'KLAF'].forEach(stn => {
+                        if (!tafDataMap[stn] && txt.includes(stn)) {
+                            let cleanText = txt.trim();
+                            const idx = cleanText.indexOf(stn + ' ');
+                            if (idx !== -1) {
+                                cleanText = 'TAF ' + cleanText.substring(idx).trim();
+                            }
+                            tafDataMap[stn] = { rawTAF: cleanText, name: stn };
+                        }
+                    });
                 }
-            });
+            }
         }
-        renderActiveTAF();
-    } catch (error) {
-        console.warn("Error loading TAF forecasts:", error);
-        if (Object.keys(tafDataMap).length === 0) {
-            tafBox.innerHTML = '<span style="color: var(--accent-red); font-family: var(--font-sans);">Failed to load regional TAF forecasts.</span>';
+    } catch (e) {
+        console.warn("NWS TAF fetch failed:", e);
+    }
+
+    // 2. Secondary: Fallback via AllOrigins Proxy for AviationWeather.gov
+    if (!tafDataMap['KGYY'] || !tafDataMap['KSBN'] || !tafDataMap['KLAF']) {
+        try {
+            const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent('https://aviationweather.gov/api/data/taf?ids=KGYY,KSBN,KLAF&format=json');
+            const res = await fetch(proxyUrl);
+            if (res.ok) {
+                const proxyData = await res.json();
+                if (proxyData && proxyData.contents) {
+                    const parsed = JSON.parse(proxyData.contents);
+                    if (Array.isArray(parsed)) {
+                        parsed.forEach(item => {
+                            const stn = (item.icaoId || item.name || '').toUpperCase();
+                            if (stn && item.rawTAF) {
+                                tafDataMap[stn] = { rawTAF: item.rawTAF, name: item.name || stn };
+                            }
+                        });
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn("Proxy TAF fetch failed:", e);
         }
     }
+
+    renderActiveTAF();
 }
 
 function renderActiveTAF() {
