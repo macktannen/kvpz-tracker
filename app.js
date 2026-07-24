@@ -58,6 +58,11 @@ let arrivalCount = 0;
 let departureCount = 0;
 let transitCount = 0;
 
+// TAF State
+let tafDataMap = {}; // station -> TAF JSON object
+let activeTafStation = 'KGYY';
+const TAF_INTERVAL = 15 * 60 * 1000; // 15 minutes
+
 // Map Toggle States
 let showRings = true;
 let showLabels = true;
@@ -206,11 +211,24 @@ document.addEventListener('DOMContentLoaded', () => {
     updateCounters();
     
     fetchWeather();
+    fetchTAF();
     fetchAircraftData();
     
     // Set up polling intervals
     setInterval(fetchAircraftData, UPDATE_INTERVAL);
     setInterval(fetchWeather, WEATHER_INTERVAL);
+    setInterval(fetchTAF, TAF_INTERVAL);
+
+    // TAF Station Tab Listeners
+    document.querySelectorAll('.taf-tab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.taf-tab-btn').forEach(b => b.classList.remove('active'));
+            const targetBtn = e.currentTarget;
+            targetBtn.classList.add('active');
+            activeTafStation = targetBtn.getAttribute('data-station');
+            renderActiveTAF();
+        });
+    });
     
     // Set up UI Event Listeners
     document.getElementById('flight-search').addEventListener('input', handleSearch);
@@ -841,6 +859,68 @@ async function fetchWeather() {
         console.error("Error loading weather:", error);
         weatherText.textContent = "Failed to load live weather reports.";
     }
+}
+
+// 3b. TAF (Terminal Aerodrome Forecast) Handling for KGYY, KSBN, KLAF
+async function fetchTAF() {
+    const tafBox = document.getElementById('taf-content-box');
+    if (!tafBox) return;
+    
+    try {
+        const response = await fetch('https://aviationweather.gov/api/data/taf?ids=KGYY,KSBN,KLAF&format=json');
+        if (!response.ok) throw new Error('TAF API status ' + response.status);
+        
+        const data = await response.json();
+        if (Array.isArray(data)) {
+            data.forEach(item => {
+                const stn = (item.icaoId || item.name || '').toUpperCase();
+                if (stn) {
+                    tafDataMap[stn] = item;
+                }
+            });
+        }
+        renderActiveTAF();
+    } catch (error) {
+        console.warn("Error loading TAF forecasts:", error);
+        if (Object.keys(tafDataMap).length === 0) {
+            tafBox.innerHTML = '<span style="color: var(--accent-red); font-family: var(--font-sans);">Failed to load regional TAF forecasts.</span>';
+        }
+    }
+}
+
+function renderActiveTAF() {
+    const tafBox = document.getElementById('taf-content-box');
+    if (!tafBox) return;
+    
+    const tafObj = tafDataMap[activeTafStation];
+    if (!tafObj || !tafObj.rawTAF) {
+        tafBox.innerHTML = `<span style="color: var(--color-text-muted); font-style: italic; font-family: var(--font-sans);">No TAF forecast available for ${activeTafStation}.</span>`;
+        return;
+    }
+    
+    const raw = tafObj.rawTAF;
+    // Format raw TAF with line breaks for forecast change groups (FM, TEMPO, BECMG, PROB)
+    const formatted = raw
+        .replace(/\s+(FM\d{6})/g, '\n  $1')
+        .replace(/\s+(TEMPO\s+\d{4}\/\d{4})/g, '\n  $1')
+        .replace(/\s+(BECMG\s+\d{4}\/\d{4})/g, '\n  $1')
+        .replace(/\s+(PROB\d{2}\s+\d{4}\/\d{4})/g, '\n  $1');
+        
+    const stationNames = {
+        'KGYY': 'Gary Intl (22 NM West)',
+        'KSBN': 'South Bend (35 NM East)',
+        'KLAF': 'Purdue Univ / Lafayette (60 NM South)'
+    };
+    const titleText = stationNames[activeTafStation] || `${tafObj.name || activeTafStation} (${activeTafStation})`;
+    
+    tafBox.innerHTML = `<strong style="color: var(--accent-cyan); font-family: var(--font-sans); display: block; margin-bottom: 0.3rem;">${titleText}</strong>${escapeHtml(formatted)}`;
+}
+
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }
 
 // 4. Fetch Aircraft Data (Dual Feed Redundancy)

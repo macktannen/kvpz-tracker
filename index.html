@@ -100,6 +100,19 @@
                             <strong>RAW OBSERVATION:</strong>
                             <p id="weather-raw-text">Loading live aviation weather reports...</p>
                         </div>
+                        <div class="taf-container" style="margin-top: 0.8rem; border-top: 1px solid var(--border-color); padding-top: 0.6rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                                <strong style="font-size: 0.72rem; color: var(--color-text-muted);"><i class="fa-solid fa-clock-rotate-left"></i> REGIONAL TAF FORECASTS</strong>
+                                <div class="taf-tabs" id="taf-tabs" style="display: flex; gap: 0.3rem;">
+                                    <button class="taf-tab-btn active" data-station="KGYY" title="Gary Intl (22 NM West)">KGYY</button>
+                                    <button class="taf-tab-btn" data-station="KSBN" title="South Bend (35 NM East)">KSBN</button>
+                                    <button class="taf-tab-btn" data-station="KLAF" title="Lafayette (60 NM South)">KLAF</button>
+                                </div>
+                            </div>
+                            <div class="taf-content-box" id="taf-content-box" style="background: rgba(10, 15, 30, 0.6); border: 1px solid var(--border-color); border-radius: 4px; padding: 0.5rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text); white-space: pre-wrap; word-break: break-word; max-height: 150px; overflow-y: auto;">
+                                <p style="color: var(--color-text-muted); font-style: italic; font-family: var(--font-sans);">Loading regional TAF forecasts...</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -276,7 +289,7 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="icao_categories.js?v=53"></script>
-    <script src="app.js?v=53"></script>
+    <script src="icao_categories.js?v=54"></script>
+    <script src="app.js?v=54"></script>
 </body>
 </html>
