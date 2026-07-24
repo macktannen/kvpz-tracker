@@ -2564,14 +2564,6 @@ async function selectAircraft(hex) {
         if (ac && ac.lat && ac.lon) {
             map.panTo([ac.lat, ac.lon]);
             
-            // Manual selection forces fresh FAA / ADSBdb lookup if type/desc is missing
-            const hexKey = hex.toLowerCase();
-            const isMissingData = (!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '' || ac.type === 'SRCH' ||
-                                   !ac.desc || ac.desc === 'N/A' || ac.desc === 'Unknown' || ac.desc === '');
-            if (isMissingData && !activeSearches.has(hexKey)) {
-                fetchMissingAircraftInfo(hex, true);
-            }
-            
             // Try to fetch full historical trace from the ADS-B API online
             const apiTrace = await fetchDetailedTrace(hex);
             if (apiTrace && apiTrace.length > 0) {
