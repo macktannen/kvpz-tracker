@@ -2093,16 +2093,24 @@ function updateCounters() {
 // Tier 1: ADSBdb.com API (primary, CORS-friendly, static DB)
 // Tier 2: Gemini AI (last resort, rate-limited)
 // ==========================================
-async function fetchMissingAircraftInfo(hex) {
+async function fetchMissingAircraftInfo(hex, force = false) {
     const hexKey = hex.toLowerCase();
     
     // Prevent concurrent searches for the same aircraft
     if (activeSearches.has(hexKey)) return;
     
+    // If not forced and already searched this session with valid type & desc, skip
+    if (!force && searchedHexes.has(hexKey)) {
+        const liveAc = aircraftCache[hexKey];
+        if (liveAc && liveAc.type && liveAc.type !== 'N/A' && liveAc.type !== 'Unknown' && liveAc.desc && liveAc.desc !== 'N/A' && liveAc.desc !== 'Unknown') {
+            return;
+        }
+    }
+    
     // Mark as attempted in this session
     searchedHexes.add(hexKey);
     
-    console.log(`[Aircraft Search] Starting background lookup for ${hexKey}...`);
+    console.log(`[Aircraft Search] Starting background lookup for ${hexKey} (force=${force})...`);
     activeSearches.add(hexKey);
     updateUI(); // Show spinner immediately
     
@@ -2490,11 +2498,10 @@ function updateUI() {
         }
         
         const hexKey = ac.hex.toLowerCase();
-        const isMissingData = (!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '' ||
-                               !ac.operator || ac.operator === 'N/A' || ac.operator === 'Unknown' || ac.operator === '' ||
+        const isMissingData = (!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '' || ac.type === 'SRCH' ||
                                !ac.desc || ac.desc === 'N/A' || ac.desc === 'Unknown' || ac.desc === '');
         
-        // Auto-search logic (Throttled via Queue to prevent Gemini 429 Rate Limits)
+        // Auto-search logic (Throttled via Queue)
         if (autoSearch && isMissingData && !activeSearches.has(hexKey) && !searchedHexes.has(hexKey)) {
             searchedHexes.add(hexKey);
             autoSearchQueue.push(ac.hex);
@@ -2503,10 +2510,9 @@ function updateUI() {
         
         tr.addEventListener('click', () => {
             selectAircraft(ac.hex);
-            
-            // Manual click forces a search even if previously attempted and failed
-            if (!activeSearches.has(hexKey) && isMissingData) {
-                fetchMissingAircraftInfo(ac.hex);
+            // Manual click ALWAYS forces a fresh lookup for missing type/description!
+            if (!activeSearches.has(hexKey)) {
+                fetchMissingAircraftInfo(ac.hex, true);
             }
         });
         
@@ -2557,6 +2563,14 @@ async function selectAircraft(hex) {
         const ac = aircraftCache[hex];
         if (ac && ac.lat && ac.lon) {
             map.panTo([ac.lat, ac.lon]);
+            
+            // Manual selection forces fresh FAA / ADSBdb lookup if type/desc is missing
+            const hexKey = hex.toLowerCase();
+            const isMissingData = (!ac.type || ac.type === 'N/A' || ac.type === 'Unknown' || ac.type === '' || ac.type === 'SRCH' ||
+                                   !ac.desc || ac.desc === 'N/A' || ac.desc === 'Unknown' || ac.desc === '');
+            if (isMissingData && !activeSearches.has(hexKey)) {
+                fetchMissingAircraftInfo(hex, true);
+            }
             
             // Try to fetch full historical trace from the ADS-B API online
             const apiTrace = await fetchDetailedTrace(hex);
