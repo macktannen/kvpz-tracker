@@ -1629,32 +1629,96 @@ function getAircraftIconSvg(ac, color) {
 
     const matchType = (codes) => codes.some(c => type.includes(c) || desc.includes(c));
 
-    // 1. CH-47 Chinook / Tandem Rotor Heavy Helicopter
-    if (matchType(['H47','CH47','CH46','CHINOOK','TANDEM'])) {
+    // 1. CH-47 Chinook / MH-47 Special Ops (Tandem 2-Rotor Heavy Transport)
+    if (matchType(['H47','CH47','CH46','MH47','CHINOOK'])) {
         return `<svg class="plane-icon-svg" width="34" height="34" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
-            <rect x="210" y="80" width="92" height="352" rx="40" fill="${color}" stroke="#090d16" stroke-width="14" />
+            <!-- Long tandem fuselage with twin engine pods -->
+            <rect x="206" y="80" width="100" height="352" rx="42" fill="${color}" stroke="#090d16" stroke-width="14" />
+            <rect x="180" y="320" width="26" height="70" rx="6" fill="#090d16"/>
+            <rect x="306" y="320" width="26" height="70" rx="6" fill="#090d16"/>
+            <!-- Front 3-Blade Rotor -->
             <circle cx="256" cy="110" r="16" fill="#fff" stroke="#090d16" stroke-width="6" />
-            <rect x="56" y="104" width="400" height="12" rx="4" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(25, 256, 110)" />
-            <rect x="56" y="104" width="400" height="12" rx="4" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(145, 256, 110)" />
+            ${[0, 120, 240].map(ang => `<rect x="248" y="10" width="16" height="200" rx="4" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(${ang + 15}, 256, 110)"/>`).join('')}
+            <!-- Rear 3-Blade Rotor -->
             <circle cx="256" cy="402" r="16" fill="#fff" stroke="#090d16" stroke-width="6" />
-            <rect x="56" y="396" width="400" height="12" rx="4" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(-35, 256, 402)" />
-            <rect x="56" y="396" width="400" height="12" rx="4" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(85, 256, 402)" />
+            ${[0, 120, 240].map(ang => `<rect x="248" y="302" width="16" height="200" rx="4" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(${ang + 75}, 256, 402)"/>`).join('')}
         </svg>`;
     }
 
-    // 2. AH-64 Apache / Cobra Military Attack Helicopter
-    if (matchType(['H64','AH64','AH1','COBRA','APACHE','VIPER','ATTACK'])) {
+    // 2. CH-53E Super Stallion / CH-53K King Stallion / MH-53 Pave Low (Massive 7-Blade Lift Helicopter with Refueling Probe)
+    if (matchType(['H53','CH53','MH53','STALLION','SUPER STALLION','KING STALLION','PAVE LOW'])) {
+        return `<svg class="plane-icon-svg" width="36" height="36" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- Massive sponson body -->
+            <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,110 L 225,150 L 175,200 L 175,280 L 225,270 L 225,410 L 240,460 L 272,460 L 287,410 L 287,270 L 337,280 L 337,200 L 287,150 Z"/>
+            <!-- In-Flight Refueling Probe on Right Nose -->
+            <line x1="287" y1="170" x2="310" y2="40" stroke="#090d16" stroke-width="10" stroke-linecap="round"/>
+            <line x1="287" y1="170" x2="310" y2="40" stroke="${color}" stroke-width="5" stroke-linecap="round"/>
+            <!-- 7-Blade Rotor Hub -->
+            ${[0, 51.4, 102.8, 154.2, 205.6, 257, 308.4].map(ang => `<rect x="248" y="10" width="16" height="246" rx="6" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(${ang}, 256, 256)"/>`).join('')}
+            <circle cx="256" cy="256" r="24" fill="#fff" stroke="#090d16" stroke-width="7"/>
+        </svg>`;
+    }
+
+    // 3. AH-64 Apache (Tandem Cockpit, 30mm Chain Gun, Stub Wings & Rocket Pods)
+    if (matchType(['H64','AH64','APACHE'])) {
         return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
-            <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,90 L 235,140 L 170,220 L 170,250 L 235,240 L 235,420 L 245,460 L 267,460 L 277,420 L 277,240 L 342,250 L 342,220 L 277,140 Z"/>
-            <rect x="150" y="225" width="18" height="32" rx="4" fill="#090d16"/>
-            <rect x="344" y="225" width="18" height="32" rx="4" fill="#090d16"/>
+            <!-- Apache Sponson Nose & Cannon -->
+            <line x1="256" y1="90" x2="256" y2="50" stroke="#090d16" stroke-width="10" stroke-linecap="round"/>
+            <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,90 L 235,140 L 165,220 L 165,250 L 235,240 L 235,420 L 245,460 L 267,460 L 277,420 L 277,240 L 347,250 L 347,220 L 277,140 Z"/>
+            <!-- 4 Rocket Pods -->
+            <rect x="145" y="220" width="18" height="35" rx="4" fill="#090d16"/>
+            <rect x="349" y="220" width="18" height="35" rx="4" fill="#090d16"/>
+            <!-- 4-Blade Main Rotor -->
             ${[0, 90, 180, 270].map(ang => `<rect x="246" y="30" width="20" height="226" rx="6" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(${ang + 15}, 256, 256)"/>`).join('')}
             <circle cx="256" cy="256" r="16" fill="#fff" stroke="#090d16" stroke-width="5"/>
         </svg>`;
     }
 
-    // 3. Black Hawk / Heavy Transport Helicopter (UH-60, Sikorsky S-76, CH-53)
-    if (matchType(['H60','UH60','MH60','H53','CH53','S76','S92','BLACK HAWK','BLACKHAWK','STALLION','JAYHAWK','PAVE HAWK'])) {
+    // 4. AH-1Z Viper / AH-1 SuperCobra (Ultra-Narrow Marine Attack Helicopter)
+    if (matchType(['AH1','H1','COBRA','VIPER','SUPERCOBRA'])) {
+        return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- Pencil thin attack fuselage -->
+            <path fill="${color}" stroke="#090d16" stroke-width="13" d="M 256,70 L 242,120 L 210,210 L 210,230 L 242,220 L 242,430 L 256,460 L 270,430 L 270,220 L 302,230 L 302,210 L 270,120 Z"/>
+            <!-- Wingtip Missile Rails -->
+            <line x1="200" y1="200" x2="200" y2="240" stroke="#090d16" stroke-width="6"/>
+            <line x1="312" y1="200" x2="312" y2="240" stroke="#090d16" stroke-width="6"/>
+            <!-- 4-Blade Rotor -->
+            ${[0, 90, 180, 270].map(ang => `<rect x="248" y="25" width="16" height="231" rx="4" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(${ang + 25}, 256, 256)"/>`).join('')}
+            <circle cx="256" cy="256" r="14" fill="#fff" stroke="#090d16" stroke-width="5"/>
+        </svg>`;
+    }
+
+    // 5. MH-6 Little Bird / AH-6 Killer Egg (Special Ops Combat Egg Helicopter)
+    if (matchType(['H6','MH6','AH6','LITTLE BIRD','KILLER EGG'])) {
+        return `<svg class="plane-icon-svg" width="28" height="28" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- Egg-shaped fuselage -->
+            <ellipse cx="256" cy="200" rx="40" ry="50" fill="${color}" stroke="#090d16" stroke-width="14"/>
+            <rect x="248" y="240" width="16" height="190" fill="${color}" stroke="#090d16" stroke-width="8"/>
+            <!-- Outboard Miniguns -->
+            <rect x="195" y="210" width="12" height="40" rx="2" fill="#090d16"/>
+            <rect x="305" y="210" width="12" height="40" rx="2" fill="#090d16"/>
+            <!-- 6-Blade Rotor -->
+            ${[0, 60, 120, 180, 240, 300].map(ang => `<rect x="249" y="30" width="14" height="226" rx="4" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(${ang + 10}, 256, 256)"/>`).join('')}
+            <circle cx="256" cy="200" r="16" fill="#fff" stroke="#090d16" stroke-width="5"/>
+        </svg>`;
+    }
+
+    // 6. UH-1Y Venom / UH-1 Iroquois Huey (Classic Utility Helicopter)
+    if (matchType(['UH1','HUEY','VENOM','IROQUOIS'])) {
+        return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <!-- Huey Wide Door Fuselage -->
+            <path fill="${color}" stroke="#090d16" stroke-width="14" d="M 256,120 C 220,120 210,160 210,210 L 210,270 L 244,270 L 244,435 L 268,435 L 268,270 L 302,270 L 302,210 C 302,160 292,120 256,120 Z"/>
+            <!-- Skids -->
+            <line x1="190" y1="180" x2="190" y2="300" stroke="#090d16" stroke-width="10" stroke-linecap="round"/>
+            <line x1="322" y1="180" x2="322" y2="300" stroke="#090d16" stroke-width="10" stroke-linecap="round"/>
+            <!-- 4-Blade Main Rotor -->
+            ${[0, 90, 180, 270].map(ang => `<rect x="248" y="15" width="16" height="241" rx="4" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(${ang + 35}, 256, 256)"/>`).join('')}
+            <circle cx="256" cy="256" r="16" fill="#fff" stroke="#090d16" stroke-width="5"/>
+        </svg>`;
+    }
+
+    // 7. UH-60 Black Hawk / MH-60 / HH-60 Pave Hawk / MH-60T Jayhawk
+    if (matchType(['H60','UH60','MH60','BLACK HAWK','BLACKHAWK','PAVE HAWK','JAYHAWK','SEAHAWK'])) {
         return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,130 C 235,130 215,160 215,200 L 180,225 L 180,265 L 225,260 L 225,410 L 240,455 L 272,455 L 287,410 L 287,260 L 332,265 L 332,225 L 297,200 C 297,160 277,130 256,130 Z"/>
             ${[0, 90, 180, 270].map(ang => `<rect x="248" y="20" width="16" height="236" rx="6" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(${ang + 30}, 256, 256)"/>`).join('')}
@@ -1662,22 +1726,32 @@ function getAircraftIconSvg(ac, color) {
         </svg>`;
     }
 
-    // 4. Light Executive Helicopter (Bell 206, Bell 407, Robinson R44/R22)
-    if (matchType(['R22','R44','R66','B06','B412','BELL','ROBINSON','JETRANGER','LONGRANGER'])) {
-        return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
-            <path fill="${color}" stroke="#090d16" stroke-width="14" d="M 256,120 C 226,120 220,170 220,220 L 245,220 L 245,435 L 267,435 L 267,220 L 292,220 C 292,170 286,120 256,120 Z"/>
-            <rect x="248" y="10" width="16" height="492" rx="6" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(20, 256, 256)"/>
-            <circle cx="256" cy="256" r="16" fill="#fff" stroke="#090d16" stroke-width="5"/>
-        </svg>`;
-    }
-
-    // 5. Fenestron Enclosed Tail Fan Helicopter (Eurocopter EC135, EC145, Airbus, USCG Dolphin)
-    if (matchType(['EC35','EC45','AS35','AS65','HH65','BK117','EC30','AW139','EUROCOPTER','EC135','EC145','DOLPHIN']) || cat === 'helicopter') {
+    // 8. MH-65 Dolphin / USCG Search & Rescue (Fenestron Enclosed Ducted Tail Fan)
+    if (matchType(['AS65','HH65','MH65','DOLPHIN','COAST GUARD','USCG'])) {
         return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
             <path fill="${color}" stroke="#090d16" stroke-width="14" d="M 256,140 C 230,140 222,175 222,215 L 222,380 L 242,400 L 242,450 L 270,450 L 270,400 L 290,380 L 290,215 C 290,175 282,140 256,140 Z"/>
             <circle cx="256" cy="425" r="22" fill="#090d16" stroke="${color}" stroke-width="6"/>
             ${[0, 90, 180, 270].map(ang => `<rect x="247" y="30" width="18" height="226" rx="6" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(${ang + 40}, 256, 256)"/>`).join('')}
             <circle cx="256" cy="256" r="18" fill="#fff" stroke="#090d16" stroke-width="6"/>
+        </svg>`;
+    }
+
+    // 9. Civilian Eurocopter / Airbus (EC135, EC145, AS350 AStar)
+    if (matchType(['EC35','EC45','AS35','BK117','EC30','AW139','EUROCOPTER','EC135','EC145','AGUSTA','ASTAR'])) {
+        return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <path fill="${color}" stroke="#090d16" stroke-width="14" d="M 256,140 C 230,140 222,175 222,215 L 222,380 L 242,400 L 242,450 L 270,450 L 270,400 L 290,380 L 290,215 C 290,175 282,140 256,140 Z"/>
+            <circle cx="256" cy="425" r="22" fill="#090d16" stroke="${color}" stroke-width="6"/>
+            ${[0, 90, 180, 270].map(ang => `<rect x="247" y="30" width="18" height="226" rx="6" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(${ang + 40}, 256, 256)"/>`).join('')}
+            <circle cx="256" cy="256" r="18" fill="#fff" stroke="#090d16" stroke-width="6"/>
+        </svg>`;
+    }
+
+    // 10. Light Executive Helicopter (Bell 206, Bell 407, Robinson R44/R22/R66)
+    if (matchType(['R22','R44','R66','B06','B412','BELL','ROBINSON','JETRANGER','LONGRANGER']) || cat === 'helicopter') {
+        return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <path fill="${color}" stroke="#090d16" stroke-width="14" d="M 256,120 C 226,120 220,170 220,220 L 245,220 L 245,435 L 267,435 L 267,220 L 292,220 C 292,170 286,120 256,120 Z"/>
+            <rect x="248" y="10" width="16" height="492" rx="6" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(20, 256, 256)"/>
+            <circle cx="256" cy="256" r="16" fill="#fff" stroke="#090d16" stroke-width="5"/>
         </svg>`;
     }
 
