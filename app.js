@@ -259,6 +259,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Top Active Runway Card Popover Toggle (for touch / mobile click)
+    const topRunwayCard = document.getElementById('top-runway-card');
+    const runwayPopover = document.getElementById('runway-popover');
+    if (topRunwayCard && runwayPopover) {
+        topRunwayCard.addEventListener('click', (e) => {
+            runwayPopover.classList.toggle('active');
+        });
+        document.addEventListener('click', (e) => {
+            if (!topRunwayCard.contains(e.target)) {
+                runwayPopover.classList.remove('active');
+            }
+        });
+    }
+
     // Operations Log Card Collapsible Toggle Listener
     const opsCard = document.getElementById('ops-card');
     const opsHeader = document.getElementById('ops-header');
@@ -913,9 +927,11 @@ async function fetchWeather() {
 
 // 3a. Active Runway & Wind Component Calculator
 function updateRunwayWindCalculator(windDirDeg, windSpeedKnots) {
+    const topVal = document.getElementById('top-active-runway-val');
+    const topSub = document.getElementById('top-runway-wind-sub');
+    const popoverSummary = document.getElementById('top-popover-wind-summary');
     const grid = document.getElementById('runway-grid');
-    const badge = document.getElementById('active-runway-badge');
-    if (!grid || !badge) return;
+    if (!grid || !topVal) return;
 
     // KVPZ Runways (Magnetic Headings: RWY 09 (092°), RWY 27 (272°), RWY 18 (182°), RWY 36 (002°))
     const runways = [
@@ -929,9 +945,10 @@ function updateRunwayWindCalculator(windDirDeg, windSpeedKnots) {
     const isVrb = (windDirDeg === null || isNaN(windDirDeg));
 
     if (isCalm || isVrb) {
-        badge.textContent = isCalm ? 'RWY 09/27 (Calm)' : 'RWY 09/27 (VRB)';
-        badge.style.background = 'var(--accent-cyan)';
-        badge.style.color = '#000';
+        topVal.textContent = 'RWY 09/27';
+        topVal.style.color = 'var(--accent-cyan)';
+        if (topSub) topSub.textContent = isCalm ? 'Calm' : 'VRB';
+        if (popoverSummary) popoverSummary.textContent = isCalm ? 'Wind Calm' : 'Variable Wind';
 
         grid.innerHTML = runways.map(rwy => `
             <div style="background: rgba(31, 41, 55, 0.4); border-radius: 4px; padding: 0.35rem 0.5rem;">
@@ -958,9 +975,15 @@ function updateRunwayWindCalculator(windDirDeg, windSpeedKnots) {
         return { ...rwy, hw, xw };
     });
 
-    badge.textContent = `${recommendedRwy.name} (Favored)`;
-    badge.style.background = '#10b981'; // Vibrant green badge
-    badge.style.color = '#fff';
+    const bestHW = computed.find(r => r.id === recommendedRwy.id);
+    topVal.textContent = recommendedRwy.name;
+    topVal.style.color = '#10b981';
+    if (topSub) {
+        topSub.textContent = bestHW && bestHW.hw >= 0 ? `+${bestHW.hw} KT HW` : `Tailwind`;
+    }
+    if (popoverSummary) {
+        popoverSummary.textContent = `${String(windDirDeg).padStart(3, '0')}° @ ${windSpeedKnots} KT`;
+    }
 
     grid.innerHTML = computed.map(rwy => {
         const isBest = (rwy.id === recommendedRwy.id);

@@ -31,6 +31,29 @@
             </div>
             
             <div class="header-stats">
+                <!-- Active Runway Calculator Stat Card (Left of Active Airbornes) -->
+                <div class="stat-card accent-runway" id="top-runway-card" title="Click or hover for KVPZ 4-runway wind breakdown">
+                    <span class="stat-label" style="display: flex; gap: 0.3rem; align-items: center; width: 100%; justify-content: space-between;">
+                        <span>ACTIVE RWY</span>
+                        <i class="fa-solid fa-plane-arrival" style="font-size: 0.62rem; color: #10b981;"></i>
+                    </span>
+                    <div style="display: flex; align-items: baseline; gap: 0.35rem; width: 100%;">
+                        <span class="stat-value" id="top-active-runway-val" style="color: #10b981; font-weight: 800;">RWY ---</span>
+                        <span id="top-runway-wind-sub" style="font-size: 0.65rem; color: var(--color-text-muted); font-family: var(--font-mono);">---</span>
+                    </div>
+
+                    <!-- Popover Dropdown for 4-Runway Wind Breakdown -->
+                    <div class="runway-popover" id="runway-popover">
+                        <div style="font-weight: 700; font-size: 0.72rem; color: var(--accent-cyan); margin-bottom: 0.4rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3rem; display: flex; justify-content: space-between; align-items: center;">
+                            <span><i class="fa-solid fa-wind"></i> KVPZ WIND COMPONENTS</span>
+                            <span id="top-popover-wind-summary" style="font-weight: normal; color: var(--color-text-muted); font-size: 0.68rem;">---</span>
+                        </div>
+                        <div class="runway-grid" id="runway-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem;">
+                            <!-- Filled dynamically by JS -->
+                        </div>
+                    </div>
+                </div>
+
                 <div class="stat-card">
                     <span class="stat-label">Active Airbornes</span>
                     <span class="stat-value" id="count-total">0</span>
@@ -99,16 +122,6 @@
                                     <span class="w-label">Altimeter</span>
                                     <span class="w-value" id="weather-altim">---</span>
                                 </div>
-                            </div>
-                        </div>
-                        <!-- Active Runway & Wind Component Calculator -->
-                        <div class="runway-wind-box" id="runway-wind-box" style="margin-bottom: 0.75rem; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.6rem;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-                                <strong style="font-size: 0.72rem; color: var(--color-text-muted); text-transform: uppercase;"><i class="fa-solid fa-plane-arrival"></i> Active Runway Calculator</strong>
-                                <span class="badge" id="active-runway-badge" style="background: var(--accent-cyan); color: #000; font-weight: 700; font-size: 0.65rem;">RWY ---</span>
-                            </div>
-                            <div class="runway-grid" id="runway-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem;">
-                                <div style="color: var(--color-text-muted); font-size: 0.7rem; grid-column: span 2; font-style: italic;">Calculating active runway wind components...</div>
                             </div>
                         </div>
                         <div class="metar-raw">
@@ -318,7 +331,7 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="icao_categories.js?v=59"></script>
-    <script src="app.js?v=59"></script>
+    <script src="icao_categories.js?v=60"></script>
+    <script src="app.js?v=60"></script>
 </body>
 </html>
