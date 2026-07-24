@@ -63,6 +63,7 @@ let showRings = true;
 let showLabels = true;
 let showTrails = true;
 let showPowerlines = true;
+let showRadar = true;
 let showLow = true;
 let showMed = true;
 let showHigh = true;
@@ -80,6 +81,7 @@ let rangeRingLayers = []; // Stores range rings and labels
 // Map Base Tile Layers & State
 let baseTileLayers = {};
 let darkMatter, osm, voyager, satellite;
+let radarLayer = null;
 
 // Initialize the Application
 document.addEventListener('DOMContentLoaded', () => {
@@ -92,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('toggle-labels').checked = showLabels;
     document.getElementById('toggle-trails').checked = showTrails;
     document.getElementById('toggle-powerlines').checked = showPowerlines;
+    document.getElementById('toggle-radar').checked = showRadar;
     document.getElementById('toggle-low').checked = showLow;
     document.getElementById('toggle-med').checked = showMed;
     document.getElementById('toggle-high').checked = showHigh;
@@ -195,6 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     initClock();
     initMap();
+    initRadar();
     
     // Load KVPZ operations log memory from localStorage & clean up 1-month-old logs
     loadOperationsLogMemory();
@@ -273,6 +277,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             lastBboxStr = "";
         }
+    });
+
+    document.getElementById('toggle-radar').addEventListener('change', (e) => {
+        showRadar = e.target.checked;
+        saveMapSettings();
+        updateRadarLayer();
     });
     
     document.getElementById('toggle-low').addEventListener('change', (e) => {
@@ -2248,6 +2258,7 @@ function loadMapSettings() {
             showLabels = settings.showLabels !== undefined ? settings.showLabels : true;
             showTrails = settings.showTrails !== undefined ? settings.showTrails : true;
             showPowerlines = settings.showPowerlines !== undefined ? settings.showPowerlines : true;
+            if (settings.showRadar !== undefined) showRadar = settings.showRadar;
             showLow = settings.showLow !== undefined ? settings.showLow : true;
             showMed = settings.showMed !== undefined ? settings.showMed : true;
             showHigh = settings.showHigh !== undefined ? settings.showHigh : true;
@@ -2269,7 +2280,7 @@ function loadMapSettings() {
 function saveMapSettings() {
     try {
         const settings = { 
-            showRings, showLabels, showTrails, showPowerlines, showLow, showMed, showHigh, 
+            showRings, showLabels, showTrails, showPowerlines, showRadar, showLow, showMed, showHigh, 
             showCommJet, showAirplane, showBizJet, showBProp, showHelo, showMil, showFarm, showOther,
             controlsCollapsed 
         };
@@ -2347,6 +2358,42 @@ function updateSearchPortalLinks(query) {
             </a>
         </div>
     `;
+}
+
+// 11b. Live NEXRAD Doppler Radar Layer
+function initRadar() {
+    radarLayer = L.tileLayer('https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png', {
+        attribution: 'Radar &copy; IEM / NOAA NEXRAD',
+        maxZoom: 18,
+        opacity: 0.55,
+        zIndex: 200
+    });
+    
+    if (showRadar) {
+        radarLayer.addTo(map);
+    }
+    
+    // Auto-refresh composite radar scan every 5 minutes
+    setInterval(refreshRadarTiles, 5 * 60 * 1000);
+}
+
+function updateRadarLayer() {
+    if (!map || !radarLayer) return;
+    if (showRadar) {
+        if (!map.hasLayer(radarLayer)) {
+            radarLayer.addTo(map);
+        }
+    } else {
+        if (map.hasLayer(radarLayer)) {
+            map.removeLayer(radarLayer);
+        }
+    }
+}
+
+function refreshRadarTiles() {
+    if (!radarLayer || !map) return;
+    const t = Date.now();
+    radarLayer.setUrl(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png?t=${t}`);
 }
 
 // 12. OSM Powerlines Renderer (Overpass API with Local Cache)
