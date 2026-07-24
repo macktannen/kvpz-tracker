@@ -9,5 +9,5 @@ echo.
 echo Leave this window open while using your flight tracker!
 echo Press Ctrl+C to stop.
 echo.
-python verify_build.py
+"C:\Users\chadm\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe" verify_build.py
 pause
