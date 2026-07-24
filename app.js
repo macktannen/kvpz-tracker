@@ -3077,11 +3077,27 @@ function refreshRadarTiles() {
 }
 
 // 12. OSM Powerlines Renderer (Overpass API with Local Cache)
+function isPointInIndiana(lat, lon) {
+    if (lat < 37.7717 || lat > 41.7607 || lon < -88.0978 || lon > -84.7846) return false;
+    if (lat < 39.4 && lon < (-88.00 + (39.4 - lat) * 0.15)) return false;
+    return true;
+}
+
 function loadPowerlineCache() {
     try {
         const stored = safeGetItem('kvpz_powerline_cache');
         if (stored) {
             powerlineCache = JSON.parse(stored);
+            // Purge any legacy cached entries that fall outside Indiana boundary
+            Object.keys(powerlineCache).forEach(id => {
+                const item = powerlineCache[id];
+                if (item && item.latlngs) {
+                    item.latlngs = item.latlngs.filter(pt => isPointInIndiana(pt[0], pt[1]));
+                    if (item.latlngs.length < 2) {
+                        delete powerlineCache[id];
+                    }
+                }
+            });
         }
     } catch (e) {
         console.error("Error loading powerline cache from localStorage:", e);
@@ -3091,14 +3107,16 @@ function loadPowerlineCache() {
     if (typeof SEED_POWERLINES !== 'undefined' && Array.isArray(SEED_POWERLINES) && Object.keys(powerlineCache).length < 500) {
         SEED_POWERLINES.forEach(el => {
             if (el.type === 'way' && Array.isArray(el.geometry)) {
-                const latlngs = el.geometry.map(pt => [pt.lat, pt.lon]);
-                const elId = el.id || `${latlngs[0][0]}_${latlngs[0][1]}`;
-                if (!powerlineCache[elId]) {
-                    powerlineCache[elId] = {
-                        id: elId,
-                        latlngs: latlngs,
-                        tags: el.tags || {}
-                    };
+                const latlngs = el.geometry.map(pt => [pt.lat, pt.lon]).filter(pt => isPointInIndiana(pt[0], pt[1]));
+                if (latlngs.length >= 2) {
+                    const elId = el.id || `${latlngs[0][0]}_${latlngs[0][1]}`;
+                    if (!powerlineCache[elId]) {
+                        powerlineCache[elId] = {
+                            id: elId,
+                            latlngs: latlngs,
+                            tags: el.tags || {}
+                        };
+                    }
                 }
             }
         });
@@ -3132,15 +3150,19 @@ function renderPowerlinesFromCache() {
     Object.values(powerlineCache).forEach(item => {
         if (!item || !item.latlngs || item.latlngs.length < 2) return;
 
+        // Keep strictly ONLY coordinates inside Indiana
+        const indianaLatLngs = item.latlngs.filter(pt => isPointInIndiana(pt[0], pt[1]));
+        if (indianaLatLngs.length < 2) return;
+
         // Render if any point of the polyline falls within padded map bounds
-        const isVisible = item.latlngs.some(pt => pt[0] >= south && pt[0] <= north && pt[1] >= west && pt[1] <= east);
+        const isVisible = indianaLatLngs.some(pt => pt[0] >= south && pt[0] <= north && pt[1] >= west && pt[1] <= east);
         if (!isVisible) return;
 
         renderedCount++;
 
         // Double-stroke neon glow technique
         // 1. Semi-transparent thick background pink line for glow
-        L.polyline(item.latlngs, {
+        L.polyline(indianaLatLngs, {
             color: '#ff007f',
             weight: 6,
             opacity: 0.35,
@@ -3149,7 +3171,7 @@ function renderPowerlinesFromCache() {
         }).addTo(powerlineGroup);
 
         // 2. High-brightness thin solid pink line on top
-        const mainLine = L.polyline(item.latlngs, {
+        const mainLine = L.polyline(indianaLatLngs, {
             color: '#ff1493', // Deep Pink / Highlighter Pink
             weight: 2.2,
             opacity: 0.95,
@@ -3278,9 +3300,12 @@ async function updatePowerlines() {
         if (el.type === 'way' && Array.isArray(el.geometry)) {
             const tags = el.tags || {};
             
-            // Check geographical bounds: strictly inside state of Indiana bounds
-            const inIndiana = el.geometry.some(pt => pt.lat >= 37.75 && pt.lat <= 41.77 && pt.lon >= -88.10 && pt.lon <= -84.75);
-            if (!inIndiana) {
+            // Strictly filter geometry coordinates to keep ONLY points inside Indiana
+            const latlngs = el.geometry
+                .filter(pt => isPointInIndiana(pt.lat, pt.lon))
+                .map(pt => [pt.lat, pt.lon]);
+
+            if (latlngs.length < 2) {
                 skippedCount++;
                 return;
             }
@@ -3305,7 +3330,6 @@ async function updatePowerlines() {
                 return;
             }
             
-            const latlngs = el.geometry.map(pt => [pt.lat, pt.lon]);
             const elId = el.id || `${latlngs[0][0]}_${latlngs[0][1]}`;
             
             if (!powerlineCache[elId]) {
