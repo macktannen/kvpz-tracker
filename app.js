@@ -3079,7 +3079,13 @@ function refreshRadarTiles() {
 // 12. OSM Powerlines Renderer (Overpass API with Local Cache)
 function isPointInIndiana(lat, lon) {
     if (lat < 37.7717 || lat > 41.7607 || lon < -88.0978 || lon > -84.7846) return false;
-    if (lat < 39.4 && lon < (-88.00 + (39.4 - lat) * 0.15)) return false;
+    // Straight land border with Illinois (North of 39.36 N to Lake Michigan): Longitude MUST be >= -87.5247 W
+    if (lat >= 39.36 && lon < -87.5247) return false;
+    // Wabash River (South of 39.36 N down to Ohio River)
+    if (lat < 39.36) {
+        const wabashWestEdge = -87.5247 - ((39.36 - lat) / (39.36 - 37.77)) * (88.0978 - 87.5247);
+        if (lon < wabashWestEdge) return false;
+    }
     return true;
 }
 
