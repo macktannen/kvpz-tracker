@@ -72,9 +72,22 @@
                 </div>
             </div>
             
-            <div class="clock-area">
-                <span class="clock-label">Local Time</span>
-                <span class="clock-time" id="local-clock">00:00:00</span>
+            <div class="clock-area" style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="clock-label">Local Time</span>
+                    <span class="clock-time" id="local-clock">00:00:00</span>
+                </div>
+                <!-- Top Status Lights Indicator -->
+                <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.65rem;">
+                    <div style="display: flex; align-items: center; gap: 0.3rem;" title="Airplanes.live ADS-B Feed Status">
+                        <span class="pulse-indicator status-live" id="pulse-indicator" style="width: 7px; height: 7px;"></span>
+                        <span id="feed-status-text" style="color: var(--color-text-muted);">ADS-B Live</span>
+                    </div>
+                    <span style="color: var(--border-color);">|</span>
+                    <div id="faa-scraper-badge" style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #10b981; font-size: 0.62rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 700; display: flex; align-items: center; gap: 0.3rem;" title="FAA Registry Scraper Proxy Status">
+                        <i class="fa-solid fa-building-shield"></i> <span id="faa-scraper-text">FAA Scraper: Online</span>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -293,15 +306,6 @@
                     <button class="filter-btn" data-filter="inbound">Inbounds</button>
                     <button class="filter-btn" data-filter="outbound">Outbounds</button>
                 </div>
-                <div class="feed-status-area" style="display: flex; gap: 0.8rem; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 0.4rem;">
-                        <span class="pulse-indicator status-live" id="pulse-indicator"></span>
-                        <span id="feed-status-text">Connecting to airplanes.live feed...</span>
-                    </div>
-                    <div id="faa-scraper-badge" style="background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #f59e0b; font-size: 0.65rem; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 600; display: flex; align-items: center; gap: 0.35rem;" title="FAA Registry Scraper Proxy Status">
-                        <i class="fa-solid fa-building-shield"></i> <span id="faa-scraper-text">FAA Scraper: Checking...</span>
-                    </div>
-                </div>
             </div>
             
             <div class="table-container">
@@ -336,7 +340,7 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="icao_categories.js?v=70"></script>
-    <script src="app.js?v=70"></script>
+    <script src="icao_categories.js?v=71"></script>
+    <script src="app.js?v=71"></script>
 </body>
 </html>
