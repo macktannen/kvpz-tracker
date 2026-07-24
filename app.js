@@ -1629,16 +1629,55 @@ function getAircraftIconSvg(ac, color) {
 
     const matchType = (codes) => codes.some(c => type.includes(c) || desc.includes(c));
 
-    // 1. Helicopter
-    if (cat === 'helicopter' || matchType(['R22','R44','R66','EC35','EC45','H64','B06','B412','AS35','AW139','S76','HELI','COPTER','SIKORSKY','BELL','EUROCOPTER'])) {
-        const bodyPath = `M 256,160 C 236,160 220,175 220,205 C 220,205 185,215 185,230 C 185,245 220,255 220,255 L 220,290 C 220,315 242,330 244,360 L 248,440 L 242,445 L 242,455 L 270,455 L 270,445 L 264,440 L 268,360 C 270,330 292,315 292,290 L 292,255 C 292,255 327,245 327,230 C 327,215 292,205 292,205 C 292,175 276,160 256,160 Z`;
+    // 1. CH-47 Chinook / Tandem Rotor Heavy Helicopter
+    if (matchType(['H47','CH47','CH46','CHINOOK','TANDEM'])) {
+        return `<svg class="plane-icon-svg" width="34" height="34" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <rect x="210" y="80" width="92" height="352" rx="40" fill="${color}" stroke="#090d16" stroke-width="14" />
+            <circle cx="256" cy="110" r="16" fill="#fff" stroke="#090d16" stroke-width="6" />
+            <rect x="56" y="104" width="400" height="12" rx="4" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(25, 256, 110)" />
+            <rect x="56" y="104" width="400" height="12" rx="4" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(145, 256, 110)" />
+            <circle cx="256" cy="402" r="16" fill="#fff" stroke="#090d16" stroke-width="6" />
+            <rect x="56" y="396" width="400" height="12" rx="4" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(-35, 256, 402)" />
+            <rect x="56" y="396" width="400" height="12" rx="4" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(85, 256, 402)" />
+        </svg>`;
+    }
+
+    // 2. AH-64 Apache / Cobra Military Attack Helicopter
+    if (matchType(['H64','AH64','AH1','COBRA','APACHE','VIPER','ATTACK'])) {
         return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
-            <line x1="256" y1="160" x2="256" y2="105" stroke="${color}" stroke-width="6" stroke-linecap="round" />
-            <path d="${bodyPath}" fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" />
-            <path d="M 256,170 C 242,170 234,185 234,200 C 234,215 256,225 256,225 C 256,225 278,215 278,200 C 278,185 270,170 256,170 Z" fill="#090d16" opacity="0.75" />
-            <circle cx="256" cy="256" r="28" fill="#fff" stroke="#090d16" stroke-width="8" />
-            ${[0, 60, 120, 180, 240, 300].map(angle => `<rect x="246" y="30" width="20" height="226" rx="8" fill="${color}" stroke="#090d16" stroke-width="5" transform="rotate(${angle + 20}, 256, 256)" />`).join('')}
-            <circle cx="256" cy="256" r="14" fill="${color}" stroke="#090d16" stroke-width="4" />
+            <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,90 L 235,140 L 170,220 L 170,250 L 235,240 L 235,420 L 245,460 L 267,460 L 277,420 L 277,240 L 342,250 L 342,220 L 277,140 Z"/>
+            <rect x="150" y="225" width="18" height="32" rx="4" fill="#090d16"/>
+            <rect x="344" y="225" width="18" height="32" rx="4" fill="#090d16"/>
+            ${[0, 90, 180, 270].map(ang => `<rect x="246" y="30" width="20" height="226" rx="6" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(${ang + 15}, 256, 256)"/>`).join('')}
+            <circle cx="256" cy="256" r="16" fill="#fff" stroke="#090d16" stroke-width="5"/>
+        </svg>`;
+    }
+
+    // 3. Black Hawk / Heavy Transport Helicopter (UH-60, Sikorsky S-76, CH-53)
+    if (matchType(['H60','UH60','MH60','H53','CH53','S76','S92','BLACK HAWK','BLACKHAWK','STALLION','JAYHAWK','PAVE HAWK'])) {
+        return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <path fill="${color}" stroke="#090d16" stroke-width="14" stroke-linejoin="round" d="M 256,130 C 235,130 215,160 215,200 L 180,225 L 180,265 L 225,260 L 225,410 L 240,455 L 272,455 L 287,410 L 287,260 L 332,265 L 332,225 L 297,200 C 297,160 277,130 256,130 Z"/>
+            ${[0, 90, 180, 270].map(ang => `<rect x="248" y="20" width="16" height="236" rx="6" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(${ang + 30}, 256, 256)"/>`).join('')}
+            <circle cx="256" cy="256" r="20" fill="#fff" stroke="#090d16" stroke-width="6"/>
+        </svg>`;
+    }
+
+    // 4. Light Executive Helicopter (Bell 206, Bell 407, Robinson R44/R22)
+    if (matchType(['R22','R44','R66','B06','B412','BELL','ROBINSON','JETRANGER','LONGRANGER'])) {
+        return `<svg class="plane-icon-svg" width="30" height="30" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <path fill="${color}" stroke="#090d16" stroke-width="14" d="M 256,120 C 226,120 220,170 220,220 L 245,220 L 245,435 L 267,435 L 267,220 L 292,220 C 292,170 286,120 256,120 Z"/>
+            <rect x="248" y="10" width="16" height="492" rx="6" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(20, 256, 256)"/>
+            <circle cx="256" cy="256" r="16" fill="#fff" stroke="#090d16" stroke-width="5"/>
+        </svg>`;
+    }
+
+    // 5. Fenestron Enclosed Tail Fan Helicopter (Eurocopter EC135, EC145, Airbus, USCG Dolphin)
+    if (matchType(['EC35','EC45','AS35','AS65','HH65','BK117','EC30','AW139','EUROCOPTER','EC135','EC145','DOLPHIN']) || cat === 'helicopter') {
+        return `<svg class="plane-icon-svg" width="32" height="32" viewBox="0 0 512 512" style="transform: rotate(${heading}deg);">
+            <path fill="${color}" stroke="#090d16" stroke-width="14" d="M 256,140 C 230,140 222,175 222,215 L 222,380 L 242,400 L 242,450 L 270,450 L 270,400 L 290,380 L 290,215 C 290,175 282,140 256,140 Z"/>
+            <circle cx="256" cy="425" r="22" fill="#090d16" stroke="${color}" stroke-width="6"/>
+            ${[0, 90, 180, 270].map(ang => `<rect x="247" y="30" width="18" height="226" rx="6" fill="${color}" stroke="#090d16" stroke-width="4" transform="rotate(${ang + 40}, 256, 256)"/>`).join('')}
+            <circle cx="256" cy="256" r="18" fill="#fff" stroke="#090d16" stroke-width="6"/>
         </svg>`;
     }
 
