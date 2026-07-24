@@ -101,9 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('toggle-trails').checked = showTrails;
     document.getElementById('toggle-powerlines').checked = showPowerlines;
     document.getElementById('toggle-radar').checked = showRadar;
-    document.getElementById('toggle-low').checked = showLow;
-    document.getElementById('toggle-med').checked = showMed;
-    document.getElementById('toggle-high').checked = showHigh;
     document.getElementById('filter-comm-jet').checked = showCommJet;
     document.getElementById('filter-airplane').checked = showAirplane;
     document.getElementById('filter-biz-jet').checked = showBizJet;
@@ -361,24 +358,6 @@ document.addEventListener('DOMContentLoaded', () => {
         showRadar = e.target.checked;
         saveMapSettings();
         updateRadarLayer();
-    });
-    
-    document.getElementById('toggle-low').addEventListener('change', (e) => {
-        showLow = e.target.checked;
-        saveMapSettings();
-        refreshAllAircraftLayers();
-    });
-    
-    document.getElementById('toggle-med').addEventListener('change', (e) => {
-        showMed = e.target.checked;
-        saveMapSettings();
-        refreshAllAircraftLayers();
-    });
-    
-    document.getElementById('toggle-high').addEventListener('change', (e) => {
-        showHigh = e.target.checked;
-        saveMapSettings();
-        refreshAllAircraftLayers();
     });
     
     document.getElementById('toggle-auto-search').addEventListener('change', (e) => {
