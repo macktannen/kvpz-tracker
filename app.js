@@ -943,6 +943,31 @@ async function fetchTAF() {
     renderActiveTAF();
 }
 
+function convertUTCToKVPZLocal(dayStr, hourStr, minStr = '00') {
+    const now = new Date();
+    let year = now.getUTCFullYear();
+    let month = now.getUTCMonth();
+    const day = parseInt(dayStr);
+    const hour = parseInt(hourStr);
+    const min = parseInt(minStr);
+
+    if (day < now.getUTCDate() - 15) {
+        month += 1;
+    }
+
+    const utcDate = new Date(Date.UTC(year, month, day, hour, min));
+
+    return new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Chicago',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZoneName: 'short'
+    }).format(utcDate);
+}
+
 const WX_CODES = {
     'TSRA': 'Thunderstorms & Rain',
     '+TSRA': 'Heavy Thunderstorms & Rain',
@@ -1009,7 +1034,9 @@ function decodeTAFText(raw) {
             const startHr = tok.substring(2, 4);
             const endDay = tok.substring(5, 7);
             const endHr = tok.substring(7, 9);
-            headerStr = `• Valid: Day ${startDay} @ ${startHr}:00Z to Day ${endDay} @ ${endHr}:00Z`;
+            const startLocal = convertUTCToKVPZLocal(startDay, startHr);
+            const endLocal = convertUTCToKVPZLocal(endDay, endHr);
+            headerStr = `• Valid (KVPZ Local): ${startLocal} to ${endLocal}`;
             continue;
         }
 
@@ -1018,9 +1045,11 @@ function decodeTAFText(raw) {
                 outputLines.push(currentLine.join(' '));
                 currentLine = [];
             }
+            const day = tok.substring(2, 4);
             const hr = tok.substring(4, 6);
             const min = tok.substring(6, 8);
-            currentLine.push(`\n• From ${hr}:${min}Z:`);
+            const localTime = convertUTCToKVPZLocal(day, hr, min);
+            currentLine.push(`\n• From ${localTime}:`);
             continue;
         }
 
@@ -1030,7 +1059,17 @@ function decodeTAFText(raw) {
                 currentLine = [];
             }
             const label = tok.startsWith('PROB') ? `${tok.replace('PROB', '')}% Chance` : (tok === 'TEMPO' ? 'Temporary' : 'Becoming');
-            currentLine.push(`\n• ${label}:`);
+            
+            let rangeText = '';
+            if (tokens[i + 1] && /^\d{4}\/\d{4}$/.test(tokens[i + 1])) {
+                const rng = tokens[i + 1];
+                const sL = convertUTCToKVPZLocal(rng.substring(0, 2), rng.substring(2, 4));
+                const eL = convertUTCToKVPZLocal(rng.substring(5, 7), rng.substring(7, 9));
+                rangeText = ` (${sL} to ${eL})`;
+                i++; // Skip range token
+            }
+
+            currentLine.push(`\n• ${label}${rangeText}:`);
             continue;
         }
 
