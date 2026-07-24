@@ -3086,6 +3086,24 @@ function loadPowerlineCache() {
     } catch (e) {
         console.error("Error loading powerline cache from localStorage:", e);
     }
+    
+    // Seed initial pre-bundled Indiana powerlines if cache is empty or small
+    if (typeof SEED_POWERLINES !== 'undefined' && Array.isArray(SEED_POWERLINES) && Object.keys(powerlineCache).length < 500) {
+        SEED_POWERLINES.forEach(el => {
+            if (el.type === 'way' && Array.isArray(el.geometry)) {
+                const latlngs = el.geometry.map(pt => [pt.lat, pt.lon]);
+                const elId = el.id || `${latlngs[0][0]}_${latlngs[0][1]}`;
+                if (!powerlineCache[elId]) {
+                    powerlineCache[elId] = {
+                        id: elId,
+                        latlngs: latlngs,
+                        tags: el.tags || {}
+                    };
+                }
+            }
+        });
+        savePowerlineCache();
+    }
 }
 
 function savePowerlineCache() {
@@ -3159,7 +3177,7 @@ function renderPowerlinesFromCache() {
 function initPowerlines() {
     powerlineGroup = L.layerGroup().addTo(map);
     
-    // Load local storage cache on startup
+    // Load local storage cache & pre-bundled seed on startup
     loadPowerlineCache();
     renderPowerlinesFromCache();
     
@@ -3219,77 +3237,98 @@ async function updatePowerlines() {
         return;
     }
 
-    // Build query to strictly pull powerlines inside the state of Indiana area intersecting the viewport
+    // Fast direct bounding box Overpass query (~1.5s execution)
     let overpassQuery;
     if (isDetailed) {
-        overpassQuery = `[out:json][timeout:25];area["ISO3166-2"="US-IN"]->.indiana;(way["power"="line"](area.indiana)(${bboxStr});way["power"="minor_line"](area.indiana)(${bboxStr}););out geom;`;
+        overpassQuery = `[out:json][timeout:15];(way["power"="line"](${bboxStr});way["power"="minor_line"](${bboxStr}););out geom;`;
     } else {
-        overpassQuery = `[out:json][timeout:25];area["ISO3166-2"="US-IN"]->.indiana;(way["power"="line"](area.indiana)(${bboxStr}););out geom;`;
+        overpassQuery = `[out:json][timeout:15];(way["power"="line"](${bboxStr}););out geom;`;
     }
     
-    const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`;
+    const endpoints = [
+        'https://overpass-api.de/api/interpreter',
+        'https://overpass.kumi.systems/api/interpreter',
+        'https://overpass.nchc.org.tw/api/interpreter'
+    ];
     
-    try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        
-        let newCount = 0;
-        let skippedCount = 0;
-        
-        if (data && Array.isArray(data.elements)) {
-            data.elements.forEach(el => {
-                if (el.type === 'way' && Array.isArray(el.geometry)) {
-                    const tags = el.tags || {};
-                    
-                    // Do not pull power lines that are labeled for Duke and AEP (or subsidiaries)
-                    const operator = (tags.operator || '').toLowerCase();
-                    const owner = (tags.owner || '').toLowerCase();
-                    const name = (tags.name || '').toLowerCase();
-                    
-                    const skipKeywords = [
-                        'duke', 'aep', 'american electric power', 
-                        'indiana michigan power', 'indiana & michigan', 
-                        'indiana michigan', 'i&m'
-                    ];
-                    
-                    const shouldSkip = skipKeywords.some(kw => 
-                        operator.includes(kw) || owner.includes(kw) || name.includes(kw)
-                    );
-                    
-                    if (shouldSkip) {
-                        skippedCount++;
-                        return;
-                    }
-                    
-                    const latlngs = el.geometry.map(pt => [pt.lat, pt.lon]);
-                    const elId = el.id || `${latlngs[0][0]}_${latlngs[0][1]}`;
-                    
-                    if (!powerlineCache[elId]) {
-                        newCount++;
-                    }
-                    
-                    powerlineCache[elId] = {
-                        id: elId,
-                        latlngs: latlngs,
-                        tags: tags
-                    };
-                }
-            });
-            
-            // Mark tile keys as fetched
-            neededTileKeys.forEach(k => fetchedPowerlineTiles.add(k));
-            
-            if (newCount > 0) {
-                savePowerlineCache();
-            }
+    let data = null;
+    for (const ep of endpoints) {
+        try {
+            const url = `${ep}?data=${encodeURIComponent(overpassQuery)}`;
+            const response = await fetch(url);
+            if (!response.ok) continue;
+            const text = await response.text();
+            if (!text.trim().startsWith('{')) continue; // Skip HTML error pages
+            data = JSON.parse(text);
+            if (data && data.elements) break; // Found valid data!
+        } catch (e) {
+            console.warn(`Overpass mirror ${ep} failed:`, e.message);
         }
-        
-        console.log(`OSM Powerlines: ${newCount} new added to local cache (${Object.keys(powerlineCache).length} total cached), ${skippedCount} skipped (Duke/AEP exclusion)`);
-        renderPowerlinesFromCache();
-    } catch (error) {
-        console.warn("Error fetching OSM powerline data from Overpass API:", error);
     }
+
+    if (!data || !Array.isArray(data.elements)) {
+        console.warn("Unable to fetch fresh powerline data from any Overpass mirror.");
+        return;
+    }
+    
+    let newCount = 0;
+    let skippedCount = 0;
+    
+    data.elements.forEach(el => {
+        if (el.type === 'way' && Array.isArray(el.geometry)) {
+            const tags = el.tags || {};
+            
+            // Check geographical bounds: strictly inside state of Indiana bounds
+            const inIndiana = el.geometry.some(pt => pt.lat >= 37.75 && pt.lat <= 41.77 && pt.lon >= -88.10 && pt.lon <= -84.75);
+            if (!inIndiana) {
+                skippedCount++;
+                return;
+            }
+
+            // Do not pull power lines that are labeled for Duke and AEP (or subsidiaries)
+            const operator = (tags.operator || '').toLowerCase();
+            const owner = (tags.owner || '').toLowerCase();
+            const name = (tags.name || '').toLowerCase();
+            
+            const skipKeywords = [
+                'duke', 'aep', 'american electric power', 
+                'indiana michigan power', 'indiana & michigan', 
+                'indiana michigan', 'i&m'
+            ];
+            
+            const shouldSkip = skipKeywords.some(kw => 
+                operator.includes(kw) || owner.includes(kw) || name.includes(kw)
+            );
+            
+            if (shouldSkip) {
+                skippedCount++;
+                return;
+            }
+            
+            const latlngs = el.geometry.map(pt => [pt.lat, pt.lon]);
+            const elId = el.id || `${latlngs[0][0]}_${latlngs[0][1]}`;
+            
+            if (!powerlineCache[elId]) {
+                newCount++;
+            }
+            
+            powerlineCache[elId] = {
+                id: elId,
+                latlngs: latlngs,
+                tags: tags
+            };
+        }
+    });
+    
+    // Mark tile keys as fetched
+    neededTileKeys.forEach(k => fetchedPowerlineTiles.add(k));
+    
+    if (newCount > 0) {
+        savePowerlineCache();
+    }
+    
+    console.log(`OSM Powerlines: ${newCount} new added to local cache (${Object.keys(powerlineCache).length} total cached), ${skippedCount} skipped (Duke/AEP or outside Indiana)`);
+    renderPowerlinesFromCache();
 }
 
 // Process Auto-Search Queue (500ms fast queue for ADSBdb static DB, 4.2s for Gemini AI fallback)
