@@ -489,6 +489,10 @@ async function checkFAAScraperHealth() {
     if (!badgeText || !badgeContainer) return;
     
     const endpoints = [
+        `${window.location.origin}/health`,
+        'http://localhost:8080/health',
+        'http://127.0.0.1:8080/health',
+        'http://127.0.0.1:3001/health',
         `${window.location.origin}/faa?tail=N83HS`,
         'http://localhost:8080/faa?tail=N83HS',
         'http://127.0.0.1:8080/faa?tail=N83HS',
@@ -497,10 +501,10 @@ async function checkFAAScraperHealth() {
     
     for (const ep of endpoints) {
         try {
-            const res = await fetch(ep, { signal: AbortSignal.timeout(1500) });
+            const res = await fetch(ep, { signal: AbortSignal.timeout(2000) });
             if (res.ok) {
                 const d = await res.json();
-                if (d && (d.source || d.model || d.type)) {
+                if (d && (d.status === 'ok' || d.source || d.model || d.type)) {
                     isFAAScraperOnline = true;
                     badgeText.textContent = "FAA Scraper: Online (100% Official FAA Data)";
                     badgeContainer.style.background = "rgba(16, 185, 129, 0.15)";

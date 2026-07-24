@@ -106,6 +106,14 @@ class DualHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
+        if parsed.path in ['/health', '/ping']:
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "ok", "service": "FAA Scraper"}).encode('utf-8'))
+            return
+            
         if parsed.path in ['/faa', '/scrape']:
             params = urllib.parse.parse_qs(parsed.query)
             tail = params.get('tail', params.get('reg', ['']))[0]

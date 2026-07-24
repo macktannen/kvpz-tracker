@@ -113,6 +113,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     const reqUrl = url.parse(req.url, true);
+    if (reqUrl.pathname === '/health' || reqUrl.pathname === '/ping') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok', service: 'FAA Scraper' }));
+        return;
+    }
+
     if (reqUrl.pathname === '/faa' || reqUrl.pathname === '/scrape') {
         const tail = reqUrl.query.tail || reqUrl.query.reg || '';
         if (!tail) {
