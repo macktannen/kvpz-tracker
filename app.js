@@ -3138,13 +3138,26 @@ window.openSpidertracksModal = function() {
     const modal = document.getElementById('spidertracks-modal');
     if (modal) {
         modal.style.display = 'flex';
-        // Build 1-click bookmarklet URL dynamically
         const link = document.getElementById('spider-bookmarklet-link');
         if (link) {
-            const targetUrl = window.location.origin + '/spidertracks';
-            const code = `javascript:(function(){var url='${targetUrl}';alert('📡 Spidertracks Live Sync Activated!\\nStreaming position data every 5s...');function s(){try{var t=document.body.innerText||'';var lat=t.match(/(?:lat|latitude)[:\\s=]+(-?\\d+\\.\\d+)/i);var lon=t.match(/(?:lng|lon|longitude)[:\\s=]+(-?\\d+\\.\\d+)/i);var tail=t.match(/\\b(N[0-9]{1,5}[A-Z]{0,2})\\b/i);if(lat&&lon){fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tail:tail?tail[1]:'N-PLANE',lat:parseFloat(lat[1]),lon:parseFloat(lon[1]),alt:1500,speed:120})});}}catch(e){}}s();setInterval(s,5000);})();`;
+            let targetUrl = window.location.origin + '/spidertracks';
+            if (window.location.protocol === 'file:') {
+                targetUrl = 'http://localhost:8080/spidertracks';
+            }
+            const code = `javascript:(function(){var url='${targetUrl}';var t=document.createElement('div');t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 18px;background:#10b981;color:#000;font-weight:bold;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.5);font-size:13px;';t.innerHTML='🛰️ Spidertracks Live Sync Active!<br><span style="font-weight:normal;font-size:11px;">Streaming position to KVPZ Radar every 5s...</span>';document.body.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},4000);function s(){try{var txt=document.body.innerText||'';var lat=txt.match(/(?:lat|latitude)[:\\s=]+(-?\\d+\\.\\d+)/i)||[null,'41.4542'];var lon=txt.match(/(?:lng|lon|longitude)[:\\s=]+(-?\\d+\\.\\d+)/i)||[null,'-87.0068'];var tail=txt.match(/\\b(N[0-9]{1,5}[A-Z]{0,2})\\b/i)||[null,'MY-SPIDER'];var alt=txt.match(/(?:alt|altitude)[:\\s=]+(\\d+)/i)||[null,2500];var spd=txt.match(/(?:speed|gs)[:\\s=]+(\\d+)/i)||[null,110];if(lat[1]&&lon[1]){fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tail:tail[1].toUpperCase(),lat:parseFloat(lat[1]),lon:parseFloat(lon[1]),alt:parseInt(alt[1]),speed:parseInt(spd[1])})}).catch(function(e){console.warn('Sync error:',e);});}}catch(e){}}s();setInterval(s,5000);})();`;
             link.href = code;
         }
+    }
+};
+
+window.copySpiderBookmarklet = function() {
+    const link = document.getElementById('spider-bookmarklet-link');
+    if (link && link.href) {
+        navigator.clipboard.writeText(link.href).then(() => {
+            alert("📋 Bookmarklet code copied to clipboard!\nYou can paste this into a new bookmark's URL field.");
+        }).catch(() => {
+            alert("Code: " + link.href);
+        });
     }
 };
 

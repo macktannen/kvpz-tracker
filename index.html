@@ -364,11 +364,17 @@
 
                 <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.75rem; border-radius: 6px;">
                     <strong style="color: #10b981;">Option B: 1-Click Browser Sync Bookmarklet</strong><br>
-                    <span style="font-size: 0.8rem;">Drag this button to your Bookmarks Bar:</span>
-                    <div style="margin-top: 0.5rem;">
-                        <a id="spider-bookmarklet-link" href="#" style="background: #10b981; color: #000; font-weight: 700; padding: 0.4rem 0.8rem; border-radius: 4px; text-decoration: none; display: inline-block; font-size: 0.8rem;">🛰️ Sync SpiderTracks</a>
+                    <span style="font-size: 0.82rem; color: var(--color-text-muted);">How to setup in 3 seconds:</span>
+                    <ol style="margin: 0.4rem 0 0.6rem 1.2rem; padding: 0; font-size: 0.78rem; color: var(--color-text-main);">
+                        <li>Drag the green button below directly to your browser's <strong>Bookmarks Bar</strong>.</li>
+                        <li>Log in to <a href="https://app.spidertracks.io" target="_blank" style="color: #60a5fa;">app.spidertracks.io</a>.</li>
+                        <li>Click your new <strong>🛰️ Sync SpiderTracks</strong> bookmark!</li>
+                    </ol>
+                    <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">
+                        <a id="spider-bookmarklet-link" href="#" style="background: #10b981; color: #000; font-weight: 700; padding: 0.45rem 0.9rem; border-radius: 4px; text-decoration: none; display: inline-block; font-size: 0.82rem; cursor: grab;" title="Drag to Bookmarks Bar">🛰️ Sync SpiderTracks</a>
+                        <button onclick="copySpiderBookmarklet()" style="background: var(--color-bg-secondary); border: 1px solid var(--border-color); color: #fff; padding: 0.45rem 0.75rem; border-radius: 4px; font-size: 0.78rem; cursor: pointer;"><i class="fa-solid fa-copy"></i> Copy Code</button>
                     </div>
-                    <small style="color: var(--color-text-muted); display: block; margin-top: 0.4rem; font-size: 0.72rem;">When logged into app.spidertracks.io, click this bookmark to stream your plane to KVPZ Tracker live every 5 seconds!</small>
+                    <small style="color: var(--color-text-muted); display: block; margin-top: 0.5rem; font-size: 0.72rem;">Streams your plane's live coordinates to your KVPZ Radar every 5 seconds in the background!</small>
                 </div>
             </div>
         </div>
