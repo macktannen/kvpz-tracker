@@ -476,9 +476,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Check FAA Scraper Health Status
+    // Check FAA Scraper Health Status on load and every 5 seconds
     checkFAAScraperHealth();
+    setInterval(checkFAAScraperHealth, 5000);
 });
+
+let isFAAScraperOnline = false;
 
 async function checkFAAScraperHealth() {
     const badgeText = document.getElementById('faa-scraper-text');
@@ -486,16 +489,19 @@ async function checkFAAScraperHealth() {
     if (!badgeText || !badgeContainer) return;
     
     const endpoints = [
+        `${window.location.origin}/faa?tail=N83HS`,
         'http://localhost:8080/faa?tail=N83HS',
+        'http://127.0.0.1:8080/faa?tail=N83HS',
         'http://127.0.0.1:3001/faa?tail=N83HS'
     ];
     
     for (const ep of endpoints) {
         try {
-            const res = await fetch(ep, { signal: AbortSignal.timeout(2000) });
+            const res = await fetch(ep, { signal: AbortSignal.timeout(1500) });
             if (res.ok) {
                 const d = await res.json();
-                if (d && (d.source || d.model)) {
+                if (d && (d.source || d.model || d.type)) {
+                    isFAAScraperOnline = true;
                     badgeText.textContent = "FAA Scraper: Online (100% Official FAA Data)";
                     badgeContainer.style.background = "rgba(16, 185, 129, 0.15)";
                     badgeContainer.style.borderColor = "#10b981";
@@ -508,6 +514,7 @@ async function checkFAAScraperHealth() {
     }
     
     // Offline state
+    isFAAScraperOnline = false;
     badgeText.textContent = "FAA Scraper: Offline (ADSBdb Active)";
     badgeContainer.style.background = "rgba(245, 158, 11, 0.15)";
     badgeContainer.style.borderColor = "#f59e0b";
@@ -2234,7 +2241,9 @@ async function fetchMissingAircraftInfo(hex, force = false) {
         if (!updated && targetTail) {
             const cleanTail = targetTail.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
             const proxyEndpoints = [
+                `${window.location.origin}/faa?tail=${cleanTail}`,
                 `http://localhost:8080/faa?tail=${cleanTail}`,
+                `http://127.0.0.1:8080/faa?tail=${cleanTail}`,
                 `http://127.0.0.1:3001/faa?tail=${cleanTail}`
             ];
             
@@ -2251,7 +2260,10 @@ async function fetchMissingAircraftInfo(hex, force = false) {
                             finalTail = faaData.tail || cleanTail;
                             finalOperator = faaData.owner || '';
                             applyFindings();
-                            if (updated) break;
+                            if (updated) {
+                                checkFAAScraperHealth(); // Instantly turn badge green
+                                break;
+                            }
                         }
                     }
                 } catch (e) {
