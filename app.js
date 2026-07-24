@@ -1958,7 +1958,7 @@ function updateMapMarker(ac) {
     
     // Check if identified as military (by manual checkbox, type, description, operator, or raw mil flag)
     const isMil = (ac.mil === 1 || ac.mil === true || ac.mil === '1' || String(ac.mil).toLowerCase() === 'true' || ac.categoryClass === 'military');
-    const milRingHtml = isMil ? `<div class="mil-target-ring" title="Military Identified Aircraft"></div>` : '';
+    const milRingHtml = isMil ? `<div class="mil-target-ring-static" style="border-color: ${color}; color: ${color}; box-shadow: 0 0 10px ${color}80, inset 0 0 6px ${color}40;" title="Military Identified Aircraft"></div>` : '';
 
     // Custom DivIcon containing SVG plane icon, military ring, and label
     const customIcon = L.divIcon({
