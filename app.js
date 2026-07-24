@@ -61,6 +61,7 @@ let transitCount = 0;
 // TAF State
 let tafDataMap = {}; // station -> TAF JSON object
 let activeTafStation = 'KGYY';
+let tafViewMode = 'decoded';
 const TAF_INTERVAL = 15 * 60 * 1000; // 15 minutes
 
 // Map Toggle States
@@ -220,12 +221,23 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(fetchTAF, TAF_INTERVAL);
 
     // TAF Station Tab Listeners
-    document.querySelectorAll('.taf-tab-btn').forEach(btn => {
+    document.querySelectorAll('#taf-tabs .taf-tab-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            document.querySelectorAll('.taf-tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('#taf-tabs .taf-tab-btn').forEach(b => b.classList.remove('active'));
             const targetBtn = e.currentTarget;
             targetBtn.classList.add('active');
             activeTafStation = targetBtn.getAttribute('data-station');
+            renderActiveTAF();
+        });
+    });
+
+    // TAF View Mode Toggle Listeners (Plain Text vs Raw Code)
+    document.querySelectorAll('#taf-view-toggle .taf-tab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('#taf-view-toggle .taf-tab-btn').forEach(b => b.classList.remove('active'));
+            const targetBtn = e.currentTarget;
+            targetBtn.classList.add('active');
+            tafViewMode = targetBtn.getAttribute('data-mode');
             renderActiveTAF();
         });
     });
@@ -931,9 +943,132 @@ async function fetchTAF() {
     renderActiveTAF();
 }
 
+const WX_CODES = {
+    'TSRA': 'Thunderstorms & Rain',
+    '+TSRA': 'Heavy Thunderstorms & Rain',
+    '-TSRA': 'Light Thunderstorms & Rain',
+    'TS': 'Thunderstorms',
+    '-RA': 'Light Rain',
+    'RA': 'Rain',
+    '+RA': 'Heavy Rain',
+    '-SN': 'Light Snow',
+    'SN': 'Snow',
+    '+SN': 'Heavy Snow',
+    'BR': 'Mist / Fog',
+    'FG': 'Dense Fog',
+    'HZ': 'Haze',
+    'DZ': 'Drizzle',
+    'FZRA': 'Freezing Rain',
+    'SHRA': 'Rain Showers',
+    '-SHRA': 'Light Rain Showers',
+    '+SHRA': 'Heavy Rain Showers',
+    'VCSH': 'Rain Showers Nearby',
+    'VCTS': 'Thunderstorms Nearby',
+    'NSW': 'No Significant Weather'
+};
+
+function decodeWind(w) {
+    if (w === '00000KT' || w === '00000') return 'Wind Calm';
+    const m = w.match(/^(\d{3}|VRB)(\d{2,3})(G\d{2,3})?KT$/);
+    if (!m) return w;
+    const dir = m[1] === 'VRB' ? 'Variable' : m[1] + '°';
+    const speed = parseInt(m[2]) + ' KT';
+    const gust = m[3] ? ` (Gusts ${parseInt(m[3].substring(1))} KT)` : '';
+    return `Wind ${dir} @ ${speed}${gust}`;
+}
+
+function decodeVis(v) {
+    if (v === 'P6SM') return 'Vis > 6 SM';
+    if (v.endsWith('SM')) return `Vis ${v.replace('SM', '')} SM`;
+    return v;
+}
+
+function decodeCloud(c) {
+    const m = c.match(/^(FEW|SCT|BKN|OVC|VV)(\d{3})$/);
+    if (!m) return c;
+    const types = { FEW: 'Few', SCT: 'Scattered', BKN: 'Broken (Ceiling)', OVC: 'Overcast (Ceiling)', VV: 'Vertical Vis' };
+    const alt = parseInt(m[2]) * 100;
+    return `${types[m[1]]} ${alt.toLocaleString()} ft`;
+}
+
+function decodeTAFText(raw) {
+    if (!raw) return '';
+    const cleanRaw = raw.replace(/=/g, '').trim();
+    const tokens = cleanRaw.split(/\s+/);
+    const outputLines = [];
+    let currentLine = [];
+    let headerStr = '';
+
+    for (let i = 0; i < tokens.length; i++) {
+        const tok = tokens[i];
+        if (tok === 'TAF') continue;
+        if (/^[A-Z]{4}$/.test(tok) && i <= 1) continue; // Station ID
+        if (/^\d{6}Z$/.test(tok)) continue; // Issue timestamp
+        if (/^\d{4}\/\d{4}$/.test(tok) && !headerStr) {
+            const startDay = tok.substring(0, 2);
+            const startHr = tok.substring(2, 4);
+            const endDay = tok.substring(5, 7);
+            const endHr = tok.substring(7, 9);
+            headerStr = `• Valid: Day ${startDay} @ ${startHr}:00Z to Day ${endDay} @ ${endHr}:00Z`;
+            continue;
+        }
+
+        if (tok.startsWith('FM')) {
+            if (currentLine.length > 0) {
+                outputLines.push(currentLine.join(' '));
+                currentLine = [];
+            }
+            const hr = tok.substring(4, 6);
+            const min = tok.substring(6, 8);
+            currentLine.push(`\n• From ${hr}:${min}Z:`);
+            continue;
+        }
+
+        if (tok === 'TEMPO' || tok === 'BECMG' || tok.startsWith('PROB')) {
+            if (currentLine.length > 0) {
+                outputLines.push(currentLine.join(' '));
+                currentLine = [];
+            }
+            const label = tok.startsWith('PROB') ? `${tok.replace('PROB', '')}% Chance` : (tok === 'TEMPO' ? 'Temporary' : 'Becoming');
+            currentLine.push(`\n• ${label}:`);
+            continue;
+        }
+
+        if (tok.endsWith('KT') || tok === '00000KT') {
+            currentLine.push(decodeWind(tok));
+        } else if (tok.endsWith('SM') || tok === 'P6SM') {
+            currentLine.push(decodeVis(tok));
+        } else if (/^(FEW|SCT|BKN|OVC|VV)\d{3}$/.test(tok)) {
+            currentLine.push(decodeCloud(tok));
+        } else if (tok === 'SKC' || tok === 'CLR' || tok === 'NSC') {
+            currentLine.push('Clear Sky');
+        } else if (WX_CODES[tok]) {
+            currentLine.push(WX_CODES[tok]);
+        } else {
+            currentLine.push(tok);
+        }
+    }
+
+    if (currentLine.length > 0) {
+        outputLines.push(currentLine.join(' '));
+    }
+
+    return (headerStr ? headerStr + '\n' : '') + outputLines.join('\n');
+}
+
 function renderActiveTAF() {
     const tafBox = document.getElementById('taf-content-box');
+    const stationTitle = document.getElementById('taf-station-title');
     if (!tafBox) return;
+
+    const stationNames = {
+        'KGYY': 'Gary Intl (22 NM West)',
+        'KSBN': 'South Bend (35 NM East)',
+        'KLAF': 'Purdue Univ / Lafayette (60 NM South)'
+    };
+    if (stationTitle) {
+        stationTitle.textContent = stationNames[activeTafStation] || activeTafStation;
+    }
     
     const tafObj = tafDataMap[activeTafStation];
     if (!tafObj || !tafObj.rawTAF) {
@@ -942,21 +1077,18 @@ function renderActiveTAF() {
     }
     
     const raw = tafObj.rawTAF;
-    // Format raw TAF with line breaks for forecast change groups (FM, TEMPO, BECMG, PROB)
-    const formatted = raw
-        .replace(/\s+(FM\d{6})/g, '\n  $1')
-        .replace(/\s+(TEMPO\s+\d{4}\/\d{4})/g, '\n  $1')
-        .replace(/\s+(BECMG\s+\d{4}\/\d{4})/g, '\n  $1')
-        .replace(/\s+(PROB\d{2}\s+\d{4}\/\d{4})/g, '\n  $1');
-        
-    const stationNames = {
-        'KGYY': 'Gary Intl (22 NM West)',
-        'KSBN': 'South Bend (35 NM East)',
-        'KLAF': 'Purdue Univ / Lafayette (60 NM South)'
-    };
-    const titleText = stationNames[activeTafStation] || `${tafObj.name || activeTafStation} (${activeTafStation})`;
-    
-    tafBox.innerHTML = `<strong style="color: var(--accent-cyan); font-family: var(--font-sans); display: block; margin-bottom: 0.3rem;">${titleText}</strong>${escapeHtml(formatted)}`;
+    if (tafViewMode === 'decoded') {
+        const decoded = decodeTAFText(raw);
+        tafBox.innerHTML = `<div style="font-family: var(--font-sans); line-height: 1.45;">${escapeHtml(decoded)}</div>`;
+    } else {
+        // Format raw TAF with line breaks for forecast change groups (FM, TEMPO, BECMG, PROB)
+        const formatted = raw
+            .replace(/\s+(FM\d{6})/g, '\n  $1')
+            .replace(/\s+(TEMPO\s+\d{4}\/\d{4})/g, '\n  $1')
+            .replace(/\s+(BECMG\s+\d{4}\/\d{4})/g, '\n  $1')
+            .replace(/\s+(PROB\d{2}\s+\d{4}\/\d{4})/g, '\n  $1');
+        tafBox.innerHTML = `<div style="font-family: var(--font-mono); line-height: 1.4;">${escapeHtml(formatted)}</div>`;
+    }
 }
 
 function escapeHtml(str) {

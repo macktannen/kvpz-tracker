@@ -109,7 +109,14 @@
                                     <button class="taf-tab-btn" data-station="KLAF" title="Lafayette (60 NM South)">KLAF</button>
                                 </div>
                             </div>
-                            <div class="taf-content-box" id="taf-content-box" style="background: rgba(10, 15, 30, 0.6); border: 1px solid var(--border-color); border-radius: 4px; padding: 0.5rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text); white-space: pre-wrap; word-break: break-word; max-height: 150px; overflow-y: auto;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; padding: 0 0.1rem;">
+                                <span id="taf-station-title" style="font-size: 0.72rem; font-weight: 600; color: var(--accent-cyan);">Gary Intl (22 NM West)</span>
+                                <div style="display: flex; gap: 0.2rem;" id="taf-view-toggle">
+                                    <button class="taf-tab-btn active" data-mode="decoded" style="font-size: 0.65rem; padding: 0.1rem 0.4rem;">Plain Text</button>
+                                    <button class="taf-tab-btn" data-mode="raw" style="font-size: 0.65rem; padding: 0.1rem 0.4rem;">Raw Code</button>
+                                </div>
+                            </div>
+                            <div class="taf-content-box" id="taf-content-box" style="background: rgba(10, 15, 30, 0.6); border: 1px solid var(--border-color); border-radius: 4px; padding: 0.5rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text); white-space: pre-wrap; word-break: break-word; max-height: 160px; overflow-y: auto;">
                                 <p style="color: var(--color-text-muted); font-style: italic; font-family: var(--font-sans);">Loading regional TAF forecasts...</p>
                             </div>
                         </div>
@@ -289,7 +296,7 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="icao_categories.js?v=55"></script>
-    <script src="app.js?v=55"></script>
+    <script src="icao_categories.js?v=56"></script>
+    <script src="app.js?v=56"></script>
 </body>
 </html>
