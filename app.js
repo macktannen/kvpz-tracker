@@ -515,11 +515,16 @@ async function checkFAAScraperHealth() {
     
     // Offline state
     isFAAScraperOnline = false;
-    badgeText.textContent = "FAA Scraper: Offline (ADSBdb Active)";
+    if (window.location.protocol === 'https:') {
+        badgeText.textContent = "FAA Scraper: Offline (Open http://localhost:8080 for FAA Scraper)";
+        badgeContainer.title = "Browser blocks local HTTP server on HTTPS GitHub Pages. To use local FAA Scraper, run python verify_build.py and open http://localhost:8080";
+    } else {
+        badgeText.textContent = "FAA Scraper: Offline (ADSBdb Active)";
+        badgeContainer.title = "Local FAA Scraper proxy is not running on port 8080 or 3001. Run python verify_build.py or node faa_server.js to start it.";
+    }
     badgeContainer.style.background = "rgba(245, 158, 11, 0.15)";
     badgeContainer.style.borderColor = "#f59e0b";
     badgeContainer.style.color = "#f59e0b";
-    badgeContainer.title = "Local FAA Scraper proxy is not running. App will fallback to ADSBdb.com.";
 }
 
 function refreshAllAircraftLayers() {
