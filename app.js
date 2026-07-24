@@ -1627,7 +1627,16 @@ function getAircraftIconSvg(ac, color) {
     const cat = (ac.categoryClass || '').toLowerCase();
     const heading = ac.heading || 0;
 
-    const matchType = (codes) => codes.some(c => type.includes(c) || desc.includes(c));
+    const matchType = (codes) => codes.some(c => {
+        if (type === c) return true;
+        const typeTokens = type.split(/[\s\-\/]+/);
+        if (typeTokens.includes(c)) return true;
+        const descTokens = desc.split(/[\s\-\/]+/);
+        if (descTokens.includes(c)) return true;
+        // For longer multi-word string keywords (e.g. 'BLACK HAWK', 'KING AIR', 'AIR TRACTOR')
+        if (c.length > 4 && (type.includes(c) || desc.includes(c))) return true;
+        return false;
+    });
 
     // 1. CH-47 Chinook / MH-47 Special Ops (Tandem 2-Rotor Heavy Transport)
     if (matchType(['H47','CH47','CH46','MH47','CHINOOK'])) {
