@@ -101,6 +101,16 @@
                                 </div>
                             </div>
                         </div>
+                        <!-- Active Runway & Wind Component Calculator -->
+                        <div class="runway-wind-box" id="runway-wind-box" style="margin-bottom: 0.75rem; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.6rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                                <strong style="font-size: 0.72rem; color: var(--color-text-muted); text-transform: uppercase;"><i class="fa-solid fa-plane-arrival"></i> Active Runway Calculator</strong>
+                                <span class="badge" id="active-runway-badge" style="background: var(--accent-cyan); color: #000; font-weight: 700; font-size: 0.65rem;">RWY ---</span>
+                            </div>
+                            <div class="runway-grid" id="runway-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem;">
+                                <div style="color: var(--color-text-muted); font-size: 0.7rem; grid-column: span 2; font-style: italic;">Calculating active runway wind components...</div>
+                            </div>
+                        </div>
                         <div class="metar-raw">
                             <strong>RAW OBSERVATION:</strong>
                             <p id="weather-raw-text">Loading live aviation weather reports...</p>
@@ -308,7 +318,7 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="icao_categories.js?v=58"></script>
-    <script src="app.js?v=58"></script>
+    <script src="icao_categories.js?v=59"></script>
+    <script src="app.js?v=59"></script>
 </body>
 </html>

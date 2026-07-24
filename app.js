@@ -842,6 +842,10 @@ async function fetchWeather() {
         
         const windString = (windDirText === '000°' && windSpeedKnots === 0) ? 'Calm' : `${windDirText} @ ${windSpeedKnots} KT${gustText}`;
         wWind.textContent = windString;
+
+        // Calculate Active Runway & Wind Components for KVPZ (Runways 09/27 and 18/36)
+        const windDirDeg = props.windDirection && props.windDirection.value !== null ? Math.round(props.windDirection.value) : null;
+        updateRunwayWindCalculator(windDirDeg, windSpeedKnots);
         
         // 2. Visibility Parsing
         let visSM = 10;
@@ -905,6 +909,79 @@ async function fetchWeather() {
         console.error("Error loading weather:", error);
         weatherText.textContent = "Failed to load live weather reports.";
     }
+}
+
+// 3a. Active Runway & Wind Component Calculator
+function updateRunwayWindCalculator(windDirDeg, windSpeedKnots) {
+    const grid = document.getElementById('runway-grid');
+    const badge = document.getElementById('active-runway-badge');
+    if (!grid || !badge) return;
+
+    // KVPZ Runways (Magnetic Headings: RWY 09 (092°), RWY 27 (272°), RWY 18 (182°), RWY 36 (002°))
+    const runways = [
+        { id: '09', name: 'RWY 09', hdg: 92, label: '092°' },
+        { id: '27', name: 'RWY 27', hdg: 272, label: '272°' },
+        { id: '18', name: 'RWY 18', hdg: 182, label: '182°' },
+        { id: '36', name: 'RWY 36', hdg: 2, label: '002°' }
+    ];
+
+    const isCalm = (windSpeedKnots === 0);
+    const isVrb = (windDirDeg === null || isNaN(windDirDeg));
+
+    if (isCalm || isVrb) {
+        badge.textContent = isCalm ? 'RWY 09/27 (Calm)' : 'RWY 09/27 (VRB)';
+        badge.style.background = 'var(--accent-cyan)';
+        badge.style.color = '#000';
+
+        grid.innerHTML = runways.map(rwy => `
+            <div style="background: rgba(31, 41, 55, 0.4); border-radius: 4px; padding: 0.35rem 0.5rem;">
+                <div style="font-weight: 600; color: var(--color-text); font-size: 0.7rem;">${rwy.name} <span style="font-size:0.62rem; color:var(--color-text-muted);">(${rwy.label})</span></div>
+                <div style="color: var(--color-text-muted); font-size: 0.65rem; margin-top:0.1rem;">${isCalm ? 'Calm Wind' : 'Variable Wind'}</div>
+            </div>
+        `).join('');
+        return;
+    }
+
+    let maxHeadwind = -999;
+    let recommendedRwy = runways[0];
+
+    const computed = runways.map(rwy => {
+        const rad = (windDirDeg - rwy.hdg) * Math.PI / 180;
+        const hw = Math.round(windSpeedKnots * Math.cos(rad));
+        const xw = Math.round(windSpeedKnots * Math.sin(rad));
+
+        if (hw > maxHeadwind) {
+            maxHeadwind = hw;
+            recommendedRwy = rwy;
+        }
+
+        return { ...rwy, hw, xw };
+    });
+
+    badge.textContent = `${recommendedRwy.name} (Favored)`;
+    badge.style.background = '#10b981'; // Vibrant green badge
+    badge.style.color = '#fff';
+
+    grid.innerHTML = computed.map(rwy => {
+        const isBest = (rwy.id === recommendedRwy.id);
+        const hwColor = rwy.hw >= 0 ? '#10b981' : '#ef4444';
+        const hwLabel = rwy.hw >= 0 ? `${rwy.hw} KT Headwind` : `${Math.abs(rwy.hw)} KT Tailwind`;
+        const xwLabel = rwy.xw === 0 ? '0 KT X-Wind' : `${Math.abs(rwy.xw)} KT X-Wind (${rwy.xw > 0 ? 'R' : 'L'})`;
+        const bgStyle = isBest 
+            ? 'background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981;' 
+            : 'background: rgba(31, 41, 55, 0.4); border: 1px solid transparent;';
+
+        return `
+            <div style="${bgStyle} border-radius: 4px; padding: 0.35rem 0.5rem; transition: all 0.2s ease;">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; color: ${isBest ? '#10b981' : 'var(--color-text)'}; font-size: 0.7rem;">
+                    <span>${rwy.name}</span>
+                    <span style="font-size: 0.62rem; color: var(--color-text-muted);">${rwy.label}</span>
+                </div>
+                <div style="color: ${hwColor}; font-size: 0.65rem; font-weight: 600; margin-top: 0.1rem;">${hwLabel}</div>
+                <div style="color: var(--color-text-muted); font-size: 0.62rem;">${xwLabel}</div>
+            </div>
+        `;
+    }).join('');
 }
 
 // 3b. TAF (Terminal Aerodrome Forecast) Handling for KGYY, KSBN, KLAF
