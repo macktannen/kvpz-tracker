@@ -471,6 +471,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 submitStandardSearch();
             }
         });
+        chatInput.addEventListener('input', (e) => {
+            updateSearchPortalLinks(e.target.value);
+        });
+    }
+
     // Check FAA Scraper Health Status
     checkFAAScraperHealth();
 });
