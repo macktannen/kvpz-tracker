@@ -293,9 +293,14 @@
                     <button class="filter-btn" data-filter="inbound">Inbounds</button>
                     <button class="filter-btn" data-filter="outbound">Outbounds</button>
                 </div>
-                <div class="feed-status-area">
-                    <span class="pulse-indicator status-live" id="pulse-indicator"></span>
-                    <span id="feed-status-text">Connecting to airplanes.live feed...</span>
+                <div class="feed-status-area" style="display: flex; gap: 0.8rem; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                        <span class="pulse-indicator status-live" id="pulse-indicator"></span>
+                        <span id="feed-status-text">Connecting to airplanes.live feed...</span>
+                    </div>
+                    <div id="faa-scraper-badge" style="background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #f59e0b; font-size: 0.65rem; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 600; display: flex; align-items: center; gap: 0.35rem;" title="FAA Registry Scraper Proxy Status">
+                        <i class="fa-solid fa-building-shield"></i> <span id="faa-scraper-text">FAA Scraper: Checking...</span>
+                    </div>
                 </div>
             </div>
             
@@ -331,7 +336,7 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="icao_categories.js?v=69"></script>
-    <script src="app.js?v=69"></script>
+    <script src="icao_categories.js?v=70"></script>
+    <script src="app.js?v=70"></script>
 </body>
 </html>

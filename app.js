@@ -471,11 +471,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 submitStandardSearch();
             }
         });
-        chatInput.addEventListener('input', (e) => {
-            updateSearchPortalLinks(e.target.value);
-        });
-    }
+    // Check FAA Scraper Health Status
+    checkFAAScraperHealth();
 });
+
+async function checkFAAScraperHealth() {
+    const badgeText = document.getElementById('faa-scraper-text');
+    const badgeContainer = document.getElementById('faa-scraper-badge');
+    if (!badgeText || !badgeContainer) return;
+    
+    const endpoints = [
+        'http://localhost:8080/faa?tail=N83HS',
+        'http://127.0.0.1:3001/faa?tail=N83HS'
+    ];
+    
+    for (const ep of endpoints) {
+        try {
+            const res = await fetch(ep, { signal: AbortSignal.timeout(2000) });
+            if (res.ok) {
+                const d = await res.json();
+                if (d && (d.source || d.model)) {
+                    badgeText.textContent = "FAA Scraper: Online (100% Official FAA Data)";
+                    badgeContainer.style.background = "rgba(16, 185, 129, 0.15)";
+                    badgeContainer.style.borderColor = "#10b981";
+                    badgeContainer.style.color = "#10b981";
+                    badgeContainer.title = "Direct local FAA Registry & FlightAware scraper proxy is active and operational";
+                    return;
+                }
+            }
+        } catch(e) {}
+    }
+    
+    // Offline state
+    badgeText.textContent = "FAA Scraper: Offline (ADSBdb Active)";
+    badgeContainer.style.background = "rgba(245, 158, 11, 0.15)";
+    badgeContainer.style.borderColor = "#f59e0b";
+    badgeContainer.style.color = "#f59e0b";
+    badgeContainer.title = "Local FAA Scraper proxy is not running. App will fallback to ADSBdb.com.";
+}
 
 function refreshAllAircraftLayers() {
     // Clear and redraw all markers based on new altitude & type toggles
