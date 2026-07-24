@@ -241,6 +241,40 @@ document.addEventListener('DOMContentLoaded', () => {
             renderActiveTAF();
         });
     });
+
+    // Weather Card Collapsible Toggle Listener
+    const weatherCard = document.getElementById('weather-card');
+    const weatherHeader = document.getElementById('weather-header');
+    let weatherCollapsed = safeGetItem('kvpz_weather_card_collapsed') === 'true';
+
+    if (weatherCard && weatherHeader) {
+        if (weatherCollapsed) {
+            weatherCard.classList.add('collapsed');
+        }
+        weatherHeader.addEventListener('click', (e) => {
+            if (e.target.closest('.taf-tab-btn')) return;
+            weatherCollapsed = !weatherCard.classList.contains('collapsed');
+            weatherCard.classList.toggle('collapsed', weatherCollapsed);
+            safeSetItem('kvpz_weather_card_collapsed', weatherCollapsed);
+        });
+    }
+
+    // Operations Log Card Collapsible Toggle Listener
+    const opsCard = document.getElementById('ops-card');
+    const opsHeader = document.getElementById('ops-header');
+    let opsCollapsed = safeGetItem('kvpz_ops_card_collapsed') === 'true';
+
+    if (opsCard && opsHeader) {
+        if (opsCollapsed) {
+            opsCard.classList.add('collapsed');
+        }
+        opsHeader.addEventListener('click', (e) => {
+            if (e.target.closest('#btn-clear-logs')) return;
+            opsCollapsed = !opsCard.classList.contains('collapsed');
+            opsCard.classList.toggle('collapsed', opsCollapsed);
+            safeSetItem('kvpz_ops_card_collapsed', opsCollapsed);
+        });
+    }
     
     // Set up UI Event Listeners
     document.getElementById('flight-search').addEventListener('input', handleSearch);

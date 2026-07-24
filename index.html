@@ -60,12 +60,17 @@
             <!-- Sidebar Panel (Weather + Operations) -->
             <section class="sidebar-panel">
                 <!-- Airport Info & METAR Card -->
-                <div class="card weather-card">
-                    <div class="card-header">
-                        <h3><i class="fa-solid fa-cloud-sun-rain"></i> Live METAR Weather</h3>
-                        <span class="badge" id="weather-flight-cat">---</span>
+                <div class="card weather-card" id="weather-card">
+                    <div class="card-header collapsible-card-header" id="weather-header" title="Click to collapse / expand Live Weather">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <h3><i class="fa-solid fa-cloud-sun-rain"></i> Live METAR Weather</h3>
+                            <span class="badge" id="weather-flight-cat">---</span>
+                        </div>
+                        <button class="btn-card-toggle" id="btn-toggle-weather" title="Toggle Weather Card">
+                            <i class="fa-solid fa-chevron-up"></i>
+                        </button>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body" id="weather-card-body">
                         <div class="weather-grid">
                             <div class="weather-item">
                                 <i class="fa-solid fa-wind"></i>
@@ -124,12 +129,19 @@
                 </div>
 
                 <!-- Operations Log (Arrivals / Departures) -->
-                <div class="card ops-card">
-                    <div class="card-header">
-                        <h3><i class="fa-solid fa-list-check"></i> Operations Log</h3>
-                        <button class="btn-clear-logs" id="btn-clear-logs" title="Clear logs"><i class="fa-solid fa-trash-can"></i></button>
+                <div class="card ops-card" id="ops-card">
+                    <div class="card-header collapsible-card-header" id="ops-header" title="Click to collapse / expand Operations Log">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <h3><i class="fa-solid fa-list-check"></i> Operations Log</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.4rem;">
+                            <button class="btn-clear-logs" id="btn-clear-logs" title="Clear logs"><i class="fa-solid fa-trash-can"></i></button>
+                            <button class="btn-card-toggle" id="btn-toggle-ops" title="Toggle Operations Log">
+                                <i class="fa-solid fa-chevron-up"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div class="card-body ops-log-container">
+                    <div class="card-body ops-log-container" id="ops-card-body">
                         <ul class="ops-list" id="ops-log-list">
                             <li class="empty-log">Listening for KVPZ arrivals and departures...</li>
                         </ul>
@@ -296,7 +308,7 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="icao_categories.js?v=57"></script>
-    <script src="app.js?v=57"></script>
+    <script src="icao_categories.js?v=58"></script>
+    <script src="app.js?v=58"></script>
 </body>
 </html>
