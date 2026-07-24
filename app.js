@@ -2178,34 +2178,73 @@ async function fetchMissingAircraftInfo(hex) {
         };
     
         // ============================================
-        // TIER 1: ADSBdb.com API (Primary Source)
+        // TIER 0: Direct FAA Registry & FlightAware Scraper Proxy
+        // Scrapes registry.faa.gov directly (100% accurate for US N-numbers)
+        // Supported endpoints: http://localhost:8080/faa?tail=... or http://127.0.0.1:3001/faa?tail=...
+        // ============================================
+        const liveAcForFAA = aircraftCache[hexKey] || {};
+        const targetTail = (liveAcForFAA.tail && liveAcForFAA.tail !== 'N/A' && liveAcForFAA.tail !== 'Unknown') ? liveAcForFAA.tail : (liveAcForFAA.callsign && liveAcForFAA.callsign.trim().toUpperCase().startsWith('N') ? liveAcForFAA.callsign.trim() : '');
+        
+        if (!updated && targetTail) {
+            const cleanTail = targetTail.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            const proxyEndpoints = [
+                `http://localhost:8080/faa?tail=${cleanTail}`,
+                `http://127.0.0.1:3001/faa?tail=${cleanTail}`
+            ];
+            
+            for (const endpoint of proxyEndpoints) {
+                try {
+                    console.log(`[Aircraft Search] [Tier 0] Querying Local FAA Scraper Proxy for ${cleanTail}...`);
+                    const faaRes = await fetch(endpoint, { signal: AbortSignal.timeout(2500) });
+                    if (faaRes.ok) {
+                        const faaData = await faaRes.json();
+                        if (faaData && faaData.type && faaData.type !== 'UNKN' && faaData.desc) {
+                            console.log(`[Aircraft Search] [Tier 0] FAA Registry Scraper SUCCESS for ${cleanTail}:`, faaData);
+                            finalType = faaData.type;
+                            finalDesc = faaData.desc;
+                            finalTail = faaData.tail || cleanTail;
+                            finalOperator = faaData.owner || '';
+                            applyFindings();
+                            if (updated) break;
+                        }
+                    }
+                } catch (e) {
+                    console.log(`[Aircraft Search] [Tier 0] FAA Scraper Endpoint skipped (${endpoint}):`, e.message);
+                }
+            }
+        }
+
+        // ============================================
+        // TIER 1: ADSBdb.com API (Primary Fallback)
         // Free, CORS-friendly, static aircraft database
         // Returns: icao_type, manufacturer, model, registration, owner
         // Rate limit: 500 req/min
         // ============================================
-        try {
-            console.log(`[Aircraft Search] [Tier 1] Querying ADSBdb for ${hexKey}...`);
-            const adsbdbResponse = await fetch(`https://api.adsbdb.com/v0/aircraft/${hexKey}`);
-            if (adsbdbResponse.ok) {
-                const adsbdbData = await adsbdbResponse.json();
-                const aircraft = adsbdbData?.response?.aircraft;
-                if (aircraft) {
-                    console.log(`[Aircraft Search] [Tier 1] ADSBdb SUCCESS for ${hexKey}:`, aircraft.icao_type, aircraft.manufacturer, aircraft.type);
-                    finalType = aircraft.icao_type || '';
-                    finalDesc = aircraft.manufacturer ? `${aircraft.manufacturer} ${aircraft.type || ''}`.trim() : (aircraft.type || '');
-                    finalTail = aircraft.registration || '';
-                    finalOperator = aircraft.registered_owner || '';
-                    applyFindings();
+        if (!updated) {
+            try {
+                console.log(`[Aircraft Search] [Tier 1] Querying ADSBdb for ${hexKey}...`);
+                const adsbdbResponse = await fetch(`https://api.adsbdb.com/v0/aircraft/${hexKey}`);
+                if (adsbdbResponse.ok) {
+                    const adsbdbData = await adsbdbResponse.json();
+                    const aircraft = adsbdbData?.response?.aircraft;
+                    if (aircraft) {
+                        console.log(`[Aircraft Search] [Tier 1] ADSBdb SUCCESS for ${hexKey}:`, aircraft.icao_type, aircraft.manufacturer, aircraft.type);
+                        finalType = aircraft.icao_type || '';
+                        finalDesc = aircraft.manufacturer ? `${aircraft.manufacturer} ${aircraft.type || ''}`.trim() : (aircraft.type || '');
+                        finalTail = aircraft.registration || '';
+                        finalOperator = aircraft.registered_owner || '';
+                        applyFindings();
+                    } else {
+                        console.log(`[Aircraft Search] [Tier 1] ADSBdb returned empty response for ${hexKey}`);
+                    }
+                } else if (adsbdbResponse.status === 404) {
+                    console.log(`[Aircraft Search] [Tier 1] ADSBdb: aircraft ${hexKey} not in database`);
                 } else {
-                    console.log(`[Aircraft Search] [Tier 1] ADSBdb returned empty response for ${hexKey}`);
+                    console.log(`[Aircraft Search] [Tier 1] ADSBdb HTTP ${adsbdbResponse.status} for ${hexKey}`);
                 }
-            } else if (adsbdbResponse.status === 404) {
-                console.log(`[Aircraft Search] [Tier 1] ADSBdb: aircraft ${hexKey} not in database`);
-            } else {
-                console.log(`[Aircraft Search] [Tier 1] ADSBdb HTTP ${adsbdbResponse.status} for ${hexKey}`);
+            } catch (e) {
+                console.log(`[Aircraft Search] [Tier 1] ADSBdb fetch failed for ${hexKey}:`, e.message);
             }
-        } catch (e) {
-            console.log(`[Aircraft Search] [Tier 1] ADSBdb fetch failed for ${hexKey}:`, e.message);
         }
         
         // ============================================
