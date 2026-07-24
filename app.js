@@ -289,6 +289,23 @@ document.addEventListener('DOMContentLoaded', () => {
             safeSetItem('kvpz_ops_card_collapsed', opsCollapsed);
         });
     }
+
+    // Live ATC Radio Feeds Card Collapsible Toggle Listener
+    const atcCard = document.getElementById('atc-card');
+    const atcHeader = document.getElementById('atc-header');
+    let atcCollapsed = safeGetItem('kvpz_atc_card_collapsed') === 'true';
+
+    if (atcCard && atcHeader) {
+        if (atcCollapsed) {
+            atcCard.classList.add('collapsed');
+        }
+        atcHeader.addEventListener('click', (e) => {
+            if (e.target.closest('.btn-atc-listen')) return;
+            atcCollapsed = !atcCard.classList.contains('collapsed');
+            atcCard.classList.toggle('collapsed', atcCollapsed);
+            safeSetItem('kvpz_atc_card_collapsed', atcCollapsed);
+        });
+    }
     
     // Set up UI Event Listeners
     document.getElementById('flight-search').addEventListener('input', handleSearch);
