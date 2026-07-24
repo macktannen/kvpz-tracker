@@ -2089,40 +2089,9 @@ function updateCounters() {
 }
 
 // ==========================================
-// Mathematical ICAO Hex to US N-Number Converter
-// ==========================================
-function icaoToReg(icao) {
-    const hex = parseInt(icao, 16);
-    if (isNaN(hex) || hex < 0xA00001 || hex > 0xADFFFF) return null;
-    
-    const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-    const getLetters601 = (r) => {
-        if (r === 0) return "";
-        r -= 1;
-        if (r < 24) return ALPHABET[r];
-        r -= 24;
-        return ALPHABET[Math.floor(r / 24)] + ALPHABET[r % 24];
-    };
-    
-    let offset = hex - 0xA00001;
-    let d1 = Math.floor(offset / 101711) + 1;
-    let rem = offset % 101711;
-    let prefix = "N" + d1;
-    
-    if (rem < 601) return prefix + getLetters601(rem);
-    rem -= 601;
-    if (rem < 6010) return prefix + Math.floor(rem / 601) + getLetters601(rem % 601);
-    rem -= 6010;
-    if (rem < 60100) return prefix + Math.floor(rem / 601).toString().padStart(2, '0') + getLetters601(rem % 601);
-    rem -= 60100;
-    if (rem < 25000) return prefix + Math.floor(rem / 25).toString().padStart(3, '0') + (rem % 25 === 0 ? "" : ALPHABET[(rem % 25) - 1]);
-    rem -= 25000;
-    return prefix + rem.toString().padStart(4, '0');
-}
-
-
-// ==========================================
-// AIRCRAFT DETAILS FETCHING (Multi-Source Fallback)
+// AIRCRAFT DETAILS FETCHING (2-Tier Pipeline)
+// Tier 1: ADSBdb.com API (primary, CORS-friendly, static DB)
+// Tier 2: Gemini AI (last resort, rate-limited)
 // ==========================================
 async function fetchMissingAircraftInfo(hex) {
     const hexKey = hex.toLowerCase();
@@ -2138,13 +2107,12 @@ async function fetchMissingAircraftInfo(hex) {
     updateUI(); // Show spinner immediately
     
     try {
-        // 1. Check local cache first
+        // 0. Check local cache first
         if (aircraftInfoDb[hexKey]) {
             console.log(`[Aircraft Search] Found cached data for ${hexKey}`);
             let updatedFromCache = false;
             const cached = aircraftInfoDb[hexKey];
             
-            // Get the live aircraft object from the cache (it may have updated during processing)
             const liveAc = aircraftCache[hexKey];
             if (liveAc) {
                 if ((!liveAc.type || liveAc.type === 'N/A' || liveAc.type === 'Unknown' || liveAc.type === '') && cached.type) {
@@ -2166,16 +2134,16 @@ async function fetchMissingAircraftInfo(hex) {
             }
             
             if (updatedFromCache) {
-                // Check if it's still missing vital info (type or desc)
                 const isStillMissing = (!liveAc.type || liveAc.type === 'N/A' || liveAc.type === 'Unknown' || liveAc.type === '') || 
                                        (!liveAc.desc || liveAc.desc === 'N/A' || liveAc.desc === 'Unknown' || liveAc.desc === '');
                 
                 if (!isStillMissing) {
                     return; // Fully satisfied by cache
                 }
-                console.log(`[Aircraft Search] Cached data incomplete (Missing Type/Desc) for ${hexKey}. Continuing search...`);
+                console.log(`[Aircraft Search] Cached data incomplete for ${hexKey}. Continuing search...`);
             }
         }
+
         let updated = false;
         let finalTail = '';
         let finalType = '';
@@ -2209,55 +2177,43 @@ async function fetchMissingAircraftInfo(hex) {
             }
         };
     
-    // 2. Fetch from HexDB first
-    try {
-        console.log(`[Aircraft Search] Querying HexDB for ${hexKey}...`);
-        const response = await fetch(`https://hexdb.io/api/v1/aircraft/${hexKey}`);
-        if (response.ok) {
-            const data = await response.json();
-            if (data && !data.error && data.status !== "404") {
-                console.log(`[Aircraft Search] HexDB success for ${hexKey}`, data);
-                finalType = data.ICAOTypeCode || '';
-                finalDesc = data.Manufacturer ? `${data.Manufacturer} ${data.Type}` : (data.Type || '');
-                finalOperator = data.OperatorFlagCode || '';
-                finalTail = data.Registration || '';
-                applyFindings();
-            } else {
-                console.log(`[Aircraft Search] HexDB returned no data for ${hexKey}`);
-            }
-        }
-    } catch (e) {
-        console.log(`[Aircraft Search] HexDB fetch failed for ${hexKey}`, e);
-    }
-    
-    // 3. Fallback to Planespotters API if still missing data
-    if (!updated) {
+        // ============================================
+        // TIER 1: ADSBdb.com API (Primary Source)
+        // Free, CORS-friendly, static aircraft database
+        // Returns: icao_type, manufacturer, model, registration, owner
+        // Rate limit: 500 req/min
+        // ============================================
         try {
-            console.log(`[Aircraft Search] Querying Planespotters for ${hexKey}...`);
-            const psResponse = await fetch(`https://api.planespotters.net/pub/photos/hex/${hexKey}`);
-            if (psResponse.ok) {
-                const psData = await psResponse.json();
-                if (psData && psData.photos && psData.photos.length > 0 && psData.photos[0].profile) {
-                    console.log(`[Aircraft Search] Planespotters success for ${hexKey}`, psData.photos[0].profile);
-                    const prof = psData.photos[0].profile;
-                    finalTail = prof.registration || finalTail;
-                    finalDesc = prof.type || finalDesc;
-                    finalType = prof.type ? prof.type.substring(0, 4) : finalType; // Approx ICAO
-                    finalOperator = prof.airline || finalOperator;
+            console.log(`[Aircraft Search] [Tier 1] Querying ADSBdb for ${hexKey}...`);
+            const adsbdbResponse = await fetch(`https://api.adsbdb.com/v0/aircraft/${hexKey}`);
+            if (adsbdbResponse.ok) {
+                const adsbdbData = await adsbdbResponse.json();
+                const aircraft = adsbdbData?.response?.aircraft;
+                if (aircraft) {
+                    console.log(`[Aircraft Search] [Tier 1] ADSBdb SUCCESS for ${hexKey}:`, aircraft.icao_type, aircraft.manufacturer, aircraft.type);
+                    finalType = aircraft.icao_type || '';
+                    finalDesc = aircraft.manufacturer ? `${aircraft.manufacturer} ${aircraft.type || ''}`.trim() : (aircraft.type || '');
+                    finalTail = aircraft.registration || '';
+                    finalOperator = aircraft.registered_owner || '';
                     applyFindings();
                 } else {
-                    console.log(`[Aircraft Search] Planespotters returned no data for ${hexKey}`);
+                    console.log(`[Aircraft Search] [Tier 1] ADSBdb returned empty response for ${hexKey}`);
                 }
+            } else if (adsbdbResponse.status === 404) {
+                console.log(`[Aircraft Search] [Tier 1] ADSBdb: aircraft ${hexKey} not in database`);
+            } else {
+                console.log(`[Aircraft Search] [Tier 1] ADSBdb HTTP ${adsbdbResponse.status} for ${hexKey}`);
             }
-        } catch(e) {
-            console.log(`[Aircraft Search] Planespotters fetch failed for ${hexKey}`, e);
+        } catch (e) {
+            console.log(`[Aircraft Search] [Tier 1] ADSBdb fetch failed for ${hexKey}:`, e.message);
         }
-    }
-    
-    // 4. Mathematical N-Number Reverse-Engineering (DISABLED: Do not use ICAO code to convert to tail number)
-    // Tail numbers are strictly derived from explicit API registration fields or manual entry.
-    
-        // 5. Google Gemini AI Query (If API Key is available)
+        
+        // ============================================
+        // TIER 2: Gemini AI (Last Resort)
+        // Only fires if Tier 1 missed AND API key is configured
+        // AND aircraft has a known tail number or callsign to search by
+        // Rate: 15 RPM (throttled by processAutoSearchQueue)
+        // ============================================
         const currentLiveAc = aircraftCache[hexKey] || {};
         const acTail = (currentLiveAc.tail && currentLiveAc.tail !== 'N/A' && currentLiveAc.tail !== 'Unknown') ? currentLiveAc.tail : '';
         const acCall = (currentLiveAc.callsign && currentLiveAc.callsign.trim() !== '') ? currentLiveAc.callsign.trim() : '';
@@ -2265,7 +2221,7 @@ async function fetchMissingAircraftInfo(hex) {
         
         if (!updated && searchParam && geminiApiKey) {
             try {
-                console.log(`[Aircraft Search] Querying Gemini AI for ${searchParam}...`);
+                console.log(`[Aircraft Search] [Tier 2] Querying Gemini AI for ${searchParam}...`);
                 const prompt = `Identify aircraft by tail number and/or callsign: "${searchParam}". Return ONLY a raw JSON object with keys 'type' (the 4-letter ICAO type designator) and 'desc' (the full manufacturer and model name). If unknown, do your best guess based on standard aviation registries. Do not wrap in markdown code blocks. Just the raw JSON.`;
                 
                 const modelsToTry = ['gemini-flash-latest', 'gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash'];
@@ -2283,16 +2239,15 @@ async function fetchMissingAircraftInfo(hex) {
                         })
                     });
                     if (aiRes.ok || aiRes.status === 429) {
-                        break; // Stop if success, or if legitimately rate-limited (no point in retrying)
+                        break;
                     }
-                    console.warn(`[Aircraft Search] ${model} failed with status ${aiRes.status}, falling back...`);
+                    console.warn(`[Aircraft Search] [Tier 2] ${model} failed with status ${aiRes.status}, falling back...`);
                 }
                 
                 if (aiRes.ok) {
                     const aiData = await aiRes.json();
                     if (aiData.candidates && aiData.candidates.length > 0) {
                         let textResp = aiData.candidates[0].content.parts[0].text.trim();
-                        // Robustly extract the JSON object using regex to ignore markdown backticks and newlines
                         const jsonMatch = textResp.match(/\{[\s\S]*\}/);
                         if (jsonMatch) {
                             textResp = jsonMatch[0];
@@ -2302,72 +2257,30 @@ async function fetchMissingAircraftInfo(hex) {
                             const parsed = JSON.parse(textResp);
                             if (parsed.type) {
                                 finalType = parsed.type;
-                                finalDesc = parsed.desc || 'AI Extracted Info';
-                                console.log(`[Aircraft Search] Gemini AI Identified ${searchParam}:`, parsed);
+                                finalDesc = parsed.desc || 'AI Identified';
+                                console.log(`[Aircraft Search] [Tier 2] Gemini AI Identified ${searchParam}:`, parsed);
                                 applyFindings();
                             }
                         } catch(parseErr) {
-                            console.log(`[Aircraft Search] Failed to parse Gemini JSON:`, textResp);
+                            console.log(`[Aircraft Search] [Tier 2] Failed to parse Gemini JSON:`, textResp);
                         }
                     }
                 } else if (aiRes.status === 429) {
-                    console.warn(`[Aircraft Search] Gemini AI Rate Limit Hit! Falling back to DDG.`);
+                    console.warn(`[Aircraft Search] [Tier 2] Gemini AI Rate Limit Hit!`);
                 } else {
-                    console.warn(`[Aircraft Search] Gemini AI Error ${aiRes.status}`);
+                    console.warn(`[Aircraft Search] [Tier 2] Gemini AI Error ${aiRes.status}`);
                 }
             } catch(e) {
-                console.log(`[Aircraft Search] Gemini AI fetch failed`, e);
+                console.log(`[Aircraft Search] [Tier 2] Gemini AI fetch failed:`, e.message);
             }
         }
-        
-        // 4. Fallback to scraping a simple Google/DuckDuckGo search via CORS proxy (If Gemini failed or no key)
-        if (!updated && searchParam) {
-            try {
-                console.log(`[Aircraft Search] Querying DuckDuckGo fallback for ${searchParam}...`);
-                const query = encodeURIComponent(`aircraft ${searchParam}`);
-            const ddgUrl = `https://lite.duckduckgo.com/lite/?q=${query}`;
-            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(ddgUrl)}`;
-            const ddgRes = await fetch(proxyUrl);
-            if (ddgRes.ok) {
-                const json = await ddgRes.json();
-                const html = json.contents;
-                // Simple naive extraction: look for the first search result snippet
-                const snippetMatch = html.match(/<td class='result-snippet'>([\s\S]*?)<\/td>/i);
-                if (snippetMatch) {
-                    const snippet = snippetMatch[1].replace(/<[^>]+>/g, '').trim();
-                    console.log(`[Aircraft Search] DuckDuckGo snippet found:`, snippet);
-                    
-                    // 1. Set description if missing
-                    if (!ac.desc || ac.desc === 'N/A') {
-                        finalDesc = snippet.length > 40 ? snippet.substring(0, 37) + '...' : snippet;
-                    }
-                    
-                    // 2. Set type if missing by extracting the first significant word (e.g. "Cessna", "Boeing")
-                    if (!ac.type || ac.type === 'N/A') {
-                        const words = snippet.replace(/[^a-zA-Z0-9\s-]/g, '').split(/\s+/);
-                        const possibleType = words.find(w => w.length >= 3 && !['the','this','and','for','aircraft','flight'].includes(w.toLowerCase()));
-                        if (possibleType) {
-                            finalType = possibleType.substring(0, 4).toUpperCase();
-                        } else {
-                            finalType = "SRCH"; // Generic indicator that we searched it
-                        }
-                    }
-                    
-                    applyFindings();
-                } else {
-                    console.log(`[Aircraft Search] DuckDuckGo no snippet matched for ${searchParam}`);
-                }
-            }
-        } catch(e) {
-            console.log(`[Aircraft Search] DuckDuckGo fetch failed for ${searchParam}`, e);
-        }
-    }
+
+        // Save results to persistent local cache
         if (updated) {
             const liveAc = aircraftCache[hexKey];
             if (liveAc) {
-                // Save to cache memory immediately
-                cachedDb[hexKey] = {
-                    ...cachedDb[hexKey],
+                aircraftInfoDb[hexKey] = {
+                    ...aircraftInfoDb[hexKey],
                     hex: liveAc.hex,
                     callsign: liveAc.callsign,
                     tail: liveAc.tail,
@@ -3025,7 +2938,7 @@ async function updatePowerlines() {
     }
 }
 
-// Process Auto-Search Queue sequentially to respect API Rate Limits (max 15 RPM for Gemini free tier)
+// Process Auto-Search Queue (500ms fast queue for ADSBdb static DB, 4.2s for Gemini AI fallback)
 async function processAutoSearchQueue() {
     if (isAutoSearchProcessing || autoSearchQueue.length === 0) return;
     isAutoSearchProcessing = true;
@@ -3040,8 +2953,8 @@ async function processAutoSearchQueue() {
         // Skip if they manually searched it while it was in queue
         if (!activeSearches.has(hex.toLowerCase())) {
             await fetchMissingAircraftInfo(hex);
-            // Wait 4.2 seconds before the next request (Ensures max 14 requests per minute)
-            await new Promise(r => setTimeout(r, 4200));
+            // Wait 500ms before next fast ADSBdb request
+            await new Promise(r => setTimeout(r, 500));
         }
     }
     
