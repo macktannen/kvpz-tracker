@@ -1,6 +1,7 @@
 {
   "rewrites": [
     { "source": "/faa", "destination": "/api/faa" },
-    { "source": "/health", "destination": "/api/health" }
+    { "source": "/health", "destination": "/api/health" },
+    { "source": "/spidertracks", "destination": "/api/spidertracks" }
   ]
 }

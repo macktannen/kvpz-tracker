@@ -1363,7 +1363,7 @@ async function fetchAircraftData() {
         statusText.textContent = `Airplanes.live Active (${radiusNM} NM Coverage) • Updated ${new Date().toLocaleTimeString([], {hour12:false})}`;
         
         processAircraft(mergedList);
-        
+        await fetchSpidertracksFeed();
     } catch (error) {
         console.error("Error loading ADS-B data:", error);
         pulseIndicator.className = "pulse-indicator status-error";
@@ -3082,4 +3082,111 @@ async function processAutoSearchQueue() {
     
     isAutoSearchProcessing = false;
 }
+
+// ----------------------------------------------------
+// 13. Spidertracks Satellite Feed & Modal Handlers
+// ----------------------------------------------------
+async function fetchSpidertracksFeed() {
+    const endpoints = [
+        `${window.location.origin}/spidertracks`,
+        'http://localhost:8080/spidertracks',
+        'http://127.0.0.1:8080/spidertracks',
+        'http://localhost:3001/spidertracks',
+        'http://127.0.0.1:3001/spidertracks'
+    ];
+    for (const ep of endpoints) {
+        try {
+            const res = await fetch(ep, { signal: AbortSignal.timeout(1500) });
+            if (res.ok) {
+                const data = await res.json();
+                if (data && typeof data === 'object') {
+                    for (const ac of Object.values(data)) {
+                        if (ac && ac.hex && ac.lat && ac.lon) {
+                            const hex = ac.hex.toLowerCase();
+                            const dist = getDistanceNM(ac.lat, ac.lon, KVPZ_COORDS[0], KVPZ_COORDS[1]);
+                            aircraftCache[hex] = {
+                                hex: ac.hex,
+                                callsign: ac.callsign || ac.tail || 'SPIDER',
+                                tail: ac.tail || 'N/A',
+                                type: ac.type || 'SPDR',
+                                desc: ac.desc || 'Spidertracks Satellite Aircraft',
+                                lat: ac.lat,
+                                lon: ac.lon,
+                                alt: ac.alt || 0,
+                                speed: ac.speed || 0,
+                                vspeed: 0,
+                                heading: ac.heading || 0,
+                                dist: dist,
+                                operator: 'Spidertracks Feed',
+                                lastSeen: Date.now(),
+                                mil: 0,
+                                categoryClass: 'spidertracks',
+                                source: 'Spidertracks Satellite'
+                            };
+                            updateMapMarker(aircraftCache[hex]);
+                        }
+                    }
+                    updateUI();
+                    return;
+                }
+            }
+        } catch(e) {}
+    }
+}
+
+window.openSpidertracksModal = function() {
+    const modal = document.getElementById('spidertracks-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // Build 1-click bookmarklet URL dynamically
+        const link = document.getElementById('spider-bookmarklet-link');
+        if (link) {
+            const targetUrl = window.location.origin + '/spidertracks';
+            const code = `javascript:(function(){var url='${targetUrl}';alert('📡 Spidertracks Live Sync Activated!\\nStreaming position data every 5s...');function s(){try{var t=document.body.innerText||'';var lat=t.match(/(?:lat|latitude)[:\\s=]+(-?\\d+\\.\\d+)/i);var lon=t.match(/(?:lng|lon|longitude)[:\\s=]+(-?\\d+\\.\\d+)/i);var tail=t.match(/\\b(N[0-9]{1,5}[A-Z]{0,2})\\b/i);if(lat&&lon){fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tail:tail?tail[1]:'N-PLANE',lat:parseFloat(lat[1]),lon:parseFloat(lon[1]),alt:1500,speed:120})});}}catch(e){}}s();setInterval(s,5000);})();`;
+            link.href = code;
+        }
+    }
+};
+
+window.closeSpidertracksModal = function() {
+    const modal = document.getElementById('spidertracks-modal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.sendManualSpiderPos = async function() {
+    const tail = (document.getElementById('spider-input-tail').value || 'N12345').toUpperCase().trim();
+    const lat = parseFloat(document.getElementById('spider-input-lat').value || 41.4542);
+    const lon = parseFloat(document.getElementById('spider-input-lon').value || -87.0068);
+    
+    if (isNaN(lat) || isNaN(lon)) {
+        alert("Please enter valid decimal coordinates (e.g. 41.4542, -87.0068)");
+        return;
+    }
+
+    const payload = { tail, lat, lon, alt: 2500, speed: 110, heading: 180 };
+    const endpoints = [`${window.location.origin}/spidertracks`, 'http://localhost:8080/spidertracks', 'http://127.0.0.1:3001/spidertracks'];
+    
+    for (const ep of endpoints) {
+        try {
+            const r = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (r.ok) {
+                alert(`✅ Position for ${tail} pushed successfully! Checking map...`);
+                fetchSpidertracksFeed();
+                closeSpidertracksModal();
+                return;
+            }
+        } catch(e) {}
+    }
+    alert("Position stored locally on map!");
+    const hex = `SPIDER_${tail.replace(/[^A-Z0-9]/g, '')}`.toLowerCase();
+    const dist = getDistanceNM(lat, lon, KVPZ_COORDS[0], KVPZ_COORDS[1]);
+    aircraftCache[hex] = {
+        hex: hex, callsign: tail, tail: tail, type: 'SPDR', desc: 'Spidertracks Aircraft',
+        lat: lat, lon: lon, alt: 2500, speed: 110, vspeed: 0, heading: 180, dist: dist,
+        operator: 'Spidertracks Feed', lastSeen: Date.now(), mil: 0, categoryClass: 'spidertracks', source: 'Spidertracks Satellite'
+    };
+    updateMapMarker(aircraftCache[hex]);
+    updateUI();
+    closeSpidertracksModal();
+};
 

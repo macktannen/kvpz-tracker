@@ -121,6 +121,45 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+let spidertracksStore = {};
+
+    if (reqUrl.pathname === '/spidertracks') {
+        if (req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => body += chunk);
+            req.on('end', () => {
+                try {
+                    const data = JSON.parse(body);
+                    const tail = (data.tail || data.registration || data.id || 'SPIDER1').toUpperCase().trim();
+                    spidertracksStore[tail] = {
+                        hex: data.hex || `SPIDER_${tail.replace(/[^A-Z0-9]/g, '')}`,
+                        tail: tail,
+                        callsign: data.callsign || tail,
+                        lat: parseFloat(data.lat || data.latitude || 0),
+                        lon: parseFloat(data.lon || data.longitude || 0),
+                        alt: parseInt(data.alt || data.altitude || 0),
+                        speed: parseInt(data.speed || data.groundspeed || 0),
+                        heading: parseInt(data.heading || data.track || 0),
+                        timestamp: Date.now(),
+                        type: data.type || 'SPDR',
+                        desc: data.desc || 'Spidertracks Satellite Aircraft',
+                        source: 'Spidertracks Satellite'
+                    };
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ status: 'ok', updated: tail, data: spidertracksStore[tail] }));
+                } catch(e) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: e.message }));
+                }
+            });
+            return;
+        } else {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(spidertracksStore));
+            return;
+        }
+    }
+
     if (reqUrl.pathname === '/faa' || reqUrl.pathname === '/scrape') {
         const tail = reqUrl.query.tail || reqUrl.query.reg || '';
         if (!tail) {

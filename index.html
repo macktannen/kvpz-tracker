@@ -87,6 +87,10 @@
                     <div id="faa-scraper-badge" style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #10b981; font-size: 0.62rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 700; display: flex; align-items: center; gap: 0.3rem;" title="FAA Registry Scraper Proxy Status">
                         <i class="fa-solid fa-building-shield"></i> <span id="faa-scraper-text">FAA Scraper: Online</span>
                     </div>
+                    <span style="color: var(--border-color);">|</span>
+                    <button id="spidertracks-btn" onclick="openSpidertracksModal()" style="background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #f59e0b; font-size: 0.62rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;" title="Click to setup Spidertracks Satellite Live Sync">
+                        <i class="fa-solid fa-spider"></i> <span>SpiderTracks Sync</span>
+                    </button>
                 </div>
             </div>
         </header>
@@ -338,9 +342,41 @@
         </footer>
     </div>
 
+    <!-- Spidertracks Sync Modal -->
+    <div class="modal-overlay" id="spidertracks-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 9999; justify-content: center; align-items: center;">
+        <div class="card" style="width: 90%; max-width: 520px; background: var(--color-bg-card); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color);">
+                <h3 style="margin: 0; font-size: 0.95rem; color: #f59e0b;"><i class="fa-solid fa-spider"></i> 🛰️ SpiderTracks Live Sync</h3>
+                <button onclick="closeSpidertracksModal()" style="background: none; border: none; color: #fff; font-size: 1.1rem; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="card-body" style="padding: 1rem; font-size: 0.85rem; line-height: 1.5; color: var(--color-text-main);">
+                <p style="margin-top: 0;">Stream satellite positions from <strong>app.spidertracks.io</strong> directly onto your KVPZ Radar map!</p>
+
+                <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem;">
+                    <strong style="color: #f59e0b;">Option A: Push Live GPS Coordinates</strong>
+                    <div style="display: flex; gap: 0.4rem; margin-top: 0.5rem; flex-wrap: wrap;">
+                        <input type="text" id="spider-input-tail" placeholder="Tail (e.g. N12345)" style="flex: 1; min-width: 110px; padding: 0.35rem; background: #000; border: 1px solid var(--border-color); color: #fff; border-radius: 4px; font-size: 0.8rem;">
+                        <input type="text" id="spider-input-lat" placeholder="Latitude (e.g. 41.4542)" style="flex: 1; min-width: 110px; padding: 0.35rem; background: #000; border: 1px solid var(--border-color); color: #fff; border-radius: 4px; font-size: 0.8rem;">
+                        <input type="text" id="spider-input-lon" placeholder="Longitude (e.g. -87.0068)" style="flex: 1; min-width: 110px; padding: 0.35rem; background: #000; border: 1px solid var(--border-color); color: #fff; border-radius: 4px; font-size: 0.8rem;">
+                        <button onclick="sendManualSpiderPos()" style="background: #f59e0b; color: #000; font-weight: 700; border: none; padding: 0.35rem 0.75rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Push GPS</button>
+                    </div>
+                </div>
+
+                <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.75rem; border-radius: 6px;">
+                    <strong style="color: #10b981;">Option B: 1-Click Browser Sync Bookmarklet</strong><br>
+                    <span style="font-size: 0.8rem;">Drag this button to your Bookmarks Bar:</span>
+                    <div style="margin-top: 0.5rem;">
+                        <a id="spider-bookmarklet-link" href="#" style="background: #10b981; color: #000; font-weight: 700; padding: 0.4rem 0.8rem; border-radius: 4px; text-decoration: none; display: inline-block; font-size: 0.8rem;">🛰️ Sync SpiderTracks</a>
+                    </div>
+                    <small style="color: var(--color-text-muted); display: block; margin-top: 0.4rem; font-size: 0.72rem;">When logged into app.spidertracks.io, click this bookmark to stream your plane to KVPZ Tracker live every 5 seconds!</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="icao_categories.js?v=77"></script>
-    <script src="app.js?v=77"></script>
+    <script src="icao_categories.js?v=78"></script>
+    <script src="app.js?v=78"></script>
 </body>
 </html>
