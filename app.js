@@ -2222,7 +2222,7 @@ async function fetchMissingAircraftInfo(hex) {
         if (!updated && searchParam && geminiApiKey) {
             try {
                 console.log(`[Aircraft Search] [Tier 2] Querying Gemini AI for ${searchParam}...`);
-                const prompt = `Identify aircraft by tail number and/or callsign: "${searchParam}". Return ONLY a raw JSON object with keys 'type' (the 4-letter ICAO type designator) and 'desc' (the full manufacturer and model name). If unknown, do your best guess based on standard aviation registries. Do not wrap in markdown code blocks. Just the raw JSON.`;
+                const prompt = `Identify exact real-world aircraft by tail number or callsign: "${searchParam}". Return ONLY a raw JSON object with keys 'type' (the 4-letter ICAO designator) and 'desc' (full manufacturer and model name). IF YOU ARE NOT 100% CERTAIN of the exact real-world aircraft model, return {"type":"Unknown","desc":"Unknown"}. DO NOT GUESS OR HALLUCINATE DEFAULT AIRCRAFT TYPES LIKE CITATION OR C25B. Just the raw JSON.`;
                 
                 const modelsToTry = ['gemini-flash-latest', 'gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash'];
                 let aiRes = null;
@@ -2255,11 +2255,21 @@ async function fetchMissingAircraftInfo(hex) {
                         
                         try {
                             const parsed = JSON.parse(textResp);
-                            if (parsed.type) {
-                                finalType = parsed.type;
-                                finalDesc = parsed.desc || 'AI Identified';
-                                console.log(`[Aircraft Search] [Tier 2] Gemini AI Identified ${searchParam}:`, parsed);
+                            const pType = (parsed.type || '').trim().toUpperCase();
+                            const pDesc = (parsed.desc || '').trim();
+                            
+                            // Strictly reject unknown or generic hallucinated fallbacks
+                            const isValidAIResult = pType && pType !== 'UNKNOWN' && pType !== 'N/A' && pType !== 'SRCH' &&
+                                                    pDesc && !pDesc.toLowerCase().includes('unknown') && 
+                                                    !pDesc.toLowerCase().includes('citation cj3') && pType !== 'C25B';
+
+                            if (isValidAIResult) {
+                                finalType = pType;
+                                finalDesc = pDesc;
+                                console.log(`[Aircraft Search] [Tier 2] Gemini AI Verified ${searchParam}:`, parsed);
                                 applyFindings();
+                            } else {
+                                console.log(`[Aircraft Search] [Tier 2] Gemini AI returned unconfirmed guess for ${searchParam}, ignoring.`);
                             }
                         } catch(parseErr) {
                             console.log(`[Aircraft Search] [Tier 2] Failed to parse Gemini JSON:`, textResp);
@@ -2545,7 +2555,7 @@ function loadAircraftDb() {
         const stored = safeGetItem('kvpz_aircraft_db');
         if (stored) {
             aircraftInfoDb = JSON.parse(stored);
-            // Sanitize / Purge erroneous mathematical decodes (e.g. S76 for N83HS)
+            // Sanitize / Purge erroneous mathematical & AI default decodes (e.g. S76, C25B / Citation CJ3)
             for (const k of Object.keys(aircraftInfoDb)) {
                 const item = aircraftInfoDb[k];
                 if (item) {
@@ -2554,8 +2564,13 @@ function loadAircraftDb() {
                         item.type = 'GLF8';
                         item.desc = 'Gulfstream G800';
                         item.categoryClass = 'business-jet';
-                    } else if (!item.manual && item.type === 'S76' && item.desc && item.desc.includes('Sikorsky')) {
-                        delete aircraftInfoDb[k];
+                    } else if (!item.manual) {
+                        const isBogusS76 = item.type === 'S76' && item.desc && item.desc.includes('Sikorsky');
+                        const isBogusCJ3 = (item.type === 'C25B' || item.type === 'C25A') && item.desc && item.desc.toLowerCase().includes('citation');
+                        const isGenericAI = item.desc && (item.desc.includes('AI Identified') || item.desc.includes('AI Extracted'));
+                        if (isBogusS76 || isBogusCJ3 || isGenericAI) {
+                            delete aircraftInfoDb[k];
+                        }
                     }
                 }
             }
