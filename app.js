@@ -2079,7 +2079,6 @@ function getAircraftIconSvg(ac, color) {
         <line x1="210" y1="42" x2="302" y2="42" stroke="${color}" stroke-width="5" stroke-linecap="round" />
     </svg>`;
 }
-}
 
 // 6. Map Marker Graphics & Rotation
 function updateMapMarker(ac) {
