@@ -3101,13 +3101,26 @@ async function fetchSpidertracksFeed() {
                 const data = await res.json();
                 if (data && typeof data === 'object') {
                     for (const ac of Object.values(data)) {
-                        if (ac && ac.hex && ac.lat && ac.lon) {
-                            const hex = ac.hex.toLowerCase();
+                        if (ac && ac.lat && ac.lon) {
+                            const cleanTail = (ac.tail || 'SPIDER1').toUpperCase().trim();
+                            const spiderHex = `spider_${cleanTail.replace(/[^A-Z0-9]/g, '')}`.toLowerCase();
+                            
+                            // ANTI-HIJACK CHECK: If a real terrestrial ADS-B flight is already active in the air with this tail, DO NOT OVERWRITE IT!
+                            const isRealADSBActive = Object.values(aircraftCache).some(existing => 
+                                existing.hex !== spiderHex && 
+                                existing.source !== 'Spidertracks Satellite' &&
+                                (existing.tail === cleanTail || existing.callsign === cleanTail)
+                            );
+
+                            if (isRealADSBActive) {
+                                continue; // Skip to protect live ADS-B feed data
+                            }
+
                             const dist = getDistanceNM(ac.lat, ac.lon, KVPZ_COORDS[0], KVPZ_COORDS[1]);
-                            aircraftCache[hex] = {
-                                hex: ac.hex,
-                                callsign: ac.callsign || ac.tail || 'SPIDER',
-                                tail: ac.tail || 'N/A',
+                            aircraftCache[spiderHex] = {
+                                hex: spiderHex,
+                                callsign: cleanTail,
+                                tail: cleanTail,
                                 type: ac.type || 'SPDR',
                                 desc: ac.desc || 'Spidertracks Satellite Aircraft',
                                 lat: ac.lat,
@@ -3117,13 +3130,13 @@ async function fetchSpidertracksFeed() {
                                 vspeed: 0,
                                 heading: ac.heading || 0,
                                 dist: dist,
-                                operator: 'Spidertracks Feed',
+                                operator: 'Spidertracks Satellite',
                                 lastSeen: Date.now(),
                                 mil: 0,
                                 categoryClass: 'spidertracks',
                                 source: 'Spidertracks Satellite'
                             };
-                            updateMapMarker(aircraftCache[hex]);
+                            updateMapMarker(aircraftCache[spiderHex]);
                         }
                     }
                     updateUI();
@@ -3144,7 +3157,7 @@ window.openSpidertracksModal = function() {
             if (window.location.protocol === 'file:') {
                 targetUrl = 'http://localhost:8080/spidertracks';
             }
-            const code = `javascript:(function(){if(window.spiderSyncTimer){clearInterval(window.spiderSyncTimer);window.spiderSyncTimer=null;var t=document.createElement('div');t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 18px;background:#ef4444;color:#fff;font-weight:bold;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.5);font-size:13px;';t.innerHTML='🛑 Spidertracks Live Sync Stopped';document.body.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3000);return;}var url='${targetUrl}';var t=document.createElement('div');t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 18px;background:#10b981;color:#000;font-weight:bold;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.5);font-size:13px;';t.innerHTML='🛰️ Spidertracks Live Sync Active!<br><span style="font-weight:normal;font-size:11px;">Click bookmark again anytime to STOP.</span>';document.body.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},4000);function s(){try{var txt=document.body.innerText||'';var lat=txt.match(/(?:lat|latitude)[:\\s=]+(-?\\d+\\.\\d+)/i)||[null,'41.4542'];var lon=txt.match(/(?:lng|lon|longitude)[:\\s=]+(-?\\d+\\.\\d+)/i)||[null,'-87.0068'];var tail=txt.match(/\\b(N[0-9]{1,5}[A-Z]{0,2})\\b/i)||[null,'MY-SPIDER'];var alt=txt.match(/(?:alt|altitude)[:\\s=]+(\\d+)/i)||[null,2500];var spd=txt.match(/(?:speed|gs)[:\\s=]+(\\d+)/i)||[null,110];if(lat[1]&&lon[1]){fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tail:tail[1].toUpperCase(),lat:parseFloat(lat[1]),lon:parseFloat(lon[1]),alt:parseInt(alt[1]),speed:parseInt(spd[1])})}).catch(function(e){console.warn('Sync error:',e);});}}catch(e){}}s();window.spiderSyncTimer=setInterval(s,5000);})();`;
+            const code = `javascript:(function(){if(window.spiderSyncTimer){clearInterval(window.spiderSyncTimer);window.spiderSyncTimer=null;var t=document.createElement('div');t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 18px;background:#ef4444;color:#fff;font-weight:bold;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.5);font-size:13px;';t.innerHTML='🛑 Spidertracks Live Sync Stopped';document.body.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3000);return;}var targetTail=window.spiderTargetTail||prompt('Enter your exact Spidertracks Aircraft Tail Number (e.g. N12345):','N12345');if(!targetTail)return;window.spiderTargetTail=targetTail.toUpperCase().trim();var url='${targetUrl}';var t=document.createElement('div');t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 18px;background:#10b981;color:#000;font-weight:bold;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.5);font-size:13px;';t.innerHTML='🛰️ Spidertracks Sync Active for '+window.spiderTargetTail+'!<br><span style="font-weight:normal;font-size:11px;">Click bookmark again anytime to STOP.</span>';document.body.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},4000);function s(){try{var txt=document.body.innerText||'';var lat=txt.match(/(?:lat|latitude)[:\\s=]+(-?\\d+\\.\\d+)/i);var lon=txt.match(/(?:lng|lon|longitude)[:\\s=]+(-?\\d+\\.\\d+)/i);var alt=txt.match(/(?:alt|altitude)[:\\s=]+(\\d+)/i)||[null,2500];var spd=txt.match(/(?:speed|gs)[:\\s=]+(\\d+)/i)||[null,110];if(lat&&lon){fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tail:window.spiderTargetTail,lat:parseFloat(lat[1]),lon:parseFloat(lon[1]),alt:parseInt(alt[1]),speed:parseInt(spd[1])})}).catch(function(e){console.warn('Sync error:',e);});}}catch(e){}}s();window.spiderSyncTimer=setInterval(s,5000);})();`;
             link.href = code;
         }
     }
