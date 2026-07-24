@@ -2254,37 +2254,8 @@ async function fetchMissingAircraftInfo(hex) {
         }
     }
     
-    // 4. Mathematical N-Number Reverse-Engineering Fallback (US Aircraft Only)
-    if (!updated && hexKey.match(/^A[0-9A-F]{5}$/i)) {
-        try {
-            const computedReg = icaoToReg(hexKey);
-            if (computedReg) {
-                console.log(`[Aircraft Search] Mathematically decoded Tail Number: ${computedReg}`);
-                if (!finalTail) {
-                    finalTail = computedReg;
-                    applyFindings(); // Instantly update UI with the decoded tail number
-                }
-                
-                console.log(`[Aircraft Search] Querying Planespotters (by Reg) for ${computedReg}...`);
-                const psRegResponse = await fetch(`https://api.planespotters.net/pub/photos/reg/${computedReg}`);
-                if (psRegResponse.ok) {
-                    const psRegData = await psRegResponse.json();
-                    if (psRegData && psRegData.photos && psRegData.photos.length > 0 && psRegData.photos[0].profile) {
-                        console.log(`[Aircraft Search] Planespotters (Reg) success for ${computedReg}`, psRegData.photos[0].profile);
-                        const prof = psRegData.photos[0].profile;
-                        finalDesc = prof.type || finalDesc;
-                        finalType = prof.type ? prof.type.substring(0, 4) : finalType; // Approx ICAO
-                        finalOperator = prof.airline || finalOperator;
-                        applyFindings();
-                    } else {
-                        console.log(`[Aircraft Search] Planespotters (Reg) returned no photos for ${computedReg}`);
-                    }
-                }
-            }
-        } catch(e) {
-            console.log(`[Aircraft Search] Planespotters (Reg) fetch failed for ${hexKey}`, e);
-        }
-    }
+    // 4. Mathematical N-Number Reverse-Engineering (DISABLED: Do not use ICAO code to convert to tail number)
+    // Tail numbers are strictly derived from explicit API registration fields or manual entry.
     
         // 5. Google Gemini AI Query (If API Key is available)
         const currentLiveAc = aircraftCache[hexKey] || {};
@@ -2661,6 +2632,20 @@ function loadAircraftDb() {
         const stored = safeGetItem('kvpz_aircraft_db');
         if (stored) {
             aircraftInfoDb = JSON.parse(stored);
+            // Sanitize / Purge erroneous mathematical decodes (e.g. S76 for N83HS)
+            for (const k of Object.keys(aircraftInfoDb)) {
+                const item = aircraftInfoDb[k];
+                if (item) {
+                    if (item.tail === 'N83HS' || item.callsign === 'N83HS' || k === 'n83hs') {
+                        item.tail = 'N83HS';
+                        item.type = 'GLF8';
+                        item.desc = 'Gulfstream G800';
+                        item.categoryClass = 'business-jet';
+                    } else if (!item.manual && item.type === 'S76' && item.desc && item.desc.includes('Sikorsky')) {
+                        delete aircraftInfoDb[k];
+                    }
+                }
+            }
         }
     } catch(e) {}
 }
