@@ -1832,7 +1832,7 @@ function getAircraftIconSvg(ac, color) {
     else if (matchType(['AS35','AS350','AS355','H125','ASTAR','TWINSTAR','AS32','AS332','H225','SUPER PUMA','EC25','H215'])) shapeKey = 'helo_h125';
     else if (matchType(['B407','B412','B429','B212','B430','B230','B222','BELL 407','BELL 412','BELL 429'])) shapeKey = 'helo_b407';
     else if (matchType(['B06','B206','B204','B205','B214','OH58','JETRANGER','LONGRANGER','KIOWA','BELL'])) shapeKey = 'helo_b206';
-    else if (matchType(['R22','R44','R66','CABR','ROBINSON','MD50','HU50','H500','SCH4','S300','EN28','EN48']) || cat === 'helicopter') shapeKey = 'helo_2b';
+    else if (matchType(['R22','R44','R66','CABR','ROBINSON','MD50','HU50','H500','SCH4','S-300','SCHWEIZER','EN28','EN48']) || cat === 'helicopter') shapeKey = 'helo_2b';
     else if (matchType(['V22','OSPREY'])) shapeKey = 'v22_fast';
     // 0. Business & Corporate Jets (Prioritized before commercial airliner checks so E55P, EMB5, Phenom, Citation, Gulfstream, Learjet get business jet icons)
     else if (matchType([
@@ -1883,11 +1883,11 @@ function getAircraftIconSvg(ac, color) {
     else if (matchType(['F16','FIGHTING FALCON'])) shapeKey = 'hi_perf';
     else if (matchType(['F18','FA18','EA18','HORNET'])) shapeKey = 'f18';
     else if (matchType(['F35','LIGHTNING'])) shapeKey = 'f35';
-    else if (matchType(['T38','F5'])) shapeKey = 't38';
+    else if (matchType(['T38','F-5','F5A','F5E','F5F','F5N'])) shapeKey = 't38';
     else if (matchType(['MIRAGE','MIRG'])) shapeKey = 'mirage';
     else if (matchType(['SB39','JAS39','GRIPEN'])) shapeKey = 'sb39';
     else if (matchType(['L159','L39'])) shapeKey = 'l159';
-    else if (matchType(['A4','SKYHAWK'])) shapeKey = 'md_a4';
+    else if (matchType(['A-4','A4B','A4C','A4E','A4F','A4M','SKYHAWK'])) shapeKey = 'md_a4';
     else if (matchType(['ALPHA','ALPHA JET'])) shapeKey = 'alpha_jet';
 
     // General & Corporate Aviation Turboprops & Twins
