@@ -1458,6 +1458,23 @@ async function fetchAircraftData() {
     }
 }
 
+function getAircraftCategory(ac) {
+    const type = (ac.type || ac.t || '').toUpperCase();
+    const desc = (ac.desc || '').toUpperCase();
+    const cat = (ac.category || '').toLowerCase();
+
+    if (cat.includes('helo') || cat.includes('rotor') || type.startsWith('H') || type.startsWith('AH') || type.startsWith('CH') || type.startsWith('MH') || type.startsWith('UH') || desc.includes('HELICOPTER') || desc.includes('ROTOR')) {
+        return 'helicopter';
+    }
+    if (type.startsWith('B7') || type.startsWith('A3') || type.startsWith('A2') || type.startsWith('E1') || type.startsWith('E2') || type.startsWith('CRJ') || type.startsWith('MD') || desc.includes('BOEING') || desc.includes('AIRBUS') || desc.includes('EMBRAER') || desc.includes('BOMBARDIER')) {
+        return 'commercial-jet';
+    }
+    if (type.startsWith('GLF') || type.startsWith('C56') || type.startsWith('CL3') || type.startsWith('FA7') || desc.includes('GULFSTREAM') || desc.includes('CITATION') || desc.includes('LEARJET') || desc.includes('CHALLENGER')) {
+        return 'business-jet';
+    }
+    return cat || 'ga';
+}
+
 // 5. Operations Detection & State Engine
 function processAircraft(aircraftList) {
     const activeHexes = new Set();
