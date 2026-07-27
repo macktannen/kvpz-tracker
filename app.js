@@ -1479,7 +1479,11 @@ function getAircraftCategory(ac) {
         return 'business-jet';
     }
 
-    if (type.startsWith('B7') || type.startsWith('A3') || type.startsWith('A2') || type.startsWith('E1') || type.startsWith('E2') || type.startsWith('E7') || type.startsWith('CRJ') || type.startsWith('MD') || desc.includes('BOEING') || desc.includes('AIRBUS') || desc.includes('AIRLINER')) {
+    if (
+        type.startsWith('B7') || type.startsWith('717') || type.startsWith('712') || type.startsWith('737') || type.startsWith('747') || type.startsWith('757') || type.startsWith('767') || type.startsWith('777') || type.startsWith('787') ||
+        type.startsWith('A3') || type.startsWith('A2') || type.startsWith('E1') || type.startsWith('E2') || type.startsWith('E7') || type.startsWith('CRJ') || type.startsWith('MD') ||
+        desc.includes('BOEING') || desc.includes('AIRBUS') || desc.includes('AIRLINER') || desc.includes('717')
+    ) {
         return 'commercial-jet';
     }
     return cat || 'ga';
@@ -1868,7 +1872,7 @@ function getAircraftIconSvg(ac, color) {
 
     // 6. Commercial Jets - Regional Jets (Embraer E-Jets, Bombardier CRJ, ERJ, MD-80s)
     else if (matchType(['E135','E145','E170','E175','E190','E195','E290','E295','E75L','E75S','ERJ135','ERJ145','ERJ170','ERJ175','ERJ190','ERJ'])) shapeKey = 'jet_nonswept';
-    else if (matchType(['CRJ1','CRJ2','CRJ7','CRJ9','CRJX','RJ85','RJ1H','B712','MD80','MD81','MD82','MD83','MD87','MD88','MD90','DC91','DC92','DC93','DC94','DC95','DC9','F70','F100','SSJ1','C919','ARJ21','TU34','TU54','IL62','IL96','BA11','BA46'])) shapeKey = 'jet_nonswept';
+    else if (matchType(['CRJ1','CRJ2','CRJ7','CRJ9','CRJX','RJ85','RJ1H','B712','B717','717','712','717-200','BOEING 717','MD95','MD80','MD81','MD82','MD83','MD87','MD88','MD90','DC91','DC92','DC93','DC94','DC95','DC9','F70','F100','SSJ1','C919','ARJ21','TU34','TU54','IL62','IL96','BA11','BA46'])) shapeKey = 'jet_nonswept';
 
     // Military Transports & Fighters
     else if (matchType(['C130','C30J','HERCULES'])) shapeKey = 'c130';
