@@ -1463,14 +1463,24 @@ function getAircraftCategory(ac) {
     const desc = (ac.desc || '').toUpperCase();
     const cat = (ac.category || '').toLowerCase();
 
-    if (cat.includes('helo') || cat.includes('rotor') || type.startsWith('H') || type.startsWith('AH') || type.startsWith('CH') || type.startsWith('MH') || type.startsWith('UH') || desc.includes('HELICOPTER') || desc.includes('ROTOR')) {
+    if (cat.includes('helo') || cat.includes('rotor') || type.startsWith('H1') || type.startsWith('H2') || type.startsWith('H47') || type.startsWith('H53') || type.startsWith('H60') || type.startsWith('AH') || type.startsWith('CH') || type.startsWith('MH') || type.startsWith('UH') || desc.includes('HELICOPTER') || desc.includes('ROTOR')) {
         return 'helicopter';
     }
-    if (type.startsWith('B7') || type.startsWith('A3') || type.startsWith('A2') || type.startsWith('E1') || type.startsWith('E2') || type.startsWith('CRJ') || type.startsWith('MD') || desc.includes('BOEING') || desc.includes('AIRBUS') || desc.includes('EMBRAER') || desc.includes('BOMBARDIER')) {
-        return 'commercial-jet';
-    }
-    if (type.startsWith('GLF') || type.startsWith('C56') || type.startsWith('CL3') || type.startsWith('FA7') || desc.includes('GULFSTREAM') || desc.includes('CITATION') || desc.includes('LEARJET') || desc.includes('CHALLENGER')) {
+
+    // Business & Corporate Jets (Checked BEFORE Commercial Airliner Fallback)
+    const isBizJet = (
+        type.startsWith('E5') || type.startsWith('E35') || type.startsWith('C5') || type.startsWith('C6') || type.startsWith('C7') || type.startsWith('C25') ||
+        type.startsWith('GLF') || type.startsWith('G1') || type.startsWith('G2') || type.startsWith('G4') || type.startsWith('G5') || type.startsWith('G6') || type.startsWith('G7') || type.startsWith('G8') ||
+        type.startsWith('LJ') || type.startsWith('CL3') || type.startsWith('CL6') || type.startsWith('GL') || type.startsWith('FA') || type.startsWith('BE4') || type.startsWith('H25') ||
+        type === 'HDJT' || type === 'SF50' || type === 'EA50' || type === 'SJ30' ||
+        desc.includes('PHENOM') || desc.includes('LEGACY') || desc.includes('PRAETOR') || desc.includes('CITATION') || desc.includes('GULFSTREAM') || desc.includes('LEARJET') || desc.includes('CHALLENGER') || desc.includes('GLOBAL') || desc.includes('FALCON') || desc.includes('HONDAJET') || desc.includes('VISION JET')
+    );
+    if (isBizJet) {
         return 'business-jet';
+    }
+
+    if (type.startsWith('B7') || type.startsWith('A3') || type.startsWith('A2') || type.startsWith('E1') || type.startsWith('E2') || type.startsWith('E7') || type.startsWith('CRJ') || type.startsWith('MD') || desc.includes('BOEING') || desc.includes('AIRBUS') || desc.includes('AIRLINER')) {
+        return 'commercial-jet';
     }
     return cat || 'ga';
 }
@@ -1820,6 +1830,19 @@ function getAircraftIconSvg(ac, color) {
     else if (matchType(['B06','B206','B204','B205','B214','OH58','JETRANGER','LONGRANGER','KIOWA','BELL'])) shapeKey = 'helo_b206';
     else if (matchType(['R22','R44','R66','CABR','ROBINSON','MD50','HU50','H500','SCH4','S300','EN28','EN48']) || cat === 'helicopter') shapeKey = 'helo_2b';
     else if (matchType(['V22','OSPREY'])) shapeKey = 'v22_fast';
+    // 0. Business & Corporate Jets (Prioritized before commercial airliner checks so E55P, Phenom, Citation, Gulfstream, Learjet get business jet icons)
+    else if (matchType([
+        'E50P','E55P','E545','E550','E35L','PHENOM','LEGACY 450','LEGACY 500','LEGACY 600','PRAETOR',
+        'C500','C501','C510','C525','C550','C560','C56X','C650','C680','C68A','C700','C750','C25A','C25B','C25C','CITATION','MUSTANG','SOVEREIGN','LATITUDE','LONGITUDE',
+        'GLF2','GLF3','GLF4','GLF5','GLF6','GLF7','GLF8','G150','G200','G280','G450','G550','G650','G700','G800','GULFSTREAM',
+        'LJ31','LJ35','LJ40','LJ45','LJ55','LJ60','LJ70','LJ75','LEARJET',
+        'CL30','CL35','CL60','CL65','CHALLENGER',
+        'GLEX','GL5T','GL6T','GL7T','GLOBAL EXPRESS','GLOBAL 5000','GLOBAL 6000','GLOBAL 7500',
+        'FA10','FA20','FA50','FA2000','FA7X','FA8X','F900','F7X','F8X','FALCON',
+        'BE40','BE4W','H25A','H25B','H25C','HA4T','BEECHJET','HAWKER',
+        'HDJT','HONDAJET','SF50','VISION JET','EA50','ECLIPSE','SJ30'
+    ]) || cat === 'business-jet') shapeKey = 'jet_swept';
+
     // 1. Commercial Jets - Boeing 737 Family
     else if (matchType(['B738','B739','B38M','B39M','B37M','B3XM','737-800','737-900','737-8','737-9','B737-800','B737-900'])) shapeKey = 'b738';
     else if (matchType(['B737','B731','B732','B733','B734','B735','B736','737-700','737-300','737-400','737-500','B737-700'])) shapeKey = 'b737';
@@ -1863,18 +1886,17 @@ function getAircraftIconSvg(ac, color) {
     else if (matchType(['A4','SKYHAWK'])) shapeKey = 'md_a4';
     else if (matchType(['ALPHA','ALPHA JET'])) shapeKey = 'alpha_jet';
 
-    // General & Corporate Aviation
+    // General & Corporate Aviation Turboprops & Twins
     else if (matchType(['BE20','BE30','B350','DH8A','AT76','AT72','KING AIR','DASH 8']) || cat === 'business-prop') shapeKey = 'twin_large';
     else if (matchType(['BE58','PA31','BARON','SENECA','SEMINOLE'])) shapeKey = 'twin_small';
     else if (matchType(['PC12','TBM8','TBM9','C208','CARAVAN','PILATUS','TBM'])) shapeKey = 'single_turbo';
-    else if (matchType(['GLF5','GLF6','C56X','CL30','FA7X','GULFSTREAM','CITATION','LEARJET','CHALLENGER']) || cat === 'business-jet') shapeKey = 'jet_swept';
     else if (matchType(['BLIMP','BALLOON','AIRSHIP'])) shapeKey = 'blimp';
 
     // 7. General Commercial Jet Category & Manufacturer String Search Fallback
     else if (
-        cat === 'commercial-jet' || cat === 'airline' || cat === 'jet' || cat === 'heavy' ||
+        cat === 'commercial-jet' || cat === 'airline' || cat === 'heavy' ||
         typeKey.startsWith('B7') || typeKey.startsWith('A3') || typeKey.startsWith('A2') || typeKey.startsWith('E1') || typeKey.startsWith('E2') || typeKey.startsWith('CRJ') || typeKey.startsWith('MD') || typeKey.startsWith('DC') ||
-        (desc && (desc.includes('BOEING') || desc.includes('AIRBUS') || desc.includes('EMBRAER') || desc.includes('BOMBARDIER') || desc.includes('MCDONNELL') || desc.includes('AIRLINER') || desc.includes('JET')))
+        (desc && (desc.includes('BOEING') || desc.includes('AIRBUS') || desc.includes('AIRLINER')))
     ) {
         shapeKey = 'jet_swept';
     }
