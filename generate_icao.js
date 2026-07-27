@@ -93,7 +93,7 @@ async function main() {
             if (icao.startsWith('B7') || icao.startsWith('A3') || ['B38M', 'B39M', 'A20N', 'A21N', 'BCS1', 'BCS3', 'E135', 'E145', 'E170', 'E190'].includes(icao)) {
                 cat = 'commercial-jet';
             }
-            if (icao.startsWith('C5') || icao.startsWith('C6') || icao.startsWith('C7') || icao.startsWith('LJ') || icao.startsWith('FA') || icao.startsWith('GLF') || icao.startsWith('GLEX')) {
+            if (icao.startsWith('C5') || icao.startsWith('C6') || icao.startsWith('C7') || icao.startsWith('LJ') || icao.startsWith('FA') || icao.startsWith('GLF') || icao.startsWith('GLEX') || icao.startsWith('E5') || icao.startsWith('EMB5') || icao.startsWith('CL3') || icao.startsWith('CL6') || icao.startsWith('GL5') || icao.startsWith('GL6') || icao.startsWith('GL7') || ['E35L','G150','G200','G280','G450','G550','G650','G700','G800','GALX','HF20','EA50','SJ30','SF50','HDJT'].includes(icao)) {
                 if (!['C5', 'C130'].includes(icao)) {
                     cat = 'business-jet';
                 }

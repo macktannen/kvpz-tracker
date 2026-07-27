@@ -686,18 +686,37 @@ function getAircraftCategory(ac) {
     // 4. Combine callsign / tail heuristic
     const isCallsignDiffFromTail = callsign.length > 0 && tail.length > 0 && callsign !== tail;
     
-    // 2. Exact exhaustive dictionary match (over 8000+ codes loaded from icao_categories.js)
+    // 2. Business Jets (Exhaustive check prioritized BEFORE dictionary lookup so E55P, EMB5, CL60, etc., are guaranteed business jets)
+    const isBizJet = desc.includes('gulfstream') || desc.includes('citation') || 
+                     desc.includes('challenger') || desc.includes('falcon') || 
+                     desc.includes('learjet') || desc.includes('hawker') || 
+                     desc.includes('phenom') || desc.includes('global express') || desc.includes('global 5000') || desc.includes('global 6000') || desc.includes('global 7500') ||
+                     desc.includes('sovereign') || desc.includes('premier') || desc.includes('honda') || desc.includes('pilatus pc-24') ||
+                     desc.includes('praetor') || desc.includes('legacy') || desc.includes('lineage') || desc.includes('embraer emb') || desc.includes('embraer 5') || desc.includes('vision jet') ||
+                     type.startsWith('e5') || type.startsWith('emb5') || type.startsWith('emb-5') || type.startsWith('ep1') || type.startsWith('ep3') || type.startsWith('e35l') ||
+                     type.startsWith('cl30') || type.startsWith('cl60') || type.startsWith('cl35') || type.startsWith('cl6') || type.startsWith('cl3') ||
+                     type.startsWith('glf') || type.startsWith('glex') || type.startsWith('gl5') || type.startsWith('gl6') || type.startsWith('gl7') ||
+                     type.startsWith('g1') || type.startsWith('g2') || type.startsWith('g3') || type.startsWith('g4') || type.startsWith('g5') || type.startsWith('g6') || type.startsWith('g7') || type.startsWith('g8') ||
+                     type.startsWith('c25a') || type.startsWith('c25b') || type.startsWith('c25c') || type.startsWith('c50') || type.startsWith('c51') || type.startsWith('c52') || type.startsWith('c55') ||
+                     type.startsWith('c56') || type.startsWith('c65') || type.startsWith('c68') || type.startsWith('c70') || type.startsWith('c75') ||
+                     type.startsWith('lr3') || type.startsWith('lr4') || type.startsWith('lr5') || type.startsWith('lr6') || type.startsWith('lr7') || type.startsWith('lj') ||
+                     type.startsWith('fa1') || type.startsWith('fa2') || type.startsWith('fa5') || type.startsWith('fa7') || type.startsWith('fa8') || type.startsWith('f90') || type.startsWith('f7x') || type.startsWith('f8x') ||
+                     type.startsWith('pc24') || type.startsWith('h25') || type.startsWith('be40') || type.startsWith('be4w') || type === 'hdjt' || type === 'sf50' || type === 'ea50' || type === 'sj30' || type === 'galx' || type === 'hf20' ||
+                     type.includes('cl30') || type.includes('cl60') || type.includes('glf') ||
+                     type.includes('c510') || type.includes('c525') || type.includes('c560') ||
+                     type.includes('c680') || type.includes('c750') || type.includes('lr35') ||
+                     type.includes('lr45') || type.includes('lr60') || type.includes('fa20') ||
+                     type.includes('fa50') || type.includes('e55p') || type.includes('e50p') || type.includes('emb5');
+    if (isBizJet) return 'business-jet';
+
+    // 3. Exact exhaustive dictionary match (over 8000+ codes loaded from icao_categories.js)
     const upperType = type.toUpperCase();
     if (typeof ICAO_CATEGORIES !== 'undefined' && ICAO_CATEGORIES[upperType]) {
-        // If it's a known helicopter or military, trust the dictionary immediately
         if (ICAO_CATEGORIES[upperType] === 'helicopter') return 'helicopter';
         if (ICAO_CATEGORIES[upperType] === 'military') return 'military';
-        
-        // However, if the dictionary says it's a general airplane/bizjet but our callsign heuristic says it's military, trust the military heuristic
         if (isMilCallsign || (isPurelyNumericTail && isCallsignDiffFromTail)) {
             return 'military';
         }
-        
         return ICAO_CATEGORIES[upperType];
     }
     
@@ -706,7 +725,7 @@ function getAircraftCategory(ac) {
         return 'military';
     }
     
-    // 3. Helicopters (Fallback description checks)
+    // 4. Helicopters (Fallback description checks)
     const isHelo = desc.includes('helicopter') || desc.includes('rotorcraft') || desc.includes('copter') || 
                    desc.includes('bell') || desc.includes('sikorsky') || desc.includes('agusta') || 
                    desc.includes('robinson') || desc.includes('eurocopter') || desc.includes('airbus helicopters') ||
@@ -718,29 +737,7 @@ function getAircraftCategory(ac) {
                    type.includes('ec35') || type.startsWith('s76') || type.startsWith('s92') || type.startsWith('aw1') || cat === 'A7';
     if (isHelo) return 'helicopter';
 
-    // 3. Business Jets (common corporate jet types and manufacturers)
-    const isBizJet = desc.includes('gulfstream') || desc.includes('citation') || 
-                     desc.includes('challenger') || desc.includes('falcon') || 
-                     desc.includes('learjet') || desc.includes('hawker') || 
-                     desc.includes('phenom') || desc.includes('global express') || 
-                     desc.includes('sovereign') || desc.includes('premier') || desc.includes('honda') || desc.includes('pilatus pc-24') ||
-                     type.startsWith('cl30') || type.startsWith('cl60') || type.startsWith('cl35') ||
-                     type.startsWith('glf') || type.startsWith('glex') || type.startsWith('gl5t') ||
-                     type.startsWith('gl6t') || type.startsWith('c25a') || type.startsWith('c25b') ||
-                     type.startsWith('c510') || type.startsWith('c525') || type.startsWith('c560') ||
-                     type.startsWith('c56x') || type.startsWith('c680') || type.startsWith('c750') ||
-                     type.startsWith('c700') || type.startsWith('lr35') || type.startsWith('lr45') ||
-                     type.startsWith('lr60') || type.startsWith('fa20') || type.startsWith('fa50') ||
-                     type.startsWith('fa7x') || type.startsWith('fa8x') || type.startsWith('e55p') ||
-                     type.startsWith('e50p') || type.startsWith('pc24') || type.startsWith('h25b') || type.startsWith('hond') ||
-                     type.includes('cl30') || type.includes('cl60') || type.includes('glf') ||
-                     type.includes('c510') || type.includes('c525') || type.includes('c560') ||
-                     type.includes('c680') || type.includes('c750') || type.includes('lr35') ||
-                     type.includes('lr45') || type.includes('lr60') || type.includes('fa20') ||
-                     type.includes('fa50') || type.includes('e55p') || type.includes('e50p');
-    if (isBizJet) return 'business-jet';
-
-    // 3.5 Business Props (Turboprops, PC-12, King Airs, TBMs, Caravans, etc.)
+    // 5. Business Props (Turboprops, PC-12, King Airs, TBMs, Caravans, etc.)
     const isBizProp = desc.includes('turboprop') || desc.includes('pc-12') || desc.includes('pc12') ||
                       desc.includes('king air') || desc.includes('tbm') || desc.includes('caravan') ||
                       desc.includes('meridian') || desc.includes('conquest') || desc.includes('avanti') || desc.includes('kodiak') ||
@@ -752,9 +749,9 @@ function getAircraftCategory(ac) {
                       type.startsWith('c402') || type.startsWith('c414') || type.startsWith('c421') || type.startsWith('pa31');
     if (isBizProp) return 'business-prop';
 
-    // 4. Commercial Jets (large airline passenger/cargo jets)
+    // 6. Commercial Jets (large airline passenger/cargo jets)
     const isCommJet = desc.includes('boeing') || desc.includes('airbus') || 
-                      desc.includes('embraer') || desc.includes('bombardier') ||
+                      desc.includes('embraer 17') || desc.includes('embraer 19') || desc.includes('bombardier crj') ||
                       desc.includes('md-8') || desc.includes('md-11') || desc.includes('dc-10') ||
                       type.startsWith('b73') || type.startsWith('b74') || type.startsWith('b75') ||
                       type.startsWith('b76') || type.startsWith('b77') || type.startsWith('b78') ||
@@ -762,7 +759,7 @@ function getAircraftCategory(ac) {
                       type.startsWith('a34') || type.startsWith('a35') || type.startsWith('a38') ||
                       type.startsWith('b38m') || type.startsWith('b39m') || type.startsWith('a20') ||
                       type.startsWith('crj') || type.startsWith('erj') ||
-                      type.startsWith('e17') || type.startsWith('e19') || type.startsWith('e14') ||
+                      type.startsWith('e17') || type.startsWith('e19') ||
                       op.includes('airline') || op.includes('airways') || op.includes('cargo') ||
                       op.includes('delta') || op.includes('united') || op.includes('american') ||
                       op.includes('southwest') || op.includes('fedex') || op.includes('ups') ||
@@ -1456,37 +1453,6 @@ async function fetchAircraftData() {
         pulseIndicator.className = "pulse-indicator status-error";
         statusText.textContent = "Live Feeds offline - Retrying...";
     }
-}
-
-function getAircraftCategory(ac) {
-    const type = (ac.type || ac.t || '').toUpperCase();
-    const desc = (ac.desc || '').toUpperCase();
-    const cat = (ac.category || '').toLowerCase();
-
-    if (cat.includes('helo') || cat.includes('rotor') || type.startsWith('H1') || type.startsWith('H2') || type.startsWith('H47') || type.startsWith('H53') || type.startsWith('H60') || type.startsWith('AH') || type.startsWith('CH') || type.startsWith('MH') || type.startsWith('UH') || desc.includes('HELICOPTER') || desc.includes('ROTOR')) {
-        return 'helicopter';
-    }
-
-    // Business & Corporate Jets (Checked BEFORE Commercial Airliner Fallback)
-    const isBizJet = (
-        type.startsWith('E5') || type.startsWith('EMB5') || type.startsWith('EMB-5') || type.startsWith('E35') || type.startsWith('C5') || type.startsWith('C6') || type.startsWith('C7') || type.startsWith('C25') ||
-        type.startsWith('GLF') || type.startsWith('G1') || type.startsWith('G2') || type.startsWith('G4') || type.startsWith('G5') || type.startsWith('G6') || type.startsWith('G7') || type.startsWith('G8') ||
-        type.startsWith('LJ') || type.startsWith('CL3') || type.startsWith('CL6') || type.startsWith('GL') || type.startsWith('FA') || type.startsWith('BE4') || type.startsWith('H25') ||
-        type === 'HDJT' || type === 'SF50' || type === 'EA50' || type === 'SJ30' ||
-        desc.includes('PHENOM') || desc.includes('LEGACY') || desc.includes('PRAETOR') || desc.includes('CITATION') || desc.includes('GULFSTREAM') || desc.includes('LEARJET') || desc.includes('CHALLENGER') || desc.includes('GLOBAL') || desc.includes('FALCON') || desc.includes('HONDAJET') || desc.includes('VISION JET')
-    );
-    if (isBizJet) {
-        return 'business-jet';
-    }
-
-    if (
-        type.startsWith('B7') || type.startsWith('717') || type.startsWith('712') || type.startsWith('737') || type.startsWith('747') || type.startsWith('757') || type.startsWith('767') || type.startsWith('777') || type.startsWith('787') ||
-        type.startsWith('A3') || type.startsWith('A2') || type.startsWith('E1') || type.startsWith('E2') || type.startsWith('E7') || type.startsWith('CRJ') || type.startsWith('MD') ||
-        desc.includes('BOEING') || desc.includes('AIRBUS') || desc.includes('AIRLINER') || desc.includes('717')
-    ) {
-        return 'commercial-jet';
-    }
-    return cat || 'ga';
 }
 
 // 5. Operations Detection & State Engine
