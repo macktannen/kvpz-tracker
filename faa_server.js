@@ -399,91 +399,181 @@ async function runServerOperationsTracker() {
 
         const now = Date.now();
         let updated = false;
+        const activeHexes = new Set();
+
+        const appendLog = (logItem) => {
+            const isDup = currentLogs.some(l => l.hex === logItem.hex && l.opType === logItem.opType && Math.abs((l.timestamp || 0) - now) < 180000);
+            if (!isDup) {
+                currentLogs.unshift(logItem);
+                updated = true;
+                console.log(`[24/7 Server Operations Tracker] Logged ${logItem.opType.toUpperCase()}: ${logItem.tail} (${logItem.type}) - ${logItem.description}`);
+            }
+        };
 
         aircraft.forEach(ac => {
             if (!ac.hex || ac.lat === undefined || ac.lon === undefined) return;
             const hex = ac.hex.toLowerCase();
+            activeHexes.add(hex);
+
             const lat = parseFloat(ac.lat);
             const lon = parseFloat(ac.lon);
             const alt = ac.alt_baro !== undefined ? parseInt(ac.alt_baro) : (ac.alt_geom !== undefined ? parseInt(ac.alt_geom) : 0);
+            const speed = ac.gs !== undefined ? Math.round(parseFloat(ac.gs)) : 0;
+            const vspeed = ac.baro_rate !== undefined ? parseInt(ac.baro_rate) : (ac.geom_rate !== undefined ? parseInt(ac.geom_rate) : 0);
             const dist = getGeodesicDistanceNm(lat, lon, KVPZ_LAT, KVPZ_LON);
 
             const tail = ac.r || ac.flight || ac.hex.toUpperCase();
             const callsign = ac.flight ? ac.flight.trim() : tail;
             const type = ac.t || ac.type || 'Unknown';
 
-            const isInside = dist <= 5.0 && alt <= 3500;
             const prevState = serverGeofenceState[hex];
 
-            if (!prevState) {
-                serverGeofenceState[hex] = { inside: isInside, dist, alt, lastSeen: now, tail, callsign, type };
-                if (isInside) {
-                    // Log arrival if first detected inside 5.0NM KVPZ boundary
-                    const logItem = {
-                        id: `op_${now}_${hex}_arr`,
-                        hex: hex,
-                        tail: tail,
-                        callsign: callsign,
-                        type: type,
-                        opType: 'arrival',
-                        timestamp: now,
-                        dist: Math.round(dist * 10) / 10,
-                        alt: alt,
-                        source: 'Server 24/7 Tracker'
-                    };
-                    const isDup = currentLogs.some(l => l.hex === hex && l.opType === 'arrival' && Math.abs((l.timestamp||0) - now) < 180000);
-                    if (!isDup) {
-                        currentLogs.unshift(logItem);
-                        updated = true;
-                        console.log(`[24/7 Server Operations] Logged ARRIVAL: ${tail} (${type}) at KVPZ (${logItem.dist} NM, ${alt} ft)`);
-                    }
+            const currentState = {
+                hex, tail, callsign, type, dist, alt, speed, vspeed, lat, lon,
+                lastSeen: now,
+                opType: prevState ? prevState.opType : null,
+                logged: prevState ? prevState.logged : false
+            };
+
+            if (prevState) {
+                // 1. INBOUND TRAJECTORY TRIGGER
+                const isDescending = vspeed < -100 || alt < prevState.alt;
+                const isHeadingTowardsKVPZ = dist < prevState.dist;
+
+                if (dist < 5.0 && alt < 2500 && isDescending && isHeadingTowardsKVPZ) {
+                    currentState.opType = 'arrival';
                 }
-            } else {
-                if (isInside && !prevState.inside) {
-                    // Transition: Outside -> Inside (Arrival)
-                    const logItem = {
+
+                // Landing roll touchdown trigger
+                if (currentState.opType === 'arrival' && dist < 2.5 && alt < 1200 && (speed < 45 || vspeed < -300) && !currentState.logged) {
+                    appendLog({
                         id: `op_${now}_${hex}_arr`,
-                        hex: hex,
-                        tail: tail,
-                        callsign: callsign,
-                        type: type,
+                        hex, tail, callsign, type,
                         opType: 'arrival',
                         timestamp: now,
                         dist: Math.round(dist * 10) / 10,
-                        alt: alt,
-                        source: 'Server 24/7 Tracker'
-                    };
-                    const isDup = currentLogs.some(l => l.hex === hex && l.opType === 'arrival' && Math.abs((l.timestamp||0) - now) < 180000);
-                    if (!isDup) {
-                        currentLogs.unshift(logItem);
-                        updated = true;
-                        console.log(`[24/7 Server Operations] Logged ARRIVAL: ${tail} (${type}) at KVPZ (${logItem.dist} NM, ${alt} ft)`);
-                    }
-                } else if (!isInside && prevState.inside && dist > 6.0) {
-                    // Transition: Inside -> Outside (Departure)
-                    const logItem = {
+                        alt,
+                        description: `Landed KVPZ (Speed: ${speed} KT, Alt: ${alt} FT)`,
+                        source: '24/7 Server Engine'
+                    });
+                    currentState.logged = true;
+                }
+
+                // 2. GROUND-TO-AIR TAKEOFF TRIGGER
+                if (prevState.dist < 2.5 && prevState.alt < 1500 && vspeed > 200 && !currentState.logged) {
+                    appendLog({
                         id: `op_${now}_${hex}_dep`,
-                        hex: hex,
-                        tail: tail,
-                        callsign: callsign,
-                        type: type,
+                        hex, tail, callsign, type,
                         opType: 'departure',
                         timestamp: now,
                         dist: Math.round(dist * 10) / 10,
-                        alt: alt,
-                        source: 'Server 24/7 Tracker'
-                    };
-                    const isDup = currentLogs.some(l => l.hex === hex && l.opType === 'departure' && Math.abs((l.timestamp||0) - now) < 180000);
-                    if (!isDup) {
-                        currentLogs.unshift(logItem);
-                        updated = true;
-                        console.log(`[24/7 Server Operations] Logged DEPARTURE: ${tail} (${type}) from KVPZ (${logItem.dist} NM, ${alt} ft)`);
+                        alt,
+                        description: `Departed KVPZ, climbing through ${alt} ft`,
+                        source: '24/7 Server Engine'
+                    });
+                    currentState.logged = true;
+                    currentState.opType = 'departure';
+                }
+            } else {
+                // 3. FIRST-APPEARANCE TAKEOFF TRIGGER (Radar pop-up close to airfield)
+                if (dist < 5.0 && alt < 3000 && vspeed > 100) {
+                    appendLog({
+                        id: `op_${now}_${hex}_dep`,
+                        hex, tail, callsign, type,
+                        opType: 'departure',
+                        timestamp: now,
+                        dist: Math.round(dist * 10) / 10,
+                        alt,
+                        description: `Departed KVPZ, climbing through ${alt} ft`,
+                        source: '24/7 Server Engine'
+                    });
+                    currentState.logged = true;
+                    currentState.opType = 'departure';
+                }
+            }
+
+            // 4. TIGHT 1-MILE AIRFIELD GEOFENCE FALLBACK
+            if (dist < 1.0 && alt < 1200 && !currentState.logged) {
+                const isOutbound = prevState ? dist > prevState.dist : true;
+                const direction = isOutbound ? 'departure' : 'arrival';
+                currentState.logged = true;
+                currentState.opType = direction;
+                appendLog({
+                    id: `op_${now}_${hex}_${direction.substring(0, 3)}`,
+                    hex, tail, callsign, type,
+                    opType: direction,
+                    timestamp: now,
+                    dist: Math.round(dist * 10) / 10,
+                    alt,
+                    description: `Geofence ${direction === 'arrival' ? 'Landing' : 'Departure'} KVPZ (Alt: ${alt} FT, Dist: ${dist.toFixed(2)} NM)`,
+                    source: '24/7 Server Engine'
+                });
+            }
+
+            // 5. GEOFENCE BOUNDARY TRANSITION FALLBACK
+            if (!currentState.logged) {
+                if (dist <= 5.0 && alt <= 3500 && (!prevState || prevState.dist > 5.0)) {
+                    appendLog({
+                        id: `op_${now}_${hex}_arr`,
+                        hex, tail, callsign, type,
+                        opType: 'arrival',
+                        timestamp: now,
+                        dist: Math.round(dist * 10) / 10,
+                        alt,
+                        description: `Inbound Approach KVPZ (${Math.round(dist * 10) / 10} NM, ${alt} FT)`,
+                        source: '24/7 Server Engine'
+                    });
+                    currentState.logged = true;
+                } else if (prevState && prevState.dist <= 5.0 && dist > 6.0) {
+                    appendLog({
+                        id: `op_${now}_${hex}_dep`,
+                        hex, tail, callsign, type,
+                        opType: 'departure',
+                        timestamp: now,
+                        dist: Math.round(dist * 10) / 10,
+                        alt,
+                        description: `Outbound Departure KVPZ (${Math.round(dist * 10) / 10} NM, ${alt} FT)`,
+                        source: '24/7 Server Engine'
+                    });
+                    currentState.logged = true;
+                }
+            }
+
+            serverGeofenceState[hex] = currentState;
+        });
+
+        // 6. LOW-ALTITUDE RADAR DROP-OFF CLASSIFICATION (Aircraft disappearing near KVPZ)
+        Object.keys(serverGeofenceState).forEach(hex => {
+            if (!activeHexes.has(hex)) {
+                const lastState = serverGeofenceState[hex];
+                const timeSinceLastSeen = now - (lastState.lastSeen || 0);
+
+                if (timeSinceLastSeen < 45000 && !lastState.logged) {
+                    const isTargetedArrival = lastState.opType === 'arrival' && lastState.dist < 6.0 && lastState.alt < 2500;
+                    const isAnyDisappearingClose = lastState.dist < 5.0;
+
+                    if (isTargetedArrival || isAnyDisappearingClose) {
+                        appendLog({
+                            id: `op_${now}_${hex}_arr`,
+                            hex,
+                            tail: lastState.tail,
+                            callsign: lastState.callsign,
+                            type: lastState.type,
+                            opType: 'arrival',
+                            timestamp: now,
+                            dist: Math.round(lastState.dist * 10) / 10,
+                            alt: lastState.alt,
+                            description: `Landed KVPZ (Radar Dropoff ${Math.round(lastState.dist * 10) / 10} NM out, ${lastState.alt} FT)`,
+                            source: '24/7 Server Engine'
+                        });
+                        lastState.logged = true;
                     }
                 }
-                serverGeofenceState[hex].inside = isInside;
-                serverGeofenceState[hex].dist = dist;
-                serverGeofenceState[hex].alt = alt;
-                serverGeofenceState[hex].lastSeen = now;
+                
+                // Clean up stale entries after 10 minutes
+                if (timeSinceLastSeen > 600000) {
+                    delete serverGeofenceState[hex];
+                }
             }
         });
 
