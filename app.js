@@ -1762,16 +1762,16 @@ function getAircraftIconSvg(ac, color) {
 
     if (customShape && tarShapes[customShape]) {
         shapeKey = customShape;
-    } else if (matchType(['H47','CH47','CH46','MH47','CHINOOK'])) shapeKey = 'helo_tandem';
-    else if (matchType(['AH64','APACHE'])) shapeKey = 'helo_ah64';
-    else if (matchType(['H60','UH60','MH60','BLACK HAWK','SH60','HH60'])) shapeKey = 'helo_4b';
-    else if (matchType(['S76','S92','SIKORSKY'])) shapeKey = 'helo_s76';
-    else if (matchType(['AW139','AW169','AW189','AGUSTA'])) shapeKey = 'helo_aw139';
-    else if (matchType(['EC35','EC45','H135','H145','EC135','EC145'])) shapeKey = 'helo_h135';
-    else if (matchType(['AS35','AS350','H125','ASTAR'])) shapeKey = 'helo_h125';
-    else if (matchType(['B407','B412','B429'])) shapeKey = 'helo_b407';
-    else if (matchType(['B06','B206','JETRANGER','LONGRANGER'])) shapeKey = 'helo_b206';
-    else if (matchType(['R22','R44','R66','ROBINSON','CABRI']) || cat === 'helicopter') shapeKey = 'helo_2b';
+    } else if (matchType(['H47','CH47','CH46','MH47','BV44','CHINOOK','SEA KNIGHT'])) shapeKey = 'helo_tandem';
+    else if (matchType(['AH64','APACHE','A129','MANGUSTA','KA52','MI28','AH1','COBRA','VIPER','TIGER','MI24'])) shapeKey = 'helo_ah64';
+    else if (matchType(['H60','UH60','MH60','SH60','HH60','S70','BLACK HAWK','SEAHAWK','JAYHAWK','H53','CH53','MH53','SUPER STALLION','SEA STALLION'])) shapeKey = 'helo_4b';
+    else if (matchType(['S76','S92','H92','SIKORSKY','EH10','AW101','CORMORANT','NH90','MI8','MI17','KA27'])) shapeKey = 'helo_s76';
+    else if (matchType(['AW13','AW139','AW169','AW189','A109','A119','AW109','AW119','AGUSTA'])) shapeKey = 'helo_aw139';
+    else if (matchType(['H135','EC35','EC135','H145','EC45','EC145','EC20','EC120','BK11','BK117','B105','BO105','EC55','H155','AS65','DAUPHIN','PANTHER'])) shapeKey = 'helo_h135';
+    else if (matchType(['AS35','AS350','AS355','H125','ASTAR','TWINSTAR','AS32','AS332','H225','SUPER PUMA','EC25','H215'])) shapeKey = 'helo_h125';
+    else if (matchType(['B407','B412','B429','B212','B430','B230','B222','BELL 407','BELL 412','BELL 429'])) shapeKey = 'helo_b407';
+    else if (matchType(['B06','B206','B204','B205','B214','OH58','JETRANGER','LONGRANGER','KIOWA','BELL'])) shapeKey = 'helo_b206';
+    else if (matchType(['R22','R44','R66','CABR','ROBINSON','MD50','HU50','H500','SCH4','S300','EN28','EN48']) || cat === 'helicopter') shapeKey = 'helo_2b';
     else if (matchType(['V22','OSPREY'])) shapeKey = 'v22_fast';
     else if (matchType(['B738','B739','B38M','B39M','737-800','737-900'])) shapeKey = 'b738';
     else if (matchType(['B737','B733','B734','B735','737-700','737-300'])) shapeKey = 'b737';
