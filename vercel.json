@@ -3,6 +3,7 @@
     { "source": "/faa", "destination": "/api/faa" },
     { "source": "/health", "destination": "/api/health" },
     { "source": "/spidertracks", "destination": "/api/spidertracks" },
-    { "source": "/icon-override", "destination": "/api/icon-override" }
+    { "source": "/icon-override", "destination": "/api/icon-override" },
+    { "source": "/operations-log", "destination": "/api/operations-log" }
   ]
 }

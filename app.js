@@ -1936,7 +1936,7 @@ function logOperation(hex, callsign, type, opType, description, tail) {
     saveAndSyncOperations();
 }
 
-function saveAndSyncOperations() {
+async function saveAndSyncOperations() {
     // Save to localStorage
     safeSetItem('kvpz_operations_log', JSON.stringify(operationsLog));
     
@@ -1946,17 +1946,33 @@ function saveAndSyncOperations() {
     
     updateOpsLog();
     updateCounters();
+
+    // Push synced operations log to server API
+    try {
+        await fetch('/operations-log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(operationsLog)
+        });
+    } catch(e) {}
 }
 
-function deleteOperationsByTail(tail) {
+async function deleteOperationsByTail(tail) {
     operationsLog = operationsLog.filter(log => {
         const key = (log.tail && log.tail !== 'N/A') ? log.tail : (log.callsign || 'Unknown');
         return key !== tail;
     });
     saveAndSyncOperations();
+    try {
+        await fetch('/operations-log', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tail })
+        });
+    } catch(e) {}
 }
 
-function deleteOperationEvent(timestamp, dateStr, timeStr, callsign) {
+async function deleteOperationEvent(timestamp, dateStr, timeStr, callsign) {
     operationsLog = operationsLog.filter(log => {
         if (timestamp && log.timestamp === timestamp) return false;
         if (!timestamp && log.dateStr === dateStr && (log.timeStr === timeStr || log.time === timeStr) && log.callsign === callsign) return false;
@@ -2187,40 +2203,45 @@ function updateOpsLog() {
     });
 }
 
-// 7b. Persistent Memory Operations Loader
-function loadOperationsLogMemory() {
+// 7b. Persistent Memory Operations Loader & 24/7 Multi-User Sync
+async function syncOperationsLogWithServer() {
     try {
-        const stored = safeGetItem('kvpz_operations_log');
-        if (stored) {
-            const allLogs = JSON.parse(stored);
-            const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-            
-            // Filter out logs older than 30 days, preserving legacy logs with undefined timestamps
-            operationsLog = allLogs.filter(log => !log || log.timestamp === undefined || log.timestamp >= oneMonthAgo);
-            
-            // Migration: Add hex to old logs if possible
-            operationsLog.forEach(log => {
-                if (!log.hex) {
-                    for (const [hex, info] of Object.entries(aircraftInfoDb)) {
-                        if (info.tail === log.tail || info.callsign === log.callsign) {
-                            log.hex = hex;
-                            break;
-                        }
-                    }
-                }
-            });
-            
-            // Re-save pruned list
-            safeSetItem('kvpz_operations_log', JSON.stringify(operationsLog));
-            
-            // Calculate persistent counters
-            arrivalCount = operationsLog.filter(log => log.opType === 'arrival').length;
-            departureCount = operationsLog.filter(log => log.opType === 'departure').length;
-        } else {
-            operationsLog = [];
-            arrivalCount = 0;
-            departureCount = 0;
+        const res = await fetch('/operations-log');
+        if (res.ok) {
+            const serverLogs = await res.json();
+            if (Array.isArray(serverLogs)) {
+                operationsLog = serverLogs;
+                safeSetItem('kvpz_operations_log', JSON.stringify(operationsLog));
+                arrivalCount = operationsLog.filter(log => log.opType === 'arrival').length;
+                departureCount = operationsLog.filter(log => log.opType === 'departure').length;
+                updateOpsLog();
+                updateCounters();
+            }
         }
+    } catch(e) {}
+}
+
+async function loadOperationsLogMemory() {
+    try {
+        // Initial fetch from shared server database
+        await syncOperationsLogWithServer();
+
+        // Fallback to local storage if server fetch returned empty
+        if (operationsLog.length === 0) {
+            const stored = safeGetItem('kvpz_operations_log');
+            if (stored) {
+                const allLogs = JSON.parse(stored);
+                const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+                operationsLog = allLogs.filter(log => !log || log.timestamp === undefined || log.timestamp >= oneMonthAgo);
+                arrivalCount = operationsLog.filter(log => log.opType === 'arrival').length;
+                departureCount = operationsLog.filter(log => log.opType === 'departure').length;
+                updateOpsLog();
+                updateCounters();
+            }
+        }
+
+        // Start 10-second sync loop across all connected clients
+        setInterval(syncOperationsLogWithServer, 10000);
     } catch (e) {
         console.error("Error loading operations log memory:", e);
         operationsLog = [];

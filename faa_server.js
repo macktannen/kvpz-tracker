@@ -230,6 +230,88 @@ let spidertracksStore = {};
         }
     }
 
+    if (reqUrl.pathname === '/operations-log' || reqUrl.pathname === '/api/operations-log') {
+        const opsLogFile = path.join(__dirname, 'operations_log.json');
+        const loadLogs = () => {
+            try {
+                if (fs.existsSync(opsLogFile)) {
+                    return JSON.parse(fs.readFileSync(opsLogFile, 'utf8'));
+                }
+            } catch(e) {}
+            return [];
+        };
+        const saveLogs = (logs) => {
+            try {
+                fs.writeFileSync(opsLogFile, JSON.stringify(logs, null, 2), 'utf8');
+                return true;
+            } catch(e) { return false; }
+        };
+
+        if (req.method === 'GET') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(loadLogs()));
+            return;
+        }
+
+        if (req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => body += chunk);
+            req.on('end', () => {
+                try {
+                    const data = JSON.parse(body);
+                    let logs = loadLogs();
+                    if (Array.isArray(data)) {
+                        logs = data;
+                    } else if (data && data.hex && data.opType) {
+                        const isDup = logs.some(l => l.hex === data.hex && l.opType === data.opType && Math.abs((l.timestamp||0) - (data.timestamp||Date.now())) < 60000);
+                        if (!isDup) logs.unshift(data);
+                    }
+                    saveLogs(logs);
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ status: 'ok', logs }));
+                } catch(e) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: e.message }));
+                }
+            });
+            return;
+        }
+
+        if (req.method === 'DELETE') {
+            let body = '';
+            req.on('data', chunk => body += chunk);
+            req.on('end', () => {
+                try {
+                    let data = {};
+                    if (body) try { data = JSON.parse(body); } catch(e) {}
+                    let logs = loadLogs();
+                    const { tail, timestamp, opType } = data || {};
+                    if (tail) {
+                        const tTail = tail.trim().toUpperCase();
+                        logs = logs.filter(l => {
+                            const lTail = (l.tail && l.tail !== 'N/A' && l.tail !== 'Unknown') ? l.tail.trim().toUpperCase() : (l.callsign || '').trim().toUpperCase();
+                            if (lTail === tTail) {
+                                if (opType && l.opType !== opType) return true;
+                                if (timestamp && l.timestamp !== timestamp) return true;
+                                return false;
+                            }
+                            return true;
+                        });
+                    } else {
+                        logs = [];
+                    }
+                    saveLogs(logs);
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ status: 'ok', logs }));
+                } catch(e) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: e.message }));
+                }
+            });
+            return;
+        }
+    }
+
     if (reqUrl.pathname === '/faa' || reqUrl.pathname === '/scrape') {
         const tail = reqUrl.query.tail || reqUrl.query.reg || '';
         if (!tail) {
@@ -271,6 +353,142 @@ let spidertracksStore = {};
         });
     }
 });
+
+// Server 24/7 Background Operations Tracking Loop around KVPZ (41.5367 N, -87.0070 W)
+const KVPZ_LAT = 41.5367;
+const KVPZ_LON = -87.0070;
+const serverGeofenceState = {};
+
+function getGeodesicDistanceNm(lat1, lon1, lat2, lon2) {
+    const R = 3440.065; // Earth radius in NM
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+async function runServerOperationsTracker() {
+    try {
+        const res = await fetch('https://api.airplanes.live/v2/point/41.5367/-87.0070/15');
+        if (!res.ok) return;
+        const data = await res.json();
+        const aircraft = data.ac || data.aircraft || [];
+        if (!Array.isArray(aircraft)) return;
+
+        const opsLogFile = path.join(__dirname, 'operations_log.json');
+        let currentLogs = [];
+        try {
+            if (fs.existsSync(opsLogFile)) {
+                currentLogs = JSON.parse(fs.readFileSync(opsLogFile, 'utf8'));
+            }
+        } catch(e) {}
+
+        const now = Date.now();
+        let updated = false;
+
+        aircraft.forEach(ac => {
+            if (!ac.hex || ac.lat === undefined || ac.lon === undefined) return;
+            const hex = ac.hex.toLowerCase();
+            const lat = parseFloat(ac.lat);
+            const lon = parseFloat(ac.lon);
+            const alt = ac.alt_baro !== undefined ? parseInt(ac.alt_baro) : (ac.alt_geom !== undefined ? parseInt(ac.alt_geom) : 0);
+            const dist = getGeodesicDistanceNm(lat, lon, KVPZ_LAT, KVPZ_LON);
+
+            const tail = ac.r || ac.flight || ac.hex.toUpperCase();
+            const callsign = ac.flight ? ac.flight.trim() : tail;
+            const type = ac.t || ac.type || 'Unknown';
+
+            const isInside = dist <= 5.0 && alt <= 3500;
+            const prevState = serverGeofenceState[hex];
+
+            if (!prevState) {
+                serverGeofenceState[hex] = { inside: isInside, dist, alt, lastSeen: now, tail, callsign, type };
+                if (isInside) {
+                    // Log arrival if first detected inside 5.0NM KVPZ boundary
+                    const logItem = {
+                        id: `op_${now}_${hex}_arr`,
+                        hex: hex,
+                        tail: tail,
+                        callsign: callsign,
+                        type: type,
+                        opType: 'arrival',
+                        timestamp: now,
+                        dist: Math.round(dist * 10) / 10,
+                        alt: alt,
+                        source: 'Server 24/7 Tracker'
+                    };
+                    const isDup = currentLogs.some(l => l.hex === hex && l.opType === 'arrival' && Math.abs((l.timestamp||0) - now) < 180000);
+                    if (!isDup) {
+                        currentLogs.unshift(logItem);
+                        updated = true;
+                        console.log(`[24/7 Server Operations] Logged ARRIVAL: ${tail} (${type}) at KVPZ (${logItem.dist} NM, ${alt} ft)`);
+                    }
+                }
+            } else {
+                if (isInside && !prevState.inside) {
+                    // Transition: Outside -> Inside (Arrival)
+                    const logItem = {
+                        id: `op_${now}_${hex}_arr`,
+                        hex: hex,
+                        tail: tail,
+                        callsign: callsign,
+                        type: type,
+                        opType: 'arrival',
+                        timestamp: now,
+                        dist: Math.round(dist * 10) / 10,
+                        alt: alt,
+                        source: 'Server 24/7 Tracker'
+                    };
+                    const isDup = currentLogs.some(l => l.hex === hex && l.opType === 'arrival' && Math.abs((l.timestamp||0) - now) < 180000);
+                    if (!isDup) {
+                        currentLogs.unshift(logItem);
+                        updated = true;
+                        console.log(`[24/7 Server Operations] Logged ARRIVAL: ${tail} (${type}) at KVPZ (${logItem.dist} NM, ${alt} ft)`);
+                    }
+                } else if (!isInside && prevState.inside && dist > 6.0) {
+                    // Transition: Inside -> Outside (Departure)
+                    const logItem = {
+                        id: `op_${now}_${hex}_dep`,
+                        hex: hex,
+                        tail: tail,
+                        callsign: callsign,
+                        type: type,
+                        opType: 'departure',
+                        timestamp: now,
+                        dist: Math.round(dist * 10) / 10,
+                        alt: alt,
+                        source: 'Server 24/7 Tracker'
+                    };
+                    const isDup = currentLogs.some(l => l.hex === hex && l.opType === 'departure' && Math.abs((l.timestamp||0) - now) < 180000);
+                    if (!isDup) {
+                        currentLogs.unshift(logItem);
+                        updated = true;
+                        console.log(`[24/7 Server Operations] Logged DEPARTURE: ${tail} (${type}) from KVPZ (${logItem.dist} NM, ${alt} ft)`);
+                    }
+                }
+                serverGeofenceState[hex].inside = isInside;
+                serverGeofenceState[hex].dist = dist;
+                serverGeofenceState[hex].alt = alt;
+                serverGeofenceState[hex].lastSeen = now;
+            }
+        });
+
+        if (updated) {
+            // Prune older than 30 days
+            const oneMonthAgo = now - (30 * 24 * 60 * 60 * 1000);
+            currentLogs = currentLogs.filter(l => !l || l.timestamp === undefined || l.timestamp >= oneMonthAgo);
+            fs.writeFileSync(opsLogFile, JSON.stringify(currentLogs, null, 2), 'utf8');
+        }
+    } catch(e) {
+        // Silent background catch
+    }
+}
+
+// Run 24/7 Server Operations Tracking loop every 5 seconds
+setInterval(runServerOperationsTracker, 5000);
+setTimeout(runServerOperationsTracker, 1000);
 
 server.listen(PORT, '127.0.0.1', () => {
     console.log(`\n======================================================`);
