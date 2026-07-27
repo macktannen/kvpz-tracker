@@ -231,18 +231,26 @@ let spidertracksStore = {};
     }
 
     if (reqUrl.pathname === '/operations-log' || reqUrl.pathname === '/api/operations-log') {
-        const opsLogFile = path.join(__dirname, 'operations_log.json');
+        let inMemServerLogs = [];
+        const getOpsFile = () => {
+            const p = path.join(__dirname, 'operations_log.json');
+            try { fs.accessSync(__dirname, fs.constants.W_OK); return p; } catch(e) { return path.join('/tmp', 'operations_log.json'); }
+        };
         const loadLogs = () => {
             try {
-                if (fs.existsSync(opsLogFile)) {
-                    return JSON.parse(fs.readFileSync(opsLogFile, 'utf8'));
+                const f = getOpsFile();
+                if (fs.existsSync(f)) {
+                    const parsed = JSON.parse(fs.readFileSync(f, 'utf8'));
+                    if (Array.isArray(parsed) && parsed.length > 0) { inMemServerLogs = parsed; return parsed; }
                 }
             } catch(e) {}
-            return [];
+            return inMemServerLogs;
         };
         const saveLogs = (logs) => {
+            inMemServerLogs = logs;
             try {
-                fs.writeFileSync(opsLogFile, JSON.stringify(logs, null, 2), 'utf8');
+                const f = getOpsFile();
+                fs.writeFileSync(f, JSON.stringify(logs, null, 2), 'utf8');
                 return true;
             } catch(e) { return false; }
         };

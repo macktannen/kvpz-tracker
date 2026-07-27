@@ -2301,8 +2301,8 @@ async function loadOperationsLogMemory() {
         // 2. Fetch and merge with shared server database
         await syncOperationsLogWithServer();
 
-        // 3. Start 10-second sync loop across all connected clients
-        setInterval(syncOperationsLogWithServer, 10000);
+        // 3. Start 5-second sync loop across all connected clients for real-time cross-device sync
+        setInterval(syncOperationsLogWithServer, 5000);
     } catch (e) {
         console.error("Error loading operations log memory:", e);
     }

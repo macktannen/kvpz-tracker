@@ -1,26 +1,45 @@
 const fs = require('fs');
 const path = require('path');
 
-const LOG_FILE = path.join(process.cwd(), 'operations_log.json');
+let inMemoryLogs = global.serverlessOpsLogs || [];
+
+function getLogFilePath() {
+    const primaryPath = path.join(process.cwd(), 'operations_log.json');
+    try {
+        fs.accessSync(process.cwd(), fs.constants.W_OK);
+        return primaryPath;
+    } catch (e) {
+        return path.join('/tmp', 'operations_log.json');
+    }
+}
 
 function loadLogs() {
     try {
-        if (fs.existsSync(LOG_FILE)) {
-            const raw = fs.readFileSync(LOG_FILE, 'utf8');
-            return JSON.parse(raw);
+        const filePath = getLogFilePath();
+        if (fs.existsSync(filePath)) {
+            const raw = fs.readFileSync(filePath, 'utf8');
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                inMemoryLogs = parsed;
+                global.serverlessOpsLogs = parsed;
+                return parsed;
+            }
         }
     } catch (e) {
-        console.error('Error reading operations_log.json:', e);
+        console.error('Error reading operations log file:', e);
     }
-    return [];
+    return inMemoryLogs;
 }
 
 function saveLogs(logs) {
+    inMemoryLogs = logs;
+    global.serverlessOpsLogs = logs;
     try {
-        fs.writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2), 'utf8');
+        const filePath = getLogFilePath();
+        fs.writeFileSync(filePath, JSON.stringify(logs, null, 2), 'utf8');
         return true;
     } catch (e) {
-        console.error('Error writing operations_log.json:', e);
+        console.error('Error writing operations log file:', e);
         return false;
     }
 }
