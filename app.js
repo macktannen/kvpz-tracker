@@ -1836,7 +1836,7 @@ function getAircraftIconSvg(ac, color) {
         'C500','C501','C510','C525','C550','C560','C56X','C650','C680','C68A','C700','C750','C25A','C25B','C25C','CITATION','MUSTANG','SOVEREIGN','LATITUDE','LONGITUDE',
         'GLF2','GLF3','GLF4','GLF5','GLF6','GLF7','GLF8','G150','G200','G280','G450','G550','G650','G700','G800','GULFSTREAM',
         'LJ31','LJ35','LJ40','LJ45','LJ55','LJ60','LJ70','LJ75','LEARJET',
-        'CL30','CL35','CL60','CL65','CHALLENGER',
+        'CL30','CL35','CL60','CL64','CL65','CL600','CL604','CL605','CL650','CHALLENGER',
         'GLEX','GL5T','GL6T','GL7T','GLOBAL EXPRESS','GLOBAL 5000','GLOBAL 6000','GLOBAL 7500',
         'FA10','FA20','FA50','FA2000','FA7X','FA8X','F900','F7X','F8X','FALCON',
         'BE40','BE4W','H25A','H25B','H25C','HA4T','BEECHJET','HAWKER',
@@ -1868,7 +1868,7 @@ function getAircraftIconSvg(ac, color) {
 
     // 6. Commercial Jets - Regional Jets (Embraer E-Jets, Bombardier CRJ, ERJ, MD-80s)
     else if (matchType(['E135','E145','E170','E175','E190','E195','E290','E295','E75L','E75S','ERJ135','ERJ145','ERJ170','ERJ175','ERJ190','ERJ'])) shapeKey = 'jet_nonswept';
-    else if (matchType(['CRJ1','CRJ2','CRJ7','CRJ9','CRJX','CL60','RJ85','RJ1H','B712','MD80','MD81','MD82','MD83','MD87','MD88','MD90','DC91','DC92','DC93','DC94','DC95','DC9','F70','F100','SSJ1','C919','ARJ21','TU34','TU54','IL62','IL96','BA11','BA46'])) shapeKey = 'jet_nonswept';
+    else if (matchType(['CRJ1','CRJ2','CRJ7','CRJ9','CRJX','RJ85','RJ1H','B712','MD80','MD81','MD82','MD83','MD87','MD88','MD90','DC91','DC92','DC93','DC94','DC95','DC9','F70','F100','SSJ1','C919','ARJ21','TU34','TU54','IL62','IL96','BA11','BA46'])) shapeKey = 'jet_nonswept';
 
     // Military Transports & Fighters
     else if (matchType(['C130','C30J','HERCULES'])) shapeKey = 'c130';
