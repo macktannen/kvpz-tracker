@@ -2257,9 +2257,9 @@ async function syncOperationsLogWithServer() {
         if (res.ok) {
             const serverLogs = await res.json();
             if (Array.isArray(serverLogs)) {
-                // Safely merge server logs with local memory without wiping local logs if server is empty
+                const prevLocalCount = operationsLog.length;
+                // Safely merge server logs with local memory without losing any events
                 const merged = mergeOperationsLogs(operationsLog, serverLogs);
-                const countChanged = merged.length !== operationsLog.length;
                 operationsLog = merged;
                 safeSetItem('kvpz_operations_log', JSON.stringify(operationsLog));
                 arrivalCount = operationsLog.filter(log => log.opType === 'arrival').length;
@@ -2267,8 +2267,8 @@ async function syncOperationsLogWithServer() {
                 updateOpsLog();
                 updateCounters();
 
-                // If local memory has new logs that server doesn't have, send merged back to server
-                if (countChanged && operationsLog.length > serverLogs.length) {
+                // If local device holds logs that the server is missing, push merged list back to server
+                if (operationsLog.length > 0 && (serverLogs.length === 0 || operationsLog.length > serverLogs.length || prevLocalCount > serverLogs.length)) {
                     fetch('/operations-log', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
