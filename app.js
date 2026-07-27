@@ -1469,7 +1469,7 @@ function getAircraftCategory(ac) {
 
     // Business & Corporate Jets (Checked BEFORE Commercial Airliner Fallback)
     const isBizJet = (
-        type.startsWith('E5') || type.startsWith('E35') || type.startsWith('C5') || type.startsWith('C6') || type.startsWith('C7') || type.startsWith('C25') ||
+        type.startsWith('E5') || type.startsWith('EMB5') || type.startsWith('EMB-5') || type.startsWith('E35') || type.startsWith('C5') || type.startsWith('C6') || type.startsWith('C7') || type.startsWith('C25') ||
         type.startsWith('GLF') || type.startsWith('G1') || type.startsWith('G2') || type.startsWith('G4') || type.startsWith('G5') || type.startsWith('G6') || type.startsWith('G7') || type.startsWith('G8') ||
         type.startsWith('LJ') || type.startsWith('CL3') || type.startsWith('CL6') || type.startsWith('GL') || type.startsWith('FA') || type.startsWith('BE4') || type.startsWith('H25') ||
         type === 'HDJT' || type === 'SF50' || type === 'EA50' || type === 'SJ30' ||
@@ -1830,9 +1830,9 @@ function getAircraftIconSvg(ac, color) {
     else if (matchType(['B06','B206','B204','B205','B214','OH58','JETRANGER','LONGRANGER','KIOWA','BELL'])) shapeKey = 'helo_b206';
     else if (matchType(['R22','R44','R66','CABR','ROBINSON','MD50','HU50','H500','SCH4','S300','EN28','EN48']) || cat === 'helicopter') shapeKey = 'helo_2b';
     else if (matchType(['V22','OSPREY'])) shapeKey = 'v22_fast';
-    // 0. Business & Corporate Jets (Prioritized before commercial airliner checks so E55P, Phenom, Citation, Gulfstream, Learjet get business jet icons)
+    // 0. Business & Corporate Jets (Prioritized before commercial airliner checks so E55P, EMB5, Phenom, Citation, Gulfstream, Learjet get business jet icons)
     else if (matchType([
-        'E50P','E55P','E545','E550','E35L','PHENOM','LEGACY 450','LEGACY 500','LEGACY 600','PRAETOR',
+        'E50P','E55P','EMB5','EMB-5','EMB500','EMB505','EMB-500','EMB-505','E545','E550','E35L','PHENOM','LEGACY 450','LEGACY 500','LEGACY 600','PRAETOR',
         'C500','C501','C510','C525','C550','C560','C56X','C650','C680','C68A','C700','C750','C25A','C25B','C25C','CITATION','MUSTANG','SOVEREIGN','LATITUDE','LONGITUDE',
         'GLF2','GLF3','GLF4','GLF5','GLF6','GLF7','GLF8','G150','G200','G280','G450','G550','G650','G700','G800','GULFSTREAM',
         'LJ31','LJ35','LJ40','LJ45','LJ55','LJ60','LJ70','LJ75','LEARJET',
