@@ -40,10 +40,90 @@ let aircraftMarkers = {}; // hex -> L.marker
 let aircraftTrails = {}; // hex -> L.polyline
 let aircraftCache = {}; // hex -> aircraft state data
 let aircraftInfoDb = {}; // hex -> persistent cached aircraft info (Type, Operator, etc.)
+let customIconDb = { typeOverrides: {}, tailOverrides: {}, hexOverrides: {} }; // Persistent ICAO type & tail icon overrides
 let selectedHex = null;
 let currentFilter = 'all';
 let searchFilter = '';
 let operationsLog = [];
+
+async function loadCustomIconDb() {
+    try {
+        const stored = safeGetItem('kvpz_custom_icons');
+        if (stored) {
+            customIconDb = JSON.parse(stored);
+        }
+    } catch(e) {}
+
+    // Query shared server database file
+    const endpoints = [
+        `${window.location.origin}/icon-override`,
+        'http://localhost:8080/icon-override',
+        'http://127.0.0.1:3001/icon-override',
+        'custom_icons.json'
+    ];
+
+    for (const ep of endpoints) {
+        try {
+            const res = await fetch(ep, { signal: AbortSignal.timeout(2000) });
+            if (res.ok) {
+                const db = await res.json();
+                if (db && (db.typeOverrides || db.tailOverrides || db.hexOverrides)) {
+                    customIconDb = {
+                        typeOverrides: { ...(customIconDb.typeOverrides || {}), ...(db.typeOverrides || {}) },
+                        tailOverrides: { ...(customIconDb.tailOverrides || {}), ...(db.tailOverrides || {}) },
+                        hexOverrides: { ...(customIconDb.hexOverrides || {}), ...(db.hexOverrides || {}) }
+                    };
+                    safeSetItem('kvpz_custom_icons', JSON.stringify(customIconDb));
+                    console.log('[Custom Icons] Synchronized persistent ICAO type icon overrides from server:', customIconDb);
+                    break;
+                }
+            }
+        } catch(e) {}
+    }
+}
+
+window.saveCustomIconOverrideForType = async function(targetType, targetKey, shapeKey) {
+    if (!targetKey) return;
+    const cleanKey = targetKey.trim().toUpperCase();
+    
+    if (!customIconDb.typeOverrides) customIconDb.typeOverrides = {};
+    if (!customIconDb.tailOverrides) customIconDb.tailOverrides = {};
+
+    if (targetType === 'type') {
+        if (shapeKey === 'default' || shapeKey === 'reset') {
+            delete customIconDb.typeOverrides[cleanKey];
+        } else {
+            customIconDb.typeOverrides[cleanKey] = shapeKey;
+        }
+    } else if (targetType === 'tail') {
+        if (shapeKey === 'default' || shapeKey === 'reset') {
+            delete customIconDb.tailOverrides[cleanKey];
+        } else {
+            customIconDb.tailOverrides[cleanKey] = shapeKey;
+        }
+    }
+
+    safeSetItem('kvpz_custom_icons', JSON.stringify(customIconDb));
+
+    // Post to server endpoint to update custom_icons.json globally for all users
+    const endpoints = [
+        `${window.location.origin}/icon-override`,
+        'http://localhost:8080/icon-override',
+        'http://127.0.0.1:3001/icon-override'
+    ];
+
+    for (const ep of endpoints) {
+        try {
+            await fetch(ep, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetType, targetKey: cleanKey, shapeKey })
+            });
+        } catch(e) {}
+    }
+
+    refreshAllAircraftLayers();
+};
 let powerlineGroup = null;
 let powerlineCache = {}; // id -> { id, latlngs, tags }
 const fetchedPowerlineTiles = new Set(); // set of grid tile keys already requested
@@ -94,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Load map toggles, settings, and aircraft cache from localStorage first
     loadMapSettings();
     loadAircraftDb();
+    loadCustomIconDb();
     
     // Set checkbox inputs to their corresponding state values
     document.getElementById('toggle-rings').checked = showRings;
@@ -1658,7 +1739,23 @@ function getAircraftIconSvg(ac, color) {
 
     let shapeKey = 'cessna';
 
-    if (matchType(['H47','CH47','CH46','MH47','CHINOOK'])) shapeKey = 'helo_tandem';
+    // 0. Check Persistent Custom Icon Database (Type > Tail > Hex)
+    const hexKey = (ac.hex || '').toLowerCase();
+    const tailKey = (ac.tail || ac.r || '').toUpperCase().trim();
+    const typeKey = type.trim().toUpperCase();
+
+    let customShape = null;
+    if (customIconDb.typeOverrides && customIconDb.typeOverrides[typeKey]) {
+        customShape = customIconDb.typeOverrides[typeKey];
+    } else if (customIconDb.tailOverrides && customIconDb.tailOverrides[tailKey]) {
+        customShape = customIconDb.tailOverrides[tailKey];
+    } else if (customIconDb.hexOverrides && customIconDb.hexOverrides[hexKey]) {
+        customShape = customIconDb.hexOverrides[hexKey];
+    }
+
+    if (customShape && tarShapes[customShape]) {
+        shapeKey = customShape;
+    } else if (matchType(['H47','CH47','CH46','MH47','CHINOOK'])) shapeKey = 'helo_tandem';
     else if (matchType(['H60','UH60','MH60','BLACK HAWK','EC35','EC45','AS35','AW139','EUROCOPTER','EC135','EC145','AGUSTA','ASTAR','AH64','APACHE'])) shapeKey = 'helo_4b';
     else if (matchType(['R22','R44','R66','B06','B412','BELL','ROBINSON','JETRANGER']) || cat === 'helicopter') shapeKey = 'helo_2b';
     else if (matchType(['V22','OSPREY'])) shapeKey = 'v22_fast';
@@ -2763,13 +2860,162 @@ function submitStandardSearch() {
     updateSearchPortalLinks(text);
 }
 
+window.renderIconOverrideCard = function(ac) {
+    if (!ac) return '';
+
+    const typeCode = (ac.type && ac.type !== 'N/A' && ac.type !== 'Unknown') ? ac.type.trim().toUpperCase() : 'UNKNOWN';
+    const tailNum = (ac.tail && ac.tail !== 'N/A' && ac.tail !== 'Unknown') ? ac.tail.trim().toUpperCase() : ac.callsign;
+    
+    // Check if this type currently has a persistent override
+    const activeOverride = customIconDb.typeOverrides ? customIconDb.typeOverrides[typeCode] : null;
+
+    const shapesList = [
+        { group: 'GA & Light Turboprops', options: [
+            { key: 'cessna', label: '🛩️ Cessna / Light GA (High-Wing)' },
+            { key: 'single_turbo', label: '🛩️ Pilatus PC-12 / TBM / Single Turboprop' },
+            { key: 'twin_small', label: '🛩️ Beechcraft Baron / Seneca / Twin Small' },
+            { key: 'twin_large', label: '🛩️ King Air 200/350 / Dash 8 / Twin Large' }
+        ]},
+        { group: 'Business Jets & Regionals', options: [
+            { key: 'jet_swept', label: '✈️ Gulfstream / Citation / Swept Bizjet' },
+            { key: 'jet_nonswept', label: '✈️ ERJ-145 / CRJ-200 / Regional Jet' }
+        ]},
+        { group: 'Commercial Airliners', options: [
+            { key: 'b737', label: '🛫 Boeing 737 Classic (-300/-500/-700)' },
+            { key: 'b738', label: '🛫 Boeing 737-800 / 737-MAX 8' },
+            { key: 'b739', label: '🛫 Boeing 737-900 / 737-MAX 9' },
+            { key: 'a319', label: '🛫 Airbus A319' },
+            { key: 'a320', label: '🛫 Airbus A320 / A320neo' },
+            { key: 'a321', label: '🛫 Airbus A321 / A321neo' },
+            { key: 'airliner', label: '🛫 Boeing 757 / 767 Commercial Liner' }
+        ]},
+        { group: 'Commercial Widebodies & Heavies', options: [
+            { key: 'heavy_2e', label: '🛬 Boeing 777 / 787 / Airbus A330 Heavy' },
+            { key: 'heavy_4e', label: '🛬 Boeing 747 Jumbo / Airbus A380 Quad' },
+            { key: 'a359', label: '🛬 Airbus A350-900 / A350 XWB' },
+            { key: 'a332', label: '🛬 Airbus A330-200 / A330neo' },
+            { key: 'md11', label: '🛬 MD-11 / DC-10 Tri-Jet' }
+        ]},
+        { group: 'Military Transports, Patrol & Bombers', options: [
+            { key: 'c130', label: '🎖️ C-130 Hercules / L-100' },
+            { key: 'a400', label: '🎖️ Airbus A400M Atlas' },
+            { key: 'a225', label: '🎖️ An-225 Mriya / An-124 Heavy Airlifter' },
+            { key: 'e3awacs', label: '🎖️ E-3 Sentry AWACS Radar Plane' },
+            { key: 'p8', label: '🎖️ P-8 Poseidon Maritime Patrol' }
+        ]},
+        { group: 'Military Fast Jets & Fighters', options: [
+            { key: 'hi_perf', label: '⚡ F-16 Fighting Falcon' },
+            { key: 'f18', label: '⚡ F/A-18 Hornet / Super Hornet' },
+            { key: 'f35', label: '⚡ F-35 Lightning II Stealth Fighter' },
+            { key: 't38', label: '⚡ T-38 Talon Jet Trainer' },
+            { key: 'mirage', label: '⚡ Mirage Delta Fighter' },
+            { key: 'sb39', label: '⚡ JAS-39 Gripen Canard Fighter' },
+            { key: 'l159', label: '⚡ L-159 / L-39 Albatros' },
+            { key: 'md_a4', label: '⚡ A-4 Skyhawk' },
+            { key: 'alpha_jet', label: '⚡ Dornier Alpha Jet' }
+        ]},
+        { group: 'Rotorcraft & Helicopters', options: [
+            { key: 'v22_fast', label: '🚁 V-22 Osprey Tiltrotor' },
+            { key: 'blimp', label: '🎈 Blimp / Airship' },
+            { key: 'helo_2b', label: '🚁 Bell 206 / Robinson 2-Blade Helo' },
+            { key: 'helo_4b', label: '🚁 UH-60 Black Hawk / Apache 4-Blade' },
+            { key: 'helo_tandem', label: '🚁 CH-47 Chinook Tandem Rotor' }
+        ]}
+    ];
+
+    let optionsHtml = `<option value="default">-- Default Auto Matching --</option>`;
+    shapesList.forEach(grp => {
+        optionsHtml += `<optgroup label="${grp.group}">`;
+        grp.options.forEach(opt => {
+            const isSelected = activeOverride === opt.key ? 'selected' : '';
+            optionsHtml += `<option value="${opt.key}" ${isSelected}>${opt.label}</option>`;
+        });
+        optionsHtml += `</optgroup>`;
+    });
+
+    const currentSvgPreview = getAircraftIconSvg(ac, '#06b6d4');
+
+    return `
+        <div class="icon-override-card">
+            <div class="icon-override-header">
+                <span><i class="fa-solid fa-paintbrush"></i> Icon Override for Type: <strong style="color:#fff;">${typeCode}</strong></span>
+                ${activeOverride ? '<span style="color:#10b981; font-size:0.68rem;">[OVERRIDDEN]</span>' : ''}
+            </div>
+            
+            <div class="icon-preview-wrapper">
+                <div class="icon-preview-box" id="icon-live-preview-box">
+                    ${currentSvgPreview}
+                </div>
+                <div style="font-size:0.7rem; color:var(--color-text-muted); line-height: 1.3;">
+                    <strong style="color: #fff;">${tailNum}</strong> &bull; ICAO: <span style="color:var(--accent-cyan); font-weight:700;">${typeCode}</span><br>
+                    <span>Sets icon shape for <strong>ALL ${typeCode}</strong> aircraft for all users</span>
+                </div>
+            </div>
+
+            <select class="icon-select-dropdown" id="icon-override-select-${ac.hex}" onchange="updateIconPreviewFromSelect('${ac.hex}')">
+                ${optionsHtml}
+            </select>
+
+            <div class="icon-override-actions">
+                <button class="btn-icon-override-save" onclick="applyIconOverrideFromSelect('${ac.hex}', '${typeCode}')">
+                    <i class="fa-solid fa-floppy-disk"></i> Save for All ${typeCode}
+                </button>
+                ${activeOverride ? `
+                <button class="btn-icon-override-reset" onclick="resetIconOverrideForType('${typeCode}')">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
+                </button>` : ''}
+            </div>
+        </div>
+    `;
+};
+
+window.updateIconPreviewFromSelect = function(hex) {
+    const select = document.getElementById(`icon-override-select-${hex}`);
+    const previewBox = document.getElementById('icon-live-preview-box');
+    if (!select || !previewBox) return;
+    
+    const shapeKey = select.value;
+    const dummyAc = { type: 'DUMMY', heading: 0 };
+    const ac = aircraftCache[hex] || dummyAc;
+    const tempAc = { ...ac };
+    if (shapeKey !== 'default') {
+        tempAc.type = 'CUSTOM_PREVIEW';
+        customIconDb.typeOverrides['CUSTOM_PREVIEW'] = shapeKey;
+    }
+    
+    const previewSvg = getAircraftIconSvg(tempAc, '#06b6d4');
+    delete customIconDb.typeOverrides['CUSTOM_PREVIEW'];
+    
+    previewBox.innerHTML = previewSvg;
+};
+
+window.applyIconOverrideFromSelect = async function(hex, typeCode) {
+    const select = document.getElementById(`icon-override-select-${hex}`);
+    if (!select) return;
+    const shapeKey = select.value;
+    
+    await window.saveCustomIconOverrideForType('type', typeCode, shapeKey);
+    if (selectedHex) selectAircraft(selectedHex);
+};
+
+window.resetIconOverrideForType = async function(typeCode) {
+    await window.saveCustomIconOverrideForType('type', typeCode, 'default');
+    if (selectedHex) selectAircraft(selectedHex);
+};
+
 function updateSearchPortalLinks(query) {
     const container = document.getElementById('portal-links-container');
     if (!container) return;
     
-    const cleanQuery = query.trim().toUpperCase();
-    if (!cleanQuery) {
-        container.innerHTML = `<p style="margin: 0; color: var(--color-text-muted); font-size: 0.65rem; font-style: italic;">Enter a tail number or select an aircraft to generate direct database links.</p>`;
+    const cleanQuery = query ? query.trim().toUpperCase() : '';
+    let overrideCardHtml = '';
+
+    if (selectedHex && aircraftCache[selectedHex]) {
+        overrideCardHtml = window.renderIconOverrideCard(aircraftCache[selectedHex]);
+    }
+
+    if (!cleanQuery && !overrideCardHtml) {
+        container.innerHTML = `<p style="margin: 0; color: var(--color-text-muted); font-size: 0.65rem; font-style: italic;">Enter a tail number or select an aircraft to generate direct database links and customize icons.</p>`;
         return;
     }
     
@@ -2780,6 +3026,8 @@ function updateSearchPortalLinks(query) {
     }
     
     container.innerHTML = `
+        ${overrideCardHtml}
+        ${cleanQuery ? `
         <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.4rem;">
             <a href="https://www.google.com/search?q=${encodeURIComponent(cleanQuery)}" target="_blank" class="portal-link">
                 <i class="fa-brands fa-google"></i> Google Search: "${cleanQuery}"
@@ -2793,7 +3041,7 @@ function updateSearchPortalLinks(query) {
             <a href="https://www.flightradar24.com/data/aircraft/${encodeURIComponent(cleanQuery)}" target="_blank" class="portal-link">
                 <i class="fa-solid fa-clock-rotate-left"></i> Flightradar24 History
             </a>
-        </div>
+        </div>` : ''}
     `;
 }
 

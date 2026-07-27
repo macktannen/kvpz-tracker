@@ -166,6 +166,70 @@ let spidertracksStore = {};
         }
     }
 
+    if (reqUrl.pathname === '/icon-override' || reqUrl.pathname === '/api/icon-override') {
+        const customIconFile = path.join(__dirname, 'custom_icons.json');
+        
+        const loadDb = () => {
+            try {
+                if (fs.existsSync(customIconFile)) {
+                    return JSON.parse(fs.readFileSync(customIconFile, 'utf8'));
+                }
+            } catch(e) {}
+            return { typeOverrides: {}, tailOverrides: {}, hexOverrides: {} };
+        };
+
+        if (req.method === 'GET') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(loadDb()));
+            return;
+        }
+
+        if (req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => body += chunk);
+            req.on('end', () => {
+                try {
+                    const data = JSON.parse(body);
+                    const { targetType, targetKey, shapeKey } = data || {};
+                    const db = loadDb();
+                    if (!db.typeOverrides) db.typeOverrides = {};
+                    if (!db.tailOverrides) db.tailOverrides = {};
+                    if (!db.hexOverrides) db.hexOverrides = {};
+
+                    const cleanKey = (targetKey || '').toUpperCase().trim();
+                    if (targetType === 'type' || (!targetType && cleanKey)) {
+                        if (shapeKey === 'default' || shapeKey === 'reset') {
+                            delete db.typeOverrides[cleanKey];
+                        } else {
+                            db.typeOverrides[cleanKey] = shapeKey;
+                        }
+                    } else if (targetType === 'tail') {
+                        if (shapeKey === 'default' || shapeKey === 'reset') {
+                            delete db.tailOverrides[cleanKey];
+                        } else {
+                            db.tailOverrides[cleanKey] = shapeKey;
+                        }
+                    } else if (targetType === 'hex') {
+                        const hexKey = cleanKey.toLowerCase();
+                        if (shapeKey === 'default' || shapeKey === 'reset') {
+                            delete db.hexOverrides[hexKey];
+                        } else {
+                            db.hexOverrides[hexKey] = shapeKey;
+                        }
+                    }
+
+                    fs.writeFileSync(customIconFile, JSON.stringify(db, null, 2), 'utf8');
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ status: 'ok', db }));
+                } catch(e) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: e.message }));
+                }
+            });
+            return;
+        }
+    }
+
     if (reqUrl.pathname === '/faa' || reqUrl.pathname === '/scrape') {
         const tail = reqUrl.query.tail || reqUrl.query.reg || '';
         if (!tail) {

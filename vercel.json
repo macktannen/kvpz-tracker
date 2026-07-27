@@ -2,6 +2,7 @@
   "rewrites": [
     { "source": "/faa", "destination": "/api/faa" },
     { "source": "/health", "destination": "/api/health" },
-    { "source": "/spidertracks", "destination": "/api/spidertracks" }
+    { "source": "/spidertracks", "destination": "/api/spidertracks" },
+    { "source": "/icon-override", "destination": "/api/icon-override" }
   ]
 }

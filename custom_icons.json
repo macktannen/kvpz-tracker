@@ -1,0 +1,9 @@
+{
+  "typeOverrides": {
+    "C172": "cessna",
+    "H60": "helo_4b",
+    "B738": "b738"
+  },
+  "tailOverrides": {},
+  "hexOverrides": {}
+}
