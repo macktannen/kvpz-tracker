@@ -63,6 +63,153 @@ async function parseBody(req) {
     });
 }
 
+const KVPZ_LAT = 41.5367;
+const KVPZ_LON = -87.0070;
+let cloudGeofenceState = global.serverlessGeofenceState || {};
+
+function getGeodesicDistanceNm(lat1, lon1, lat2, lon2) {
+    const R = 3440.065;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+async function runCloudOperationsTracker() {
+    try {
+        const res = await fetch('https://api.airplanes.live/v2/point/41.5367/-87.0070/15');
+        if (!res.ok) return;
+        const data = await res.json();
+        const aircraft = data.ac || data.aircraft || [];
+        if (!Array.isArray(aircraft)) return;
+
+        let currentLogs = loadLogs();
+        const now = Date.now();
+        let updated = false;
+
+        const appendLog = (logItem) => {
+            const isDup = currentLogs.some(l => l.hex === logItem.hex && l.opType === logItem.opType && Math.abs((l.timestamp || 0) - now) < 180000);
+            if (!isDup) {
+                currentLogs.unshift(logItem);
+                updated = true;
+            }
+        };
+
+        aircraft.forEach(ac => {
+            if (!ac.hex || ac.lat === undefined || ac.lon === undefined) return;
+            const hex = ac.hex.toLowerCase();
+            const lat = parseFloat(ac.lat);
+            const lon = parseFloat(ac.lon);
+            const alt = ac.alt_baro !== undefined ? parseInt(ac.alt_baro) : (ac.alt_geom !== undefined ? parseInt(ac.alt_geom) : 0);
+            const speed = ac.gs !== undefined ? Math.round(parseFloat(ac.gs)) : 0;
+            const vspeed = ac.baro_rate !== undefined ? parseInt(ac.baro_rate) : (ac.geom_rate !== undefined ? parseInt(ac.geom_rate) : 0);
+            const dist = getGeodesicDistanceNm(lat, lon, KVPZ_LAT, KVPZ_LON);
+
+            const tail = ac.r || ac.flight || ac.hex.toUpperCase();
+            const callsign = ac.flight ? ac.flight.trim() : tail;
+            const type = ac.t || ac.type || 'Unknown';
+
+            const prevState = cloudGeofenceState[hex];
+            const currentState = {
+                hex, tail, callsign, type, dist, alt, speed, vspeed, lat, lon,
+                lastSeen: now,
+                opType: prevState ? prevState.opType : null,
+                logged: prevState ? prevState.logged : false
+            };
+
+            if (prevState) {
+                const isDescending = vspeed < -100 || alt < prevState.alt;
+                const isHeadingTowardsKVPZ = dist < prevState.dist;
+
+                if (dist < 5.0 && alt < 2500 && isDescending && isHeadingTowardsKVPZ) {
+                    currentState.opType = 'arrival';
+                }
+
+                if (currentState.opType === 'arrival' && dist < 2.5 && alt < 1200 && (speed < 45 || vspeed < -300) && !currentState.logged) {
+                    appendLog({
+                        id: `op_${now}_${hex}_arr`,
+                        hex, tail, callsign, type, opType: 'arrival', timestamp: now,
+                        dist: Math.round(dist * 10) / 10, alt,
+                        description: `Landed KVPZ (Speed: ${speed} KT, Alt: ${alt} FT)`,
+                        source: 'Vercel 24/7 Cloud Tracker'
+                    });
+                    currentState.logged = true;
+                }
+
+                if (prevState.dist < 2.5 && prevState.alt < 1500 && vspeed > 200 && !currentState.logged) {
+                    appendLog({
+                        id: `op_${now}_${hex}_dep`,
+                        hex, tail, callsign, type, opType: 'departure', timestamp: now,
+                        dist: Math.round(dist * 10) / 10, alt,
+                        description: `Departed KVPZ, climbing through ${alt} ft`,
+                        source: 'Vercel 24/7 Cloud Tracker'
+                    });
+                    currentState.logged = true;
+                    currentState.opType = 'departure';
+                }
+            } else {
+                if (dist < 5.0 && alt < 3000 && vspeed > 100) {
+                    appendLog({
+                        id: `op_${now}_${hex}_dep`,
+                        hex, tail, callsign, type, opType: 'departure', timestamp: now,
+                        dist: Math.round(dist * 10) / 10, alt,
+                        description: `Departed KVPZ, climbing through ${alt} ft`,
+                        source: 'Vercel 24/7 Cloud Tracker'
+                    });
+                    currentState.logged = true;
+                    currentState.opType = 'departure';
+                }
+            }
+
+            if (dist < 1.0 && alt < 1200 && !currentState.logged) {
+                const isOutbound = prevState ? dist > prevState.dist : true;
+                const direction = isOutbound ? 'departure' : 'arrival';
+                currentState.logged = true;
+                currentState.opType = direction;
+                appendLog({
+                    id: `op_${now}_${hex}_${direction.substring(0, 3)}`,
+                    hex, tail, callsign, type, opType: direction, timestamp: now,
+                    dist: Math.round(dist * 10) / 10, alt,
+                    description: `Geofence ${direction === 'arrival' ? 'Landing' : 'Departure'} KVPZ (Alt: ${alt} FT, Dist: ${dist.toFixed(2)} NM)`,
+                    source: 'Vercel 24/7 Cloud Tracker'
+                });
+            }
+
+            if (!currentState.logged) {
+                if (dist <= 5.0 && alt <= 3500 && (!prevState || prevState.dist > 5.0)) {
+                    appendLog({
+                        id: `op_${now}_${hex}_arr`,
+                        hex, tail, callsign, type, opType: 'arrival', timestamp: now,
+                        dist: Math.round(dist * 10) / 10, alt,
+                        description: `Inbound Approach KVPZ (${Math.round(dist * 10) / 10} NM, ${alt} FT)`,
+                        source: 'Vercel 24/7 Cloud Tracker'
+                    });
+                    currentState.logged = true;
+                } else if (prevState && prevState.dist <= 5.0 && dist > 6.0) {
+                    appendLog({
+                        id: `op_${now}_${hex}_dep`,
+                        hex, tail, callsign, type, opType: 'departure', timestamp: now,
+                        dist: Math.round(dist * 10) / 10, alt,
+                        description: `Outbound Departure KVPZ (${Math.round(dist * 10) / 10} NM, ${alt} FT)`,
+                        source: 'Vercel 24/7 Cloud Tracker'
+                    });
+                    currentState.logged = true;
+                }
+            }
+
+            cloudGeofenceState[hex] = currentState;
+        });
+
+        global.serverlessGeofenceState = cloudGeofenceState;
+
+        if (updated) {
+            saveLogs(currentLogs);
+        }
+    } catch(e) {}
+}
+
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
@@ -71,6 +218,9 @@ module.exports = async (req, res) => {
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
+
+    // Trigger 24/7 Cloud Operations Tracker execution on GET or Cron request
+    await runCloudOperationsTracker();
 
     if (req.method === 'GET') {
         const logs = loadLogs();
