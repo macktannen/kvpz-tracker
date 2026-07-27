@@ -44,6 +44,25 @@ function saveLogs(logs) {
     }
 }
 
+async function parseBody(req) {
+    if (req.body) {
+        if (typeof req.body === 'string') {
+            try { return JSON.parse(req.body); } catch(e) { return {}; }
+        }
+        if (Buffer.isBuffer(req.body)) {
+            try { return JSON.parse(req.body.toString('utf8')); } catch(e) { return {}; }
+        }
+        return req.body;
+    }
+    return new Promise((resolve) => {
+        let raw = '';
+        req.on('data', chunk => raw += chunk);
+        req.on('end', () => {
+            try { resolve(JSON.parse(raw)); } catch(e) { resolve({}); }
+        });
+    });
+}
+
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
@@ -60,11 +79,7 @@ module.exports = async (req, res) => {
 
     if (req.method === 'POST') {
         try {
-            let body = req.body;
-            if (typeof body === 'string') {
-                body = JSON.parse(body);
-            }
-
+            const body = await parseBody(req);
             let logs = loadLogs();
 
             if (Array.isArray(body)) {
@@ -105,11 +120,7 @@ module.exports = async (req, res) => {
 
     if (req.method === 'DELETE') {
         try {
-            let body = req.body;
-            if (typeof body === 'string' && body) {
-                try { body = JSON.parse(body); } catch(e) {}
-            }
-
+            const body = await parseBody(req);
             const { tail, timestamp, opType } = body || {};
             let logs = loadLogs();
 
