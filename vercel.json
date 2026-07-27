@@ -1,10 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/operations-log?cron=1",
-      "schedule": "* * * * *"
-    }
-  ],
   "rewrites": [
     { "source": "/faa", "destination": "/api/faa" },
     { "source": "/health", "destination": "/api/health" },

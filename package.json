@@ -2,10 +2,6 @@
   "name": "kvpz-tracker",
   "version": "1.0.0",
   "description": "KVPZ Porter County Regional Airport Tracker",
-  "main": "faa_server.js",
-  "scripts": {
-    "start": "node faa_server.js"
-  },
   "engines": {
     "node": ">=18.0.0"
   }
