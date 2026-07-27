@@ -2870,67 +2870,77 @@ window.renderIconOverrideCard = function(ac) {
     const activeOverride = currentType && customIconDb.typeOverrides ? customIconDb.typeOverrides[currentType] : null;
 
     const shapesList = [
-        { group: 'GA & Light Turboprops', options: [
-            { key: 'cessna', label: '🛩️ Cessna / Light GA (High-Wing)' },
-            { key: 'single_turbo', label: '🛩️ Pilatus PC-12 / TBM / Single Turboprop' },
-            { key: 'twin_small', label: '🛩️ Beechcraft Baron / Seneca / Twin Small' },
-            { key: 'twin_large', label: '🛩️ King Air 200/350 / Dash 8 / Twin Large' }
-        ]},
-        { group: 'Business Jets & Regionals', options: [
-            { key: 'jet_swept', label: '✈️ Gulfstream / Citation / Swept Bizjet' },
-            { key: 'jet_nonswept', label: '✈️ ERJ-145 / CRJ-200 / Regional Jet' }
-        ]},
-        { group: 'Commercial Airliners', options: [
-            { key: 'b737', label: '🛫 Boeing 737 Classic (-300/-500/-700)' },
-            { key: 'b738', label: '🛫 Boeing 737-800 / 737-MAX 8' },
-            { key: 'b739', label: '🛫 Boeing 737-900 / 737-MAX 9' },
-            { key: 'a319', label: '🛫 Airbus A319' },
-            { key: 'a320', label: '🛫 Airbus A320 / A320neo' },
-            { key: 'a321', label: '🛫 Airbus A321 / A321neo' },
-            { key: 'airliner', label: '🛫 Boeing 757 / 767 Commercial Liner' }
-        ]},
-        { group: 'Commercial Widebodies & Heavies', options: [
-            { key: 'heavy_2e', label: '🛬 Boeing 777 / 787 / Airbus A330 Heavy' },
-            { key: 'heavy_4e', label: '🛬 Boeing 747 Jumbo / Airbus A380 Quad' },
-            { key: 'a359', label: '🛬 Airbus A350-900 / A350 XWB' },
-            { key: 'a332', label: '🛬 Airbus A330-200 / A330neo' },
-            { key: 'md11', label: '🛬 MD-11 / DC-10 Tri-Jet' }
-        ]},
-        { group: 'Military Transports, Patrol & Bombers', options: [
-            { key: 'c130', label: '🎖️ C-130 Hercules / L-100' },
-            { key: 'a400', label: '🎖️ Airbus A400M Atlas' },
-            { key: 'a225', label: '🎖️ An-225 Mriya / An-124 Heavy Airlifter' },
-            { key: 'e3awacs', label: '🎖️ E-3 Sentry AWACS Radar Plane' },
-            { key: 'p8', label: '🎖️ P-8 Poseidon Maritime Patrol' }
-        ]},
-        { group: 'Military Fast Jets & Fighters', options: [
-            { key: 'hi_perf', label: '⚡ F-16 Fighting Falcon' },
-            { key: 'f18', label: '⚡ F/A-18 Hornet / Super Hornet' },
-            { key: 'f35', label: '⚡ F-35 Lightning II Stealth Fighter' },
-            { key: 't38', label: '⚡ T-38 Talon Jet Trainer' },
-            { key: 'mirage', label: '⚡ Mirage Delta Fighter' },
-            { key: 'sb39', label: '⚡ JAS-39 Gripen Canard Fighter' },
-            { key: 'l159', label: '⚡ L-159 / L-39 Albatros' },
-            { key: 'md_a4', label: '⚡ A-4 Skyhawk' },
-            { key: 'alpha_jet', label: '⚡ Dornier Alpha Jet' }
-        ]},
-        { group: 'Rotorcraft & Helicopters', options: [
-            { key: 'v22_fast', label: '🚁 V-22 Osprey Tiltrotor' },
-            { key: 'blimp', label: '🎈 Blimp / Airship' },
-            { key: 'helo_2b', label: '🚁 Bell 206 / Robinson 2-Blade Helo' },
-            { key: 'helo_4b', label: '🚁 UH-60 Black Hawk / Apache 4-Blade' },
-            { key: 'helo_tandem', label: '🚁 CH-47 Chinook Tandem Rotor' }
-        ]}
+        { key: 'cessna', label: '🛩️ Cessna / Light GA (High-Wing)' },
+        { key: 'single_turbo', label: '🛩️ Pilatus PC-12 / TBM / Single Turboprop' },
+        { key: 'twin_small', label: '🛩️ Beechcraft Baron / Seneca / Twin Small' },
+        { key: 'twin_large', label: '🛩️ King Air 200/350 / Dash 8 / Twin Large' },
+        { key: 'jet_swept', label: '✈️ Gulfstream / Citation / Swept Bizjet' },
+        { key: 'jet_nonswept', label: '✈️ ERJ-145 / CRJ-200 / Regional Jet' },
+        { key: 'b737', label: '🛫 Boeing 737 Classic (-300/-500/-700)' },
+        { key: 'b738', label: '🛫 Boeing 737-800 / 737-MAX 8' },
+        { key: 'b739', label: '🛫 Boeing 737-900 / 737-MAX 9' },
+        { key: 'a319', label: '🛫 Airbus A319' },
+        { key: 'a320', label: '🛫 Airbus A320 / A320neo' },
+        { key: 'a321', label: '🛫 Airbus A321 / A321neo' },
+        { key: 'airliner', label: '🛫 Boeing 757 / 767 Commercial Liner' },
+        { key: 'heavy_2e', label: '🛬 Boeing 777 / 787 / A330 Heavy Twin' },
+        { key: 'heavy_4e', label: '🛬 Boeing 747 Jumbo / A380 Quad Heavy' },
+        { key: 'a359', label: '🛬 Airbus A350-900 / A350 XWB' },
+        { key: 'a332', label: '🛬 Airbus A330-200 / A330neo' },
+        { key: 'md11', label: '🛬 MD-11 / DC-10 Tri-Jet Heavy' },
+        { key: 'c130', label: '🎖️ C-130 Hercules / L-100 Cargo' },
+        { key: 'a400', label: '🎖️ Airbus A400M Atlas' },
+        { key: 'a225', label: '🎖️ An-225 Mriya / An-124 Heavy Airlifter' },
+        { key: 'e3awacs', label: '🎖️ E-3 Sentry AWACS Radar Plane' },
+        { key: 'p8', label: '🎖️ P-8 Poseidon Maritime Patrol' },
+        { key: 'hi_perf', label: '⚡ F-16 Fighting Falcon' },
+        { key: 'f18', label: '⚡ F/A-18 Hornet / Super Hornet' },
+        { key: 'f35', label: '⚡ F-35 Lightning II Stealth Fighter' },
+        { key: 't38', label: '⚡ T-38 Talon Jet Trainer' },
+        { key: 'mirage', label: '⚡ Mirage Delta Fighter' },
+        { key: 'sb39', label: '⚡ JAS-39 Gripen Canard Fighter' },
+        { key: 'l159', label: '⚡ L-159 / L-39 Albatros' },
+        { key: 'md_a4', label: '⚡ A-4 Skyhawk Fighter' },
+        { key: 'alpha_jet', label: '⚡ Dornier Alpha Jet' },
+        { key: 'v22_fast', label: '🚁 V-22 Osprey Tiltrotor' },
+        { key: 'blimp', label: '🎈 Blimp / Airship' },
+        { key: 'helo_2b', label: '🚁 Bell 206 / Robinson 2-Blade Helo' },
+        { key: 'helo_4b', label: '🚁 UH-60 Black Hawk / Apache 4-Blade' },
+        { key: 'helo_tandem', label: '🚁 CH-47 Chinook Tandem Rotor' }
     ];
 
-    let optionsHtml = `<option value="default">-- Default Auto Matching --</option>`;
-    shapesList.forEach(grp => {
-        optionsHtml += `<optgroup label="${grp.group}">`;
-        grp.options.forEach(opt => {
-            const isSelected = activeOverride === opt.key ? 'selected' : '';
-            optionsHtml += `<option value="${opt.key}" ${isSelected}>${opt.label}</option>`;
-        });
-        optionsHtml += `</optgroup>`;
+    let visualListHtml = `
+        <div class="visual-icon-item ${!activeOverride ? 'selected' : ''}" 
+             onclick="selectVisualIconItem('${ac.hex}', 'default')" 
+             id="visual-icon-${ac.hex}-default">
+            <div class="visual-icon-svg-box" style="color: var(--color-text-muted);">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </div>
+            <div class="visual-icon-info">
+                <span class="visual-icon-title">-- Automatic Default Matching --</span>
+                <span class="visual-icon-key">Key: auto</span>
+            </div>
+        </div>
+    `;
+
+    shapesList.forEach(item => {
+        const isSelected = activeOverride === item.key;
+        // Render actual live top-down vector SVG icon inside each list item!
+        const svgIcon = getAircraftIconSvg({ type: item.key, heading: 0 }, isSelected ? '#10b981' : '#06b6d4');
+        
+        visualListHtml += `
+            <div class="visual-icon-item ${isSelected ? 'selected' : ''}" 
+                 onclick="selectVisualIconItem('${ac.hex}', '${item.key}')" 
+                 id="visual-icon-${ac.hex}-${item.key}">
+                <div class="visual-icon-svg-box">
+                    ${svgIcon}
+                </div>
+                <div class="visual-icon-info">
+                    <span class="visual-icon-title">${item.label}</span>
+                    <span class="visual-icon-key">Vector Key: ${item.key}</span>
+                </div>
+            </div>
+        `;
     });
 
     const currentSvgPreview = getAircraftIconSvg(ac, '#06b6d4');
@@ -2938,7 +2948,7 @@ window.renderIconOverrideCard = function(ac) {
     return `
         <div class="icon-override-card">
             <div class="icon-override-header">
-                <span><i class="fa-solid fa-paintbrush"></i> Customize Icon & Aircraft Type</span>
+                <span><i class="fa-solid fa-paintbrush"></i> Visual Icon Selector & Type Override</span>
                 ${activeOverride ? '<span style="color:#10b981; font-size:0.68rem;">[OVERRIDDEN]</span>' : ''}
             </div>
             
@@ -2947,8 +2957,8 @@ window.renderIconOverrideCard = function(ac) {
                     ${currentSvgPreview}
                 </div>
                 <div style="font-size:0.7rem; color:var(--color-text-muted); line-height: 1.3; flex: 1;">
-                    <strong style="color: #fff;">${tailNum}</strong> &bull; Tail: <span style="color:#34d399; font-weight:700;">${ac.hex.toUpperCase()}</span><br>
-                    <span>Applies icon & type to <strong>ALL aircraft</strong> of this ICAO code</span>
+                    <strong style="color: #fff;">${tailNum}</strong> &bull; Hex: <span style="color:#34d399; font-weight:700;">${ac.hex.toUpperCase()}</span><br>
+                    <span>Selected Vector: <strong id="selected-shape-name-lbl" style="color:var(--accent-cyan); font-family:var(--font-mono);">${activeOverride || 'Default Auto'}</strong></span>
                 </div>
             </div>
 
@@ -2957,11 +2967,14 @@ window.renderIconOverrideCard = function(ac) {
                 <input type="text" id="icon-override-type-${ac.hex}" value="${currentType}" placeholder="e.g. C172, BE20, H60, B738..." style="background: #000; color: #fff; border: 1px solid var(--border-color); padding: 0.35rem 0.5rem; border-radius: 4px; font-size: 0.78rem; font-family: var(--font-mono); text-transform: uppercase;">
             </div>
 
+            <input type="hidden" id="icon-override-selected-shape-${ac.hex}" value="${activeOverride || 'default'}">
+
             <div style="margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem;">
-                <label style="font-size: 0.68rem; color: var(--accent-cyan); font-weight: 700;">Select Top-Down Vector Icon:</label>
-                <select class="icon-select-dropdown" id="icon-override-select-${ac.hex}" onchange="updateIconPreviewFromSelect('${ac.hex}')" style="margin-bottom: 0;">
-                    ${optionsHtml}
-                </select>
+                <label style="font-size: 0.68rem; color: var(--accent-cyan); font-weight: 700;">Select Top-Down Vector Icon (Real Icons Shown Below):</label>
+                
+                <div class="visual-icon-picker-container" id="visual-picker-list-${ac.hex}">
+                    ${visualListHtml}
+                </div>
             </div>
 
             <div class="icon-override-actions">
@@ -2977,12 +2990,26 @@ window.renderIconOverrideCard = function(ac) {
     `;
 };
 
-window.updateIconPreviewFromSelect = function(hex) {
-    const select = document.getElementById(`icon-override-select-${hex}`);
+window.selectVisualIconItem = function(hex, shapeKey) {
+    const hiddenInput = document.getElementById(`icon-override-selected-shape-${hex}`);
+    if (hiddenInput) hiddenInput.value = shapeKey;
+
+    // Highlight selected item visually
+    const container = document.getElementById(`visual-picker-list-${hex}`);
+    if (container) {
+        const items = container.querySelectorAll('.visual-icon-item');
+        items.forEach(el => el.classList.remove('selected'));
+        const target = document.getElementById(`visual-icon-${hex}-${shapeKey}`);
+        if (target) target.classList.add('selected');
+    }
+
+    const nameLbl = document.getElementById('selected-shape-name-lbl');
+    if (nameLbl) nameLbl.textContent = shapeKey;
+
+    // Update live top preview box
     const previewBox = document.getElementById('icon-live-preview-box');
-    if (!select || !previewBox) return;
-    
-    const shapeKey = select.value;
+    if (!previewBox) return;
+
     const dummyAc = { type: 'DUMMY', heading: 0 };
     const ac = aircraftCache[hex] || dummyAc;
     const tempAc = { ...ac };
@@ -2990,24 +3017,24 @@ window.updateIconPreviewFromSelect = function(hex) {
         tempAc.type = 'CUSTOM_PREVIEW';
         customIconDb.typeOverrides['CUSTOM_PREVIEW'] = shapeKey;
     }
-    
+
     const previewSvg = getAircraftIconSvg(tempAc, '#06b6d4');
     delete customIconDb.typeOverrides['CUSTOM_PREVIEW'];
-    
+
     previewBox.innerHTML = previewSvg;
 };
 
 window.applyIconOverrideFromSelect = async function(hex) {
     const typeInput = document.getElementById(`icon-override-type-${hex}`);
-    const select = document.getElementById(`icon-override-select-${hex}`);
-    if (!typeInput || !select) return;
+    const hiddenInput = document.getElementById(`icon-override-selected-shape-${hex}`);
+    if (!typeInput || !hiddenInput) return;
     
     const typeCode = typeInput.value.trim().toUpperCase();
     if (!typeCode) {
         alert('Please enter a valid ICAO Aircraft Type code (e.g. C172, BE20, H60, B738).');
         return;
     }
-    const shapeKey = select.value;
+    const shapeKey = hiddenInput.value;
     
     // Update live aircraft cache and persistent aircraft database
     const hexKey = hex.toLowerCase();
