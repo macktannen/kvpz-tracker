@@ -246,16 +246,43 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     // Map Settings Dropdown Toggle Listener
-    document.getElementById('settings-toggle-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        document.getElementById('map-settings-container').classList.toggle('open');
-    });
+    const settingsToggleBtn = document.getElementById('settings-toggle-btn');
+    if (settingsToggleBtn) {
+        settingsToggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const iconContainer = document.getElementById('icon-override-menu-container');
+            if (iconContainer) iconContainer.classList.remove('open');
+            document.getElementById('map-settings-container').classList.toggle('open');
+        });
+    }
+
+    // Visual Icon Selector & Type Override Dropdown Toggle Listener
+    const iconOverrideBtn = document.getElementById('icon-override-toggle-btn');
+    if (iconOverrideBtn) {
+        iconOverrideBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const styleContainer = document.getElementById('map-settings-container');
+            if (styleContainer) styleContainer.classList.remove('open');
+            
+            const iconContainer = document.getElementById('icon-override-menu-container');
+            if (iconContainer) {
+                iconContainer.classList.toggle('open');
+                if (iconContainer.classList.contains('open')) {
+                    if (window.updateIconOverrideDropdownMenu) window.updateIconOverrideDropdownMenu();
+                }
+            }
+        });
+    }
     
-    // Click outside to close dropdown
+    // Click outside to close dropdowns
     document.addEventListener('click', (e) => {
         const container = document.getElementById('map-settings-container');
         if (container && !container.contains(e.target)) {
             container.classList.remove('open');
+        }
+        const iconContainer = document.getElementById('icon-override-menu-container');
+        if (iconContainer && !iconContainer.contains(e.target)) {
+            iconContainer.classList.remove('open');
         }
     });
     
@@ -3097,11 +3124,72 @@ window.applyIconOverrideFromSelect = async function(hex) {
     await window.saveCustomIconOverrideForType('type', typeCode, shapeKey);
     
     if (selectedHex) selectAircraft(selectedHex);
+    if (window.updateIconOverrideDropdownMenu) window.updateIconOverrideDropdownMenu();
 };
 
 window.resetIconOverrideForType = async function(typeCode) {
     await window.saveCustomIconOverrideForType('type', typeCode, 'default');
     if (selectedHex) selectAircraft(selectedHex);
+    if (window.updateIconOverrideDropdownMenu) window.updateIconOverrideDropdownMenu();
+};
+
+window.updateIconOverrideDropdownMenu = function() {
+    const dropdown = document.getElementById('icon-override-dropdown');
+    if (!dropdown) return;
+
+    let targetAc = (selectedHex && aircraftCache[selectedHex]) ? aircraftCache[selectedHex] : null;
+
+    if (!targetAc) {
+        const activeHexes = Object.keys(aircraftCache);
+        if (activeHexes.length > 0) {
+            targetAc = aircraftCache[activeHexes[0]];
+        } else {
+            targetAc = { hex: 'generic', type: 'C172', tail: 'N172SP', callsign: 'N172SP' };
+        }
+    }
+
+    const savedOverrides = customIconDb.typeOverrides || {};
+    const activeTypeKeys = Object.keys(savedOverrides);
+    let activeTypesListHtml = '';
+
+    if (activeTypeKeys.length > 0) {
+        activeTypesListHtml = `
+            <div style="margin-top: 0.6rem; border-top: 1px solid var(--border-color); padding-top: 0.5rem;">
+                <span style="font-size: 0.7rem; color: var(--accent-cyan); font-weight: 700; display: block; margin-bottom: 0.38rem;"><i class="fa-solid fa-list-check"></i> Active Saved Type Overrides:</span>
+                <div style="display: flex; flex-direction: column; gap: 0.35rem; max-height: 140px; overflow-y: auto;">
+                    ${activeTypeKeys.map(typeCode => {
+                        const shapeKey = savedOverrides[typeCode];
+                        const svgIcon = getAircraftIconSvg({ type: shapeKey, heading: 0 }, '#10b981');
+                        return `
+                            <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.5); padding: 0.3rem 0.5rem; border-radius: 4px; border: 1px solid var(--border-color);">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">${svgIcon}</div>
+                                    <span style="font-family: var(--font-mono); font-weight: 700; font-size: 0.78rem; color: #fff;">${typeCode}</span>
+                                    <span style="font-size: 0.65rem; color: var(--color-text-muted);">(${shapeKey})</span>
+                                </div>
+                                <button onclick="resetIconOverrideForType('${typeCode}')" style="background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; font-size: 0.62rem; padding: 0.15rem 0.4rem; border-radius: 3px; cursor: pointer; font-weight: 700;">Reset</button>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    dropdown.innerHTML = `
+        ${window.renderIconOverrideCard(targetAc)}
+        ${activeTypesListHtml}
+    `;
+};
+
+window.openIconOverrideDropdown = function() {
+    const container = document.getElementById('icon-override-menu-container');
+    const styleContainer = document.getElementById('map-settings-container');
+    if (styleContainer) styleContainer.classList.remove('open');
+    if (container) {
+        container.classList.add('open');
+        window.updateIconOverrideDropdownMenu();
+    }
 };
 
 function updateSearchPortalLinks(query) {
@@ -3109,13 +3197,18 @@ function updateSearchPortalLinks(query) {
     if (!container) return;
     
     const cleanQuery = query ? query.trim().toUpperCase() : '';
-    let overrideCardHtml = '';
+    let customizeBtnHtml = '';
 
     if (selectedHex && aircraftCache[selectedHex]) {
-        overrideCardHtml = window.renderIconOverrideCard(aircraftCache[selectedHex]);
+        const ac = aircraftCache[selectedHex];
+        customizeBtnHtml = `
+            <button onclick="openIconOverrideDropdown()" style="width: 100%; margin-bottom: 0.5rem; background: rgba(6, 182, 212, 0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 0.45rem 0.6rem; border-radius: 6px; font-weight: 700; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.4rem; transition: background 0.2s;">
+                <i class="fa-solid fa-paintbrush"></i> Customize Icon & Type Override
+            </button>
+        `;
     }
 
-    if (!cleanQuery && !overrideCardHtml) {
+    if (!cleanQuery && !customizeBtnHtml) {
         container.innerHTML = `<p style="margin: 0; color: var(--color-text-muted); font-size: 0.65rem; font-style: italic;">Enter a tail number or select an aircraft to generate direct database links and customize icons.</p>`;
         return;
     }
@@ -3127,7 +3220,7 @@ function updateSearchPortalLinks(query) {
     }
     
     container.innerHTML = `
-        ${overrideCardHtml}
+        ${customizeBtnHtml}
         ${cleanQuery ? `
         <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.4rem;">
             <a href="https://www.google.com/search?q=${encodeURIComponent(cleanQuery)}" target="_blank" class="portal-link">

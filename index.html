@@ -193,27 +193,42 @@
             <section class="map-panel" id="map-panel-container">
                 <div id="map"></div>
                 
-                <!-- Map Style Settings Dropdown -->
-                <div class="map-settings-container" id="map-settings-container">
-                    <button class="settings-toggle-btn" id="settings-toggle-btn" title="Toggle Map Style">
-                        <i class="fa-solid fa-map"></i> <span>Map Style</span> <i class="fa-solid fa-chevron-down toggle-chevron"></i>
-                    </button>
-                    <div class="settings-dropdown" id="settings-dropdown">
-                        <div class="dropdown-tabs">
-                            <button class="map-tab-btn" data-map="light" title="OpenStreetMap (Light)">
-                                <i class="fa-solid fa-sun"></i> Light
-                            </button>
-                            <button class="map-tab-btn" data-map="dark" title="Dark Matter (Radar)">
-                                <i class="fa-solid fa-moon"></i> Dark
-                            </button>
-                            <button class="map-tab-btn" data-map="vector" title="Voyager (Vector)">
-                                <i class="fa-solid fa-route"></i> Vector
-                            </button>
-                            <button class="map-tab-btn" data-map="satellite" title="USGS Satellite">
-                                <i class="fa-solid fa-satellite"></i> Satellite
-                            </button>
+                <!-- Top-Right Map Control Group (Map Style + Visual Icon Selector & Type Override) -->
+                <div class="map-top-right-group" style="position: absolute; top: 1rem; right: 1rem; z-index: 2000; display: flex; gap: 0.5rem; align-items: flex-start;">
+                    
+                    <!-- Map Style Settings Dropdown -->
+                    <div class="map-settings-container" id="map-settings-container" style="position: relative; top: 0; right: 0;">
+                        <button class="settings-toggle-btn" id="settings-toggle-btn" title="Toggle Map Style">
+                            <i class="fa-solid fa-map"></i> <span>Map Style</span> <i class="fa-solid fa-chevron-down toggle-chevron"></i>
+                        </button>
+                        <div class="settings-dropdown" id="settings-dropdown">
+                            <div class="dropdown-tabs">
+                                <button class="map-tab-btn" data-map="light" title="OpenStreetMap (Light)">
+                                    <i class="fa-solid fa-sun"></i> Light
+                                </button>
+                                <button class="map-tab-btn" data-map="dark" title="Dark Matter (Radar)">
+                                    <i class="fa-solid fa-moon"></i> Dark
+                                </button>
+                                <button class="map-tab-btn" data-map="vector" title="Voyager (Vector)">
+                                    <i class="fa-solid fa-route"></i> Vector
+                                </button>
+                                <button class="map-tab-btn" data-map="satellite" title="USGS Satellite">
+                                    <i class="fa-solid fa-satellite"></i> Satellite
+                                </button>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Visual Icon Selector & Type Override Dropdown Menu -->
+                    <div class="map-settings-container" id="icon-override-menu-container" style="position: relative; top: 0; right: 0;">
+                        <button class="settings-toggle-btn" id="icon-override-toggle-btn" title="Visual Icon Selector & Type Override" style="background: rgba(6, 182, 212, 0.15); border-color: var(--accent-cyan); color: var(--accent-cyan);">
+                            <i class="fa-solid fa-shapes"></i> <span>Icon Overrides</span> <i class="fa-solid fa-chevron-down toggle-chevron"></i>
+                        </button>
+                        <div class="settings-dropdown" id="icon-override-dropdown" style="width: 340px; max-height: 500px; overflow-y: auto; padding: 0.75rem;">
+                            <!-- Filled dynamically by JS -->
+                        </div>
+                    </div>
+
                 </div>
 
                 <div class="map-controls-panel" id="map-controls-panel">
