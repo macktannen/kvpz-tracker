@@ -1728,16 +1728,16 @@ window.setMarkerColorMode = function(mode) {
 function getAircraftIconSvg(ac, color) {
     const type = (ac.type || ac.t || '').toUpperCase();
     const desc = (ac.desc || '').toUpperCase();
-    const cat = (ac.categoryClass || '').toLowerCase();
+    const cat = (ac.categoryClass || ac.category || '').toLowerCase();
     const heading = ac.heading || 0;
 
     const matchType = (codes) => codes.some(c => {
-        if (type === c) return true;
-        const typeTokens = type.split(/[\s\-\/]+/);
-        if (typeTokens.includes(c)) return true;
-        const descTokens = desc.split(/[\s\-\/]+/);
-        if (descTokens.includes(c)) return true;
-        if (c.length > 3 && (type.includes(c) || desc.includes(c))) return true;
+        if (!c) return false;
+        const codeUpper = c.toUpperCase();
+        if (type === codeUpper) return true;
+        if (type.startsWith(codeUpper)) return true;
+        if (type.includes(codeUpper)) return true;
+        if (desc.includes(codeUpper)) return true;
         return false;
     });
 
@@ -1873,8 +1873,8 @@ function getAircraftIconSvg(ac, color) {
     // 7. General Commercial Jet Category & Manufacturer String Search Fallback
     else if (
         cat === 'commercial-jet' || cat === 'airline' || cat === 'jet' || cat === 'heavy' ||
-        typeKey.startsWith('B7') || typeKey.startsWith('A3') || typeKey.startsWith('E1') || typeKey.startsWith('E2') || typeKey.startsWith('CRJ') || typeKey.startsWith('MD') ||
-        (ac.desc && (ac.desc.toUpperCase().includes('BOEING') || ac.desc.toUpperCase().includes('AIRBUS') || ac.desc.toUpperCase().includes('EMBRAER') || ac.desc.toUpperCase().includes('BOMBARDIER') || ac.desc.toUpperCase().includes('MCDONNELL')))
+        typeKey.startsWith('B7') || typeKey.startsWith('A3') || typeKey.startsWith('A2') || typeKey.startsWith('E1') || typeKey.startsWith('E2') || typeKey.startsWith('CRJ') || typeKey.startsWith('MD') || typeKey.startsWith('DC') ||
+        (desc && (desc.includes('BOEING') || desc.includes('AIRBUS') || desc.includes('EMBRAER') || desc.includes('BOMBARDIER') || desc.includes('MCDONNELL') || desc.includes('AIRLINER') || desc.includes('JET')))
     ) {
         shapeKey = 'jet_swept';
     }
