@@ -2863,11 +2863,11 @@ function submitStandardSearch() {
 window.renderIconOverrideCard = function(ac) {
     if (!ac) return '';
 
-    const typeCode = (ac.type && ac.type !== 'N/A' && ac.type !== 'Unknown') ? ac.type.trim().toUpperCase() : 'UNKNOWN';
+    const currentType = (ac.type && ac.type !== 'N/A' && ac.type !== 'Unknown' && ac.type !== 'SRCH') ? ac.type.trim().toUpperCase() : '';
     const tailNum = (ac.tail && ac.tail !== 'N/A' && ac.tail !== 'Unknown') ? ac.tail.trim().toUpperCase() : ac.callsign;
     
     // Check if this type currently has a persistent override
-    const activeOverride = customIconDb.typeOverrides ? customIconDb.typeOverrides[typeCode] : null;
+    const activeOverride = currentType && customIconDb.typeOverrides ? customIconDb.typeOverrides[currentType] : null;
 
     const shapesList = [
         { group: 'GA & Light Turboprops', options: [
@@ -2938,7 +2938,7 @@ window.renderIconOverrideCard = function(ac) {
     return `
         <div class="icon-override-card">
             <div class="icon-override-header">
-                <span><i class="fa-solid fa-paintbrush"></i> Icon Override for Type: <strong style="color:#fff;">${typeCode}</strong></span>
+                <span><i class="fa-solid fa-paintbrush"></i> Customize Icon & Aircraft Type</span>
                 ${activeOverride ? '<span style="color:#10b981; font-size:0.68rem;">[OVERRIDDEN]</span>' : ''}
             </div>
             
@@ -2946,23 +2946,31 @@ window.renderIconOverrideCard = function(ac) {
                 <div class="icon-preview-box" id="icon-live-preview-box">
                     ${currentSvgPreview}
                 </div>
-                <div style="font-size:0.7rem; color:var(--color-text-muted); line-height: 1.3;">
-                    <strong style="color: #fff;">${tailNum}</strong> &bull; ICAO: <span style="color:var(--accent-cyan); font-weight:700;">${typeCode}</span><br>
-                    <span>Sets icon shape for <strong>ALL ${typeCode}</strong> aircraft for all users</span>
+                <div style="font-size:0.7rem; color:var(--color-text-muted); line-height: 1.3; flex: 1;">
+                    <strong style="color: #fff;">${tailNum}</strong> &bull; Tail: <span style="color:#34d399; font-weight:700;">${ac.hex.toUpperCase()}</span><br>
+                    <span>Applies icon & type to <strong>ALL aircraft</strong> of this ICAO code</span>
                 </div>
             </div>
 
-            <select class="icon-select-dropdown" id="icon-override-select-${ac.hex}" onchange="updateIconPreviewFromSelect('${ac.hex}')">
-                ${optionsHtml}
-            </select>
+            <div style="margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem;">
+                <label style="font-size: 0.68rem; color: var(--accent-cyan); font-weight: 700;">ICAO Aircraft Type Code:</label>
+                <input type="text" id="icon-override-type-${ac.hex}" value="${currentType}" placeholder="e.g. C172, BE20, H60, B738..." style="background: #000; color: #fff; border: 1px solid var(--border-color); padding: 0.35rem 0.5rem; border-radius: 4px; font-size: 0.78rem; font-family: var(--font-mono); text-transform: uppercase;">
+            </div>
+
+            <div style="margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem;">
+                <label style="font-size: 0.68rem; color: var(--accent-cyan); font-weight: 700;">Select Top-Down Vector Icon:</label>
+                <select class="icon-select-dropdown" id="icon-override-select-${ac.hex}" onchange="updateIconPreviewFromSelect('${ac.hex}')" style="margin-bottom: 0;">
+                    ${optionsHtml}
+                </select>
+            </div>
 
             <div class="icon-override-actions">
-                <button class="btn-icon-override-save" onclick="applyIconOverrideFromSelect('${ac.hex}', '${typeCode}')">
-                    <i class="fa-solid fa-floppy-disk"></i> Save for All ${typeCode}
+                <button class="btn-icon-override-save" onclick="applyIconOverrideFromSelect('${ac.hex}')">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Icon for Selected Type
                 </button>
-                ${activeOverride ? `
-                <button class="btn-icon-override-reset" onclick="resetIconOverrideForType('${typeCode}')">
-                    <i class="fa-solid fa-rotate-left"></i> Reset
+                ${(activeOverride && currentType) ? `
+                <button class="btn-icon-override-reset" onclick="resetIconOverrideForType('${currentType}')">
+                    <i class="fa-solid fa-rotate-left"></i> Reset Type
                 </button>` : ''}
             </div>
         </div>
@@ -2989,12 +2997,33 @@ window.updateIconPreviewFromSelect = function(hex) {
     previewBox.innerHTML = previewSvg;
 };
 
-window.applyIconOverrideFromSelect = async function(hex, typeCode) {
+window.applyIconOverrideFromSelect = async function(hex) {
+    const typeInput = document.getElementById(`icon-override-type-${hex}`);
     const select = document.getElementById(`icon-override-select-${hex}`);
-    if (!select) return;
+    if (!typeInput || !select) return;
+    
+    const typeCode = typeInput.value.trim().toUpperCase();
+    if (!typeCode) {
+        alert('Please enter a valid ICAO Aircraft Type code (e.g. C172, BE20, H60, B738).');
+        return;
+    }
     const shapeKey = select.value;
     
+    // Update live aircraft cache and persistent aircraft database
+    const hexKey = hex.toLowerCase();
+    if (aircraftCache[hexKey]) {
+        aircraftCache[hexKey].type = typeCode;
+        aircraftCache[hexKey].categoryClass = getAircraftCategory(aircraftCache[hexKey]);
+        updateMapMarker(aircraftCache[hexKey]);
+    }
+    if (!aircraftInfoDb[hexKey]) aircraftInfoDb[hexKey] = { hex: hex, callsign: 'N/A', tail: 'N/A', type: 'N/A', desc: 'N/A', operator: 'N/A' };
+    aircraftInfoDb[hexKey].type = typeCode;
+    aircraftInfoDb[hexKey].manual = true;
+    saveAircraftDb();
+
+    // Save icon override for this entered ICAO Type globally
     await window.saveCustomIconOverrideForType('type', typeCode, shapeKey);
+    
     if (selectedHex) selectAircraft(selectedHex);
 };
 
