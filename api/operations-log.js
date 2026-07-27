@@ -49,8 +49,16 @@ module.exports = async (req, res) => {
             let logs = loadLogs();
 
             if (Array.isArray(body)) {
-                // Bulk replace / update
-                logs = body;
+                // Merge bulk array with existing server logs by unique key
+                const map = new Map();
+                logs.forEach(l => {
+                    if (l) map.set(l.id || `${l.timestamp}_${l.hex}_${l.opType}`, l);
+                });
+                body.forEach(l => {
+                    if (l) map.set(l.id || `${l.timestamp}_${l.hex}_${l.opType}`, l);
+                });
+                logs = Array.from(map.values());
+                logs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
             } else if (body && body.hex && body.opType) {
                 // Single new log entry
                 // Avoid exact duplicate within 1 minute

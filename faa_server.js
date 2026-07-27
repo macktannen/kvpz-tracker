@@ -261,7 +261,11 @@ let spidertracksStore = {};
                     const data = JSON.parse(body);
                     let logs = loadLogs();
                     if (Array.isArray(data)) {
-                        logs = data;
+                        const map = new Map();
+                        logs.forEach(l => { if (l) map.set(l.id || `${l.timestamp}_${l.hex}_${l.opType}`, l); });
+                        data.forEach(l => { if (l) map.set(l.id || `${l.timestamp}_${l.hex}_${l.opType}`, l); });
+                        logs = Array.from(map.values());
+                        logs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
                     } else if (data && data.hex && data.opType) {
                         const isDup = logs.some(l => l.hex === data.hex && l.opType === data.opType && Math.abs((l.timestamp||0) - (data.timestamp||Date.now())) < 60000);
                         if (!isDup) logs.unshift(data);

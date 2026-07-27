@@ -2231,18 +2231,48 @@ function updateOpsLog() {
 }
 
 // 7b. Persistent Memory Operations Loader & 24/7 Multi-User Sync
+function mergeOperationsLogs(listA, listB) {
+    const map = new Map();
+    (listA || []).forEach(l => {
+        if (!l) return;
+        const key = l.id || `${l.timestamp}_${l.hex}_${l.opType}`;
+        map.set(key, l);
+    });
+    (listB || []).forEach(l => {
+        if (!l) return;
+        const key = l.id || `${l.timestamp}_${l.hex}_${l.opType}`;
+        if (!map.has(key)) map.set(key, l);
+    });
+    const merged = Array.from(map.values());
+    merged.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+    return merged.filter(l => !l || l.timestamp === undefined || l.timestamp >= oneMonthAgo);
+}
+
 async function syncOperationsLogWithServer() {
     try {
         const res = await fetch('/operations-log');
         if (res.ok) {
             const serverLogs = await res.json();
             if (Array.isArray(serverLogs)) {
-                operationsLog = serverLogs;
+                // Safely merge server logs with local memory without wiping local logs if server is empty
+                const merged = mergeOperationsLogs(operationsLog, serverLogs);
+                const countChanged = merged.length !== operationsLog.length;
+                operationsLog = merged;
                 safeSetItem('kvpz_operations_log', JSON.stringify(operationsLog));
                 arrivalCount = operationsLog.filter(log => log.opType === 'arrival').length;
                 departureCount = operationsLog.filter(log => log.opType === 'departure').length;
                 updateOpsLog();
                 updateCounters();
+
+                // If local memory has new logs that server doesn't have, send merged back to server
+                if (countChanged && operationsLog.length > serverLogs.length) {
+                    fetch('/operations-log', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(operationsLog)
+                    }).catch(() => {});
+                }
             }
         }
     } catch(e) {}
@@ -2250,30 +2280,29 @@ async function syncOperationsLogWithServer() {
 
 async function loadOperationsLogMemory() {
     try {
-        // Initial fetch from shared server database
-        await syncOperationsLogWithServer();
-
-        // Fallback to local storage if server fetch returned empty
-        if (operationsLog.length === 0) {
-            const stored = safeGetItem('kvpz_operations_log');
-            if (stored) {
-                const allLogs = JSON.parse(stored);
-                const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-                operationsLog = allLogs.filter(log => !log || log.timestamp === undefined || log.timestamp >= oneMonthAgo);
-                arrivalCount = operationsLog.filter(log => log.opType === 'arrival').length;
-                departureCount = operationsLog.filter(log => log.opType === 'departure').length;
-                updateOpsLog();
-                updateCounters();
-            }
+        // 1. Always load local storage memory first to guarantee instant UI rendering on refresh
+        const stored = safeGetItem('kvpz_operations_log');
+        if (stored) {
+            try {
+                const localLogs = JSON.parse(stored);
+                if (Array.isArray(localLogs)) {
+                    const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+                    operationsLog = localLogs.filter(log => !log || log.timestamp === undefined || log.timestamp >= oneMonthAgo);
+                    arrivalCount = operationsLog.filter(log => log.opType === 'arrival').length;
+                    departureCount = operationsLog.filter(log => log.opType === 'departure').length;
+                    updateOpsLog();
+                    updateCounters();
+                }
+            } catch(e) {}
         }
 
-        // Start 10-second sync loop across all connected clients
+        // 2. Fetch and merge with shared server database
+        await syncOperationsLogWithServer();
+
+        // 3. Start 10-second sync loop across all connected clients
         setInterval(syncOperationsLogWithServer, 10000);
     } catch (e) {
         console.error("Error loading operations log memory:", e);
-        operationsLog = [];
-        arrivalCount = 0;
-        departureCount = 0;
     }
 }
 
