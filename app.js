@@ -1996,33 +1996,37 @@ function updateMapMarker(ac) {
             selectAircraft(ac.hex);
         });
         marker.bindTooltip(tooltipContent, {
-            direction: 'top',
-            offset: [0, -15],
-            className: 'custom-map-tooltip',
-            sticky: false
-        });
-        aircraftMarkers[ac.hex] = marker;
-    }
-    
-    // Draw trail breadcrumbs if this aircraft is selected and trails are toggled ON
-    if (selectedHex === ac.hex && showTrails) {
-        if (aircraftTrails[ac.hex]) {
-            aircraftTrails[ac.hex].setLatLngs(ac.trail);
-        } else {
-            aircraftTrails[ac.hex] = L.polyline(ac.trail, {
-                color: color,
-                weight: 2,
-                opacity: 0.7,
-                dashArray: '5, 5'
-            }).addTo(map);
-        }
+        direction: 'top',
+        offset: [0, -15],
+        className: 'custom-map-tooltip',
+        sticky: false
+    });
+    aircraftMarkers[ac.hex] = marker;
+}
+
+// Draw trail breadcrumbs if this aircraft is selected OR if it's an External Sync aircraft and trails are toggled ON
+if ((selectedHex === ac.hex || ac.source === 'External Sync') && showTrails && ac.trail && ac.trail.length > 1) {
+    const trailColor = ac.source === 'External Sync' ? '#3b82f6' : color;
+    const trailWeight = ac.source === 'External Sync' ? 3 : 2;
+    const dashStyle = ac.source === 'External Sync' ? '6, 4' : '5, 5';
+    if (aircraftTrails[ac.hex]) {
+        aircraftTrails[ac.hex].setLatLngs(ac.trail);
+        aircraftTrails[ac.hex].setStyle({ color: trailColor });
     } else {
-        // Remove trail for non-selected aircraft or if trails are toggled OFF
-        if (aircraftTrails[ac.hex]) {
-            map.removeLayer(aircraftTrails[ac.hex]);
-            delete aircraftTrails[ac.hex];
-        }
+        aircraftTrails[ac.hex] = L.polyline(ac.trail, {
+            color: trailColor,
+            weight: trailWeight,
+            opacity: 0.85,
+            dashArray: dashStyle
+        }).addTo(map);
     }
+} else {
+    // Remove trail for non-selected aircraft or if trails are toggled OFF
+    if (aircraftTrails[ac.hex]) {
+        map.removeLayer(aircraftTrails[ac.hex]);
+        delete aircraftTrails[ac.hex];
+    }
+}
 }
 
 // 7. Operations Logger
@@ -3097,7 +3101,7 @@ window.renderIconOverrideCard = function(ac) {
         { key: 't38', label: '⚡ T-38 Talon Jet Trainer' },
         { key: 'mirage', label: '⚡ Mirage Delta Fighter' },
         { key: 'sb39', label: '⚡ JAS-39 Gripen Canard Fighter' },
-        { key: 'l159', label: '⚡ L-159 / L-39 Albatros' },
+        { key: 'l159', label: '⚡ L-159 / L-39 Albatles' },
         { key: 'md_a4', label: '⚡ A-4 Skyhawk Fighter' },
         { key: 'alpha_jet', label: '⚡ Dornier Alpha Jet' },
         { key: 'v22_fast', label: '🚁 V-22 Osprey Tiltrotor' },
@@ -3717,10 +3721,7 @@ async function processAutoSearchQueue() {
     isAutoSearchProcessing = false;
 }
 
-// ----------------------------------------------------
 // 13. External Aircraft Sync & Modal Handlers
-// ----------------------------------------------------
-
 let extSyncStatus = 'SYNC_OFF'; // 'SYNC_OFF', 'SYNC_CONNECTED', 'SYNC_FAILED'
 let lastExtSyncTime = 0;
 let extSyncPoller = null;
@@ -3815,7 +3816,8 @@ function processExtSyncData(data) {
                 lastSeen: Date.now(),
                 mil: 0,
                 categoryClass: 'helicopter',
-                source: 'External Sync'
+                source: 'External Sync',
+                trail: Array.isArray(ac.history) && ac.history.length > 0 ? ac.history : [[parseFloat(ac.lat), parseFloat(ac.lon)]]
             };
             acObj.categoryClass = getAircraftCategory(acObj);
             aircraftCache[syncHex] = acObj;
@@ -3922,52 +3924,7 @@ window.openSyncModal = function() {
     }
 };
 
-window.copySyncBookmarklet = function() {
-    const link = document.getElementById('ext-sync-bookmarklet-link');
-    if (link && link.href) {
-        navigator.clipboard.writeText(link.href).then(() => {
-            alert("📋 Bookmarklet code copied to clipboard!\nYou can paste this into a new bookmark's URL field.");
-        }).catch(() => {
-            alert("Code: " + link.href);
-        });
-    }
-};
-
-window.closeSyncModal = function() {
-    const modal = document.getElementById('ext-sync-modal');
-    if (modal) modal.style.display = 'none';
-};
-
-window.clearSyncFeed = async function() {
-    Object.keys(aircraftCache).forEach(hex => {
-        if (hex.startsWith('sync_') || (aircraftCache[hex] && aircraftCache[hex].source === 'External Sync')) {
-            removeAircraftLayers(hex);
-            delete aircraftCache[hex];
-        }
-    });
-
-    const endpoints = getSyncEndpoints();
-    for (const ep of endpoints) {
-        try {
-            await fetch(ep, { method: 'DELETE' });
-        } catch(e) {}
-    }
-    
-    updateExtSyncBadge('SYNC_OFF');
-    // Mark tile keys as fetched
-    neededTileKeys.forEach(k => fetchedPowerlineTiles.add(k));
-    
-    if (newCount > 0) {
-        savePowerlineCache();
-    }
-    
-    console.log(`OSM Powerlines: ${newCount} new added to local cache (${Object.keys(powerlineCache).length} total cached), ${skippedCount} skipped (Duke/AEP or outside Indiana)`);
-    renderPowerlinesFromCache();
-}
-
-// Process Auto-Search Queue (500ms fast queue for ADSBdb static DB, 4.2s for Gemini AI fallback)
 async function processAutoSearchQueue() {
-    if (isAutoSearchProcessing || autoSearchQueue.length === 0) return;
     isAutoSearchProcessing = true;
     
     while (autoSearchQueue.length > 0) {
@@ -3988,4 +3945,28 @@ async function processAutoSearchQueue() {
     isAutoSearchProcessing = false;
 }
 
+window.clearSyncFeed = async function() {
+    Object.keys(aircraftCache).forEach(hex => {
+        if (hex.startsWith('sync_') || (aircraftCache[hex] && aircraftCache[hex].source === 'External Sync')) {
+            removeAircraftLayers(hex);
+            delete aircraftCache[hex];
+        }
+    });
+    Object.keys(aircraftTrails).forEach(hex => {
+        if (hex.startsWith('sync_')) {
+            if (map && aircraftTrails[hex]) map.removeLayer(aircraftTrails[hex]);
+            delete aircraftTrails[hex];
+        }
+    });
 
+    const endpoints = getSyncEndpoints();
+    for (const ep of endpoints) {
+        try {
+            await fetch(ep, { method: 'DELETE' });
+        } catch(e) {}
+    }
+    
+    updateExtSyncBadge('SYNC_OFF');
+    closeSyncModal();
+    updateUI();
+};

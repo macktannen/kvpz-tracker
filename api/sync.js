@@ -43,24 +43,41 @@ module.exports = (req, res) => {
                 const data = JSON.parse(body);
                 const tail = (data.tail || data.registration || data.id || data.callsign || 'SYNC1').toUpperCase().trim();
                 const store = loadSyncStore();
+                const prevEntry = store[tail] || {};
+                let history = Array.isArray(prevEntry.history) ? prevEntry.history : [];
+                
+                const newLat = parseFloat(data.lat || data.latitude || 0);
+                const newLon = parseFloat(data.lon || data.longitude || 0);
+                
+                if (newLat !== 0 && newLon !== 0) {
+                    const lastPt = history.length > 0 ? history[history.length - 1] : null;
+                    if (!lastPt || Math.abs(lastPt[0] - newLat) > 0.00003 || Math.abs(lastPt[1] - newLon) > 0.00003) {
+                        history.push([newLat, newLon]);
+                    }
+                }
+                
+                if (history.length > 2000) {
+                    history = history.slice(-2000);
+                }
                 
                 store[tail] = {
                     hex: data.hex || `SYNC_${tail.replace(/[^A-Z0-9]/g, '')}`,
                     tail: tail,
                     callsign: data.callsign || tail,
-                    lat: parseFloat(data.lat || data.latitude || 0),
-                    lon: parseFloat(data.lon || data.longitude || 0),
+                    lat: newLat,
+                    lon: newLon,
                     alt: parseInt(data.alt || data.altitude || 2500),
                     speed: parseInt(data.speed || data.groundspeed || 0),
                     heading: parseInt(data.heading || data.track || 0),
                     timestamp: Date.now(),
                     type: data.type || 'SYNC',
                     desc: data.desc || 'External Sync Aircraft',
-                    source: 'External Sync'
+                    source: 'External Sync',
+                    history: history
                 };
                 
                 saveSyncStore(store);
-                res.status(200).json({ status: 'ok', updated: tail, data: store[tail] });
+                res.status(200).json({ status: 'ok', updated: tail, points: history.length, data: store[tail] });
             } catch(e) {
                 res.status(400).json({ error: e.message });
             }
