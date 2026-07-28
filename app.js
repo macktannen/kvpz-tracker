@@ -337,9 +337,11 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchWeather();
     fetchTAF();
     fetchAircraftData();
+    fetchExtSyncFeed();
     
     // Set up polling intervals
     setInterval(fetchAircraftData, UPDATE_INTERVAL);
+    setInterval(fetchExtSyncFeed, 4000);
     setInterval(fetchWeather, WEATHER_INTERVAL);
     setInterval(fetchTAF, TAF_INTERVAL);
 
@@ -1470,6 +1472,7 @@ async function fetchAircraftData() {
         statusText.textContent = `Airplanes.live Active (${radiusNM} NM Coverage) • Updated ${new Date().toLocaleTimeString([], {hour12:false})}`;
         
         processAircraft(mergedList);
+        await fetchExtSyncFeed();
     } catch (error) {
         console.error("Error loading ADS-B data:", error);
         pulseIndicator.className = "pulse-indicator status-error";
