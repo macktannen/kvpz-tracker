@@ -3867,15 +3867,15 @@ window.openSyncModal = function() {
                         var txt = document.documentElement.innerHTML || '';
                         console.log("[Sync] Scanning " + txt.length + " characters of HTML...");
                         
-                        var tailMatch = txt.match(/(?:tail|reg|registration|callsign|aircraft)[\\s:=-"']+([A-Z0-9\\-]+)/i);
+                        var tailMatch = txt.match(/(?:tail|reg|registration|callsign|aircraft)[\\s:="'\\-]+([A-Z0-9\\-]+)/i);
                         var tail = tailMatch ? tailMatch[1].toUpperCase() : 'SYNC1';
                         
-                        var latMatch = txt.match(/(?:lat|latitude)[\\s:=-"']*(-?\\d+\\.\\d+)/i) || txt.match(/(-?\\d+\\.\\d+)[\\s°]*(?:N|S)/i);
-                        var lonMatch = txt.match(/(?:lng|lon|longitude)[\\s:=-"']*(-?\\d+\\.\\d+)/i) || txt.match(/(-?\\d+\\.\\d+)[\\s°]*(?:E|W)/i);
+                        var latMatch = txt.match(/(?:lat|latitude)[\\s:="'\\-]*(-?\\d+\\.\\d+)/i) || txt.match(/(-?\\d+\\.\\d+)[\\s°]*(?:N|S)/i);
+                        var lonMatch = txt.match(/(?:lng|lon|longitude)[\\s:="'\\-]*(-?\\d+\\.\\d+)/i) || txt.match(/(-?\\d+\\.\\d+)[\\s°]*(?:E|W)/i);
                         
-                        var altMatch = txt.match(/(?:alt|altitude)[\\s:=-"']*(\\d+)/i) || [null, 2500];
-                        var spdMatch = txt.match(/(?:speed|gs|groundspeed)[\\s:=-"']*(\\d+)/i) || [null, 110];
-                        var hdgMatch = txt.match(/(?:heading|track|hdg)[\\s:=-"']*(\\d+)/i) || [null, 0];
+                        var altMatch = txt.match(/(?:alt|altitude)[\\s:="'\\-]*(\\d+)/i) || [null, 2500];
+                        var spdMatch = txt.match(/(?:speed|gs|groundspeed)[\\s:="'\\-]*(\\d+)/i) || [null, 110];
+                        var hdgMatch = txt.match(/(?:heading|track|hdg)[\\s:="'\\-]*(\\d+)/i) || [null, 0];
                         
                         if (latMatch && lonMatch) {
                             var lat = parseFloat(latMatch[1]);
