@@ -3873,7 +3873,6 @@ window.openSyncModal = function() {
                         var lat = null;
                         var lon = null;
 
-                        // 1. Try SpiderTracks DMS popup format (e.g., N41° 41’ 28.92” W86° 52’ 27.65”)
                         var dmsMatch = txt.match(/([NS])[\\s:]*(\\d+)[^\\d]+(\\d+)[^\\d]+([\\d\\.]+)[^\\dA-Z]+([EW])[\\s:]*(\\d+)[^\\d]+(\\d+)[^\\d]+([\\d\\.]+)/i);
                         if (dmsMatch) {
                             var latDeg = parseInt(dmsMatch[2]), latMin = parseInt(dmsMatch[3]), latSec = parseFloat(dmsMatch[4]);
@@ -3883,7 +3882,6 @@ window.openSyncModal = function() {
                             if (dmsMatch[1].toUpperCase() === 'S') lat = -lat;
                             if (dmsMatch[5].toUpperCase() === 'W') lon = -lon;
                         } else {
-                            // 2. Fallback to standard decimal formats
                             var latMatch = txt.match(/(?:lat|latitude)[\\s:="'\\-]*(-?\\d+\\.\\d+)/i) || txt.match(/(-?\\d+\\.\\d+)[\\s°]*(?:N|S)/i);
                             var lonMatch = txt.match(/(?:lng|lon|longitude)[\\s:="'\\-]*(-?\\d+\\.\\d+)/i) || txt.match(/(-?\\d+\\.\\d+)[\\s°]*(?:E|W)/i);
                             if (latMatch && lonMatch) {
