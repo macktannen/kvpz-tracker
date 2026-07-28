@@ -3870,19 +3870,35 @@ window.openSyncModal = function() {
                         var tailMatch = txt.match(/(?:tail|reg|registration|callsign|aircraft)[\\s:="'\\-]+([A-Z0-9\\-]+)/i);
                         var tail = tailMatch ? tailMatch[1].toUpperCase() : 'SYNC1';
                         
-                        var latMatch = txt.match(/(?:lat|latitude)[\\s:="'\\-]*(-?\\d+\\.\\d+)/i) || txt.match(/(-?\\d+\\.\\d+)[\\s°]*(?:N|S)/i);
-                        var lonMatch = txt.match(/(?:lng|lon|longitude)[\\s:="'\\-]*(-?\\d+\\.\\d+)/i) || txt.match(/(-?\\d+\\.\\d+)[\\s°]*(?:E|W)/i);
+                        var lat = null;
+                        var lon = null;
+
+                        // 1. Try SpiderTracks DMS popup format (e.g., N41° 41’ 28.92” W86° 52’ 27.65”)
+                        var dmsMatch = txt.match(/([NS])[\\s:]*(\\d+)[^\\d]+(\\d+)[^\\d]+([\\d\\.]+)[^\\dA-Z]+([EW])[\\s:]*(\\d+)[^\\d]+(\\d+)[^\\d]+([\\d\\.]+)/i);
+                        if (dmsMatch) {
+                            var latDeg = parseInt(dmsMatch[2]), latMin = parseInt(dmsMatch[3]), latSec = parseFloat(dmsMatch[4]);
+                            var lonDeg = parseInt(dmsMatch[6]), lonMin = parseInt(dmsMatch[7]), lonSec = parseFloat(dmsMatch[8]);
+                            lat = latDeg + (latMin / 60) + (latSec / 3600);
+                            lon = lonDeg + (lonMin / 60) + (lonSec / 3600);
+                            if (dmsMatch[1].toUpperCase() === 'S') lat = -lat;
+                            if (dmsMatch[5].toUpperCase() === 'W') lon = -lon;
+                        } else {
+                            // 2. Fallback to standard decimal formats
+                            var latMatch = txt.match(/(?:lat|latitude)[\\s:="'\\-]*(-?\\d+\\.\\d+)/i) || txt.match(/(-?\\d+\\.\\d+)[\\s°]*(?:N|S)/i);
+                            var lonMatch = txt.match(/(?:lng|lon|longitude)[\\s:="'\\-]*(-?\\d+\\.\\d+)/i) || txt.match(/(-?\\d+\\.\\d+)[\\s°]*(?:E|W)/i);
+                            if (latMatch && lonMatch) {
+                                lat = parseFloat(latMatch[1]);
+                                lon = parseFloat(lonMatch[1]);
+                                if (latMatch[0].toUpperCase().includes('S')) lat = -Math.abs(lat);
+                                if (lonMatch[0].toUpperCase().includes('W')) lon = -Math.abs(lon);
+                            }
+                        }
                         
                         var altMatch = txt.match(/(?:alt|altitude)[\\s:="'\\-]*(\\d+)/i) || [null, 2500];
                         var spdMatch = txt.match(/(?:speed|gs|groundspeed)[\\s:="'\\-]*(\\d+)/i) || [null, 110];
                         var hdgMatch = txt.match(/(?:heading|track|hdg)[\\s:="'\\-]*(\\d+)/i) || [null, 0];
                         
-                        if (latMatch && lonMatch) {
-                            var lat = parseFloat(latMatch[1]);
-                            var lon = parseFloat(lonMatch[1]);
-                            if (latMatch[0].toUpperCase().includes('S')) lat = -Math.abs(lat);
-                            if (lonMatch[0].toUpperCase().includes('W')) lon = -Math.abs(lon);
-                            
+                        if (lat !== null && lon !== null && !isNaN(lat) && !isNaN(lon)) {
                             fetch(url, {
                                 method:'POST',
                                 headers:{'Content-Type':'application/json'},
