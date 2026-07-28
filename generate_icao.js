@@ -109,6 +109,9 @@ async function main() {
     // Ensure all ICAO keys are unique and output the file
     const jsContent = `// Auto-generated comprehensive ICAO aircraft category lookup table (8000+ codes)
 const ICAO_CATEGORIES = ${JSON.stringify(categories, null, 2)};
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = ICAO_CATEGORIES;
+}
 `;
 
     fs.writeFileSync('icao_categories.js', jsContent);

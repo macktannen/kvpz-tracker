@@ -2735,3 +2735,6 @@ const ICAO_CATEGORIES = {
   "F7X": "business-jet",
   "F8X": "business-jet"
 };
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = ICAO_CATEGORIES;
+}

@@ -1980,7 +1980,16 @@ function updateMapMarker(ac) {
 }
 
 // 7. Operations Logger
+function isCommercialJetLog(l) {
+    if (!l) return false;
+    const acObj = (typeof aircraftMap !== 'undefined' && aircraftMap[l.hex]) ? aircraftMap[l.hex] : { hex: l.hex, flight: l.callsign, t: l.type, r: l.tail, desc: l.description };
+    return getAircraftCategory(acObj) === 'commercial-jet';
+}
+
 function logOperation(hex, callsign, type, opType, description, tail) {
+    if (isCommercialJetLog({ hex, callsign, type, tail, description })) {
+        return; // Do not allow anything tagged as commercial jet to be logged in the operations log for KVPZ
+    }
     const now = new Date();
     const logItem = {
         timestamp: now.getTime(), // Miliseconds for 30-day age filtering
@@ -1998,12 +2007,13 @@ function logOperation(hex, callsign, type, opType, description, tail) {
     
     // Prune entries older than 30 days (1 month), keeping legacy entries that have no timestamp
     const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-    operationsLog = operationsLog.filter(log => !log || log.timestamp === undefined || log.timestamp >= oneMonthAgo);
+    operationsLog = operationsLog.filter(log => !log || log.timestamp === undefined || log.timestamp >= oneMonthAgo).filter(l => !isCommercialJetLog(l));
     
     saveAndSyncOperations();
 }
 
 async function saveAndSyncOperations() {
+    operationsLog = operationsLog.filter(l => !isCommercialJetLog(l));
     // Save to localStorage
     safeSetItem('kvpz_operations_log', JSON.stringify(operationsLog));
     
@@ -2286,7 +2296,7 @@ function mergeOperationsLogs(listA, listB) {
     const merged = Array.from(map.values());
     merged.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-    return merged.filter(l => !l || l.timestamp === undefined || l.timestamp >= oneMonthAgo);
+    return merged.filter(l => !l || l.timestamp === undefined || l.timestamp >= oneMonthAgo).filter(l => !isCommercialJetLog(l));
 }
 
 async function syncOperationsLogWithServer() {
@@ -2327,7 +2337,7 @@ async function loadOperationsLogMemory() {
                 const localLogs = JSON.parse(stored);
                 if (Array.isArray(localLogs)) {
                     const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-                    operationsLog = localLogs.filter(log => !log || log.timestamp === undefined || log.timestamp >= oneMonthAgo);
+                    operationsLog = localLogs.filter(log => !log || log.timestamp === undefined || log.timestamp >= oneMonthAgo).filter(l => !isCommercialJetLog(l));
                     arrivalCount = operationsLog.filter(log => log.opType === 'arrival').length;
                     departureCount = operationsLog.filter(log => log.opType === 'departure').length;
                     updateOpsLog();

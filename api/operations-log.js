@@ -1,6 +1,57 @@
 const fs = require('fs');
 const path = require('path');
 
+let ICAO_CATEGORIES = {};
+try {
+    ICAO_CATEGORIES = require('../icao_categories.js');
+} catch(e) {
+    try { ICAO_CATEGORIES = require('./icao_categories.js'); } catch(e2) {}
+}
+
+function isCommercialJet(ac) {
+    if (!ac) return false;
+    const type = (ac.type || ac.t || '').trim().toUpperCase();
+    const callsign = (ac.callsign || ac.flight || '').trim().toUpperCase();
+    const op = (ac.op || ac.operator || '').toLowerCase();
+    const desc = (ac.desc || ac.description || '').toLowerCase();
+
+    if (ICAO_CATEGORIES && ICAO_CATEGORIES[type]) {
+        if (ICAO_CATEGORIES[type] === 'commercial-jet') return true;
+        if (ICAO_CATEGORIES[type] === 'business-jet' || ICAO_CATEGORIES[type] === 'business-prop' || ICAO_CATEGORIES[type] === 'helicopter' || ICAO_CATEGORIES[type] === 'military') {
+            return false;
+        }
+    }
+
+    if (type.startsWith('E5') || type.startsWith('EMB5') || type.startsWith('EP1') || type.startsWith('EP3') || type.startsWith('E35L') ||
+        type.startsWith('CL30') || type.startsWith('CL60') || type.startsWith('CL35') || type.startsWith('CL6') || type.startsWith('CL3') ||
+        type.startsWith('GLF') || type.startsWith('GLEX') || type.startsWith('GL5') || type.startsWith('GL6') || type.startsWith('GL7') ||
+        type.startsWith('G1') || type.startsWith('G2') || type.startsWith('G3') || type.startsWith('G4') || type.startsWith('G5') || type.startsWith('G6') || type.startsWith('G7') || type.startsWith('G8') ||
+        type.startsWith('C25') || type.startsWith('C50') || type.startsWith('C51') || type.startsWith('C52') || type.startsWith('C55') ||
+        type.startsWith('C56') || type.startsWith('C65') || type.startsWith('C68') || type.startsWith('C70') || type.startsWith('C75') ||
+        type.startsWith('LR3') || type.startsWith('LR4') || type.startsWith('LR5') || type.startsWith('LR6') || type.startsWith('LR7') || type.startsWith('LJ') ||
+        type.startsWith('FA1') || type.startsWith('FA2') || type.startsWith('FA5') || type.startsWith('FA7') || type.startsWith('FA8') || type.startsWith('F90') || type.startsWith('F7X') || type.startsWith('F8X') ||
+        type.startsWith('PC24') || type.startsWith('H25') || type.startsWith('BE40') || type.startsWith('BE4W') || type === 'HDJT' || type === 'SF50' || type === 'EA50' || type === 'SJ30' || type === 'GALX' || type === 'HF20') {
+        return false;
+    }
+
+    const isCommJet = desc.includes('boeing') || desc.includes('airbus') || 
+                      desc.includes('embraer 17') || desc.includes('embraer 19') || desc.includes('bombardier crj') ||
+                      desc.includes('md-8') || desc.includes('md-11') || desc.includes('dc-10') ||
+                      type.startsWith('B73') || type.startsWith('B74') || type.startsWith('B75') ||
+                      type.startsWith('B76') || type.startsWith('B77') || type.startsWith('B78') ||
+                      type.startsWith('A31') || type.startsWith('A32') || type.startsWith('A33') ||
+                      type.startsWith('A34') || type.startsWith('A35') || type.startsWith('A38') ||
+                      type.startsWith('B38M') || type.startsWith('B39M') || type.startsWith('A20') ||
+                      type.startsWith('CRJ') || type.startsWith('ERJ') ||
+                      type.startsWith('E17') || type.startsWith('E19') ||
+                      op.includes('airline') || op.includes('airways') || op.includes('cargo') ||
+                      op.includes('delta') || op.includes('united') || op.includes('american') ||
+                      op.includes('southwest') || op.includes('fedex') || op.includes('ups') ||
+                      op.includes('dhl') || op.includes('spirit') || op.includes('frontier') ||
+                      op.includes('alaska') || op.includes('jetblue') || op.includes('allegiant');
+    return isCommJet;
+}
+
 let inMemoryLogs = global.serverlessOpsLogs || [];
 
 function getLogFilePath() {
@@ -20,23 +71,25 @@ function loadLogs() {
             const raw = fs.readFileSync(filePath, 'utf8');
             const parsed = JSON.parse(raw);
             if (Array.isArray(parsed) && parsed.length > 0) {
-                inMemoryLogs = parsed;
-                global.serverlessOpsLogs = parsed;
-                return parsed;
+                const filtered = parsed.filter(l => !isCommercialJet(l));
+                inMemoryLogs = filtered;
+                global.serverlessOpsLogs = filtered;
+                return filtered;
             }
         }
     } catch (e) {
         console.error('Error reading operations log file:', e);
     }
-    return inMemoryLogs;
+    return (inMemoryLogs || []).filter(l => !isCommercialJet(l));
 }
 
 function saveLogs(logs) {
-    inMemoryLogs = logs;
-    global.serverlessOpsLogs = logs;
+    const filtered = (logs || []).filter(l => !isCommercialJet(l));
+    inMemoryLogs = filtered;
+    global.serverlessOpsLogs = filtered;
     try {
         const filePath = getLogFilePath();
-        fs.writeFileSync(filePath, JSON.stringify(logs, null, 2), 'utf8');
+        fs.writeFileSync(filePath, JSON.stringify(filtered, null, 2), 'utf8');
         return true;
     } catch (e) {
         console.error('Error writing operations log file:', e);
@@ -90,6 +143,7 @@ async function runCloudOperationsTracker() {
         let updated = false;
 
         const appendLog = (logItem) => {
+            if (isCommercialJet(logItem)) return;
             const isDup = currentLogs.some(l => l.hex === logItem.hex && l.opType === logItem.opType && Math.abs((l.timestamp || 0) - now) < 180000);
             if (!isDup) {
                 currentLogs.unshift(logItem);
