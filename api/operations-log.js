@@ -325,22 +325,28 @@ module.exports = async (req, res) => {
     if (req.method === 'DELETE') {
         try {
             const body = await parseBody(req);
-            const { tail, timestamp, opType } = body || {};
+            const { tail, timestamp, dateStr, timeStr, callsign, opType, clearAll } = body || {};
             let logs = loadLogs();
 
-            if (tail) {
+            if (clearAll) {
+                logs = [];
+            } else if (timestamp) {
+                logs = logs.filter(l => l.timestamp !== timestamp);
+            } else if (tail) {
                 const targetTail = tail.trim().toUpperCase();
                 logs = logs.filter(l => {
                     const lTail = (l.tail && l.tail !== 'N/A' && l.tail !== 'Unknown') ? l.tail.trim().toUpperCase() : (l.callsign || '').trim().toUpperCase();
                     if (lTail === targetTail) {
                         if (opType && l.opType !== opType) return true;
-                        if (timestamp && l.timestamp !== timestamp) return true;
                         return false;
                     }
                     return true;
                 });
+            } else if (callsign && dateStr && timeStr) {
+                logs = logs.filter(l => !(l.dateStr === dateStr && (l.timeStr === timeStr || l.time === timeStr) && l.callsign === callsign));
+            } else if (callsign) {
+                logs = logs.filter(l => l.callsign !== callsign);
             } else {
-                // Clear all
                 logs = [];
             }
 

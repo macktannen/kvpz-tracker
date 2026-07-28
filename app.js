@@ -2012,7 +2012,7 @@ function logOperation(hex, callsign, type, opType, description, tail) {
     saveAndSyncOperations();
 }
 
-async function saveAndSyncOperations() {
+async function saveAndSyncOperations(skipServerPost = false) {
     operationsLog = operationsLog.filter(l => !isCommercialJetLog(l));
     // Save to localStorage
     safeSetItem('kvpz_operations_log', JSON.stringify(operationsLog));
@@ -2024,14 +2024,16 @@ async function saveAndSyncOperations() {
     updateOpsLog();
     updateCounters();
 
-    // Push synced operations log to server API
-    try {
-        await fetch('/operations-log', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(operationsLog)
-        });
-    } catch(e) {}
+    if (!skipServerPost) {
+        // Push synced operations log to server API
+        try {
+            await fetch('/operations-log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(operationsLog)
+            });
+        } catch(e) {}
+    }
 }
 
 async function deleteOperationsByTail(tail) {
@@ -2039,7 +2041,7 @@ async function deleteOperationsByTail(tail) {
         const key = (log.tail && log.tail !== 'N/A') ? log.tail : (log.callsign || 'Unknown');
         return key !== tail;
     });
-    saveAndSyncOperations();
+    saveAndSyncOperations(true);
     try {
         await fetch('/operations-log', {
             method: 'DELETE',
@@ -2049,13 +2051,20 @@ async function deleteOperationsByTail(tail) {
     } catch(e) {}
 }
 
-async function deleteOperationEvent(timestamp, dateStr, timeStr, callsign) {
+async function deleteOperationEvent(timestamp, dateStr, timeStr, callsign, opType) {
     operationsLog = operationsLog.filter(log => {
         if (timestamp && log.timestamp === timestamp) return false;
         if (!timestamp && log.dateStr === dateStr && (log.timeStr === timeStr || log.time === timeStr) && log.callsign === callsign) return false;
         return true;
     });
-    saveAndSyncOperations();
+    saveAndSyncOperations(true);
+    try {
+        await fetch('/operations-log', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ timestamp, dateStr, timeStr, callsign, opType })
+        });
+    } catch(e) {}
 }
 
 window.locateWorldwide = async function(tail) {
@@ -2243,7 +2252,7 @@ function updateOpsLog() {
             deleteEventBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (confirm(`Delete this ${log.opType} event at ${timeText}?`)) {
-                    deleteOperationEvent(log.timestamp, log.dateStr, timeText, log.callsign);
+                    deleteOperationEvent(log.timestamp, log.dateStr, timeText, log.callsign, log.opType);
                 }
             });
             meta.querySelector('div').appendChild(deleteEventBtn);

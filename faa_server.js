@@ -351,18 +351,25 @@ let spidertracksStore = {};
                     let data = {};
                     if (body) try { data = JSON.parse(body); } catch(e) {}
                     let logs = loadLogs();
-                    const { tail, timestamp, opType } = data || {};
-                    if (tail) {
+                    const { tail, timestamp, dateStr, timeStr, callsign, opType, clearAll } = data || {};
+                    if (clearAll) {
+                        logs = [];
+                    } else if (timestamp) {
+                        logs = logs.filter(l => l.timestamp !== timestamp);
+                    } else if (tail) {
                         const tTail = tail.trim().toUpperCase();
                         logs = logs.filter(l => {
                             const lTail = (l.tail && l.tail !== 'N/A' && l.tail !== 'Unknown') ? l.tail.trim().toUpperCase() : (l.callsign || '').trim().toUpperCase();
                             if (lTail === tTail) {
                                 if (opType && l.opType !== opType) return true;
-                                if (timestamp && l.timestamp !== timestamp) return true;
                                 return false;
                             }
                             return true;
                         });
+                    } else if (callsign && dateStr && timeStr) {
+                        logs = logs.filter(l => !(l.dateStr === dateStr && (l.timeStr === timeStr || l.time === timeStr) && l.callsign === callsign));
+                    } else if (callsign) {
+                        logs = logs.filter(l => l.callsign !== callsign);
                     } else {
                         logs = [];
                     }
