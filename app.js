@@ -1470,7 +1470,6 @@ async function fetchAircraftData() {
         statusText.textContent = `Airplanes.live Active (${radiusNM} NM Coverage) • Updated ${new Date().toLocaleTimeString([], {hour12:false})}`;
         
         processAircraft(mergedList);
-        await fetchSpidertracksFeed();
     } catch (error) {
         console.error("Error loading ADS-B data:", error);
         pulseIndicator.className = "pulse-indicator status-error";
