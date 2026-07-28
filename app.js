@@ -3723,14 +3723,16 @@ async function processAutoSearchQueue() {
 // ----------------------------------------------------
 // 13. Spidertracks Satellite Feed & Modal Handlers
 // ----------------------------------------------------
+function getSpiderEndpoints() {
+    const list = [`${window.location.origin}/spidertracks` ];
+    if (window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        list.push('http://localhost:8080/spidertracks', 'http://127.0.0.1:3001/spidertracks');
+    }
+    return list;
+}
+
 async function fetchSpidertracksFeed() {
-    const endpoints = [
-        `${window.location.origin}/spidertracks`,
-        'http://localhost:8080/spidertracks',
-        'http://127.0.0.1:8080/spidertracks',
-        'http://localhost:3001/spidertracks',
-        'http://127.0.0.1:3001/spidertracks'
-    ];
+    const endpoints = getSpiderEndpoints();
     let foundData = false;
     for (const ep of endpoints) {
         try {
@@ -3863,7 +3865,7 @@ window.sendManualSpiderPos = async function() {
     acObj.categoryClass = getAircraftCategory(acObj);
     aircraftCache[spiderHex] = acObj;
 
-    const endpoints = [`${window.location.origin}/spidertracks`, 'http://localhost:8080/spidertracks', 'http://127.0.0.1:3001/spidertracks'];
+    const endpoints = getSpiderEndpoints();
     for (const ep of endpoints) {
         try {
             await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -3884,11 +3886,7 @@ window.clearSpidertracksFeed = async function() {
         }
     });
 
-    const endpoints = [
-        `${window.location.origin}/spidertracks`,
-        'http://localhost:8080/spidertracks',
-        'http://127.0.0.1:3001/spidertracks'
-    ];
+    const endpoints = getSpiderEndpoints();
     for (const ep of endpoints) {
         try {
             await fetch(ep, { method: 'DELETE' });
