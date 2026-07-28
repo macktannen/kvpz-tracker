@@ -6,6 +6,24 @@ const UPDATE_INTERVAL = 5000; // 5 seconds for aircraft (faster polling)
 const WEATHER_INTERVAL = 5 * 60 * 1000; // 5 minutes for weather
 const RANGE_RINGS_NM = [5, 15, 30];
 const NM_TO_METERS = 1852;
+const KVPZ_ELEVATION_MSL = 770; // KVPZ Field Elevation in Feet MSL
+
+function getAGL(altMSL) {
+    if (altMSL === undefined || altMSL === null || isNaN(altMSL)) return 0;
+    return Math.max(0, parseInt(altMSL) - KVPZ_ELEVATION_MSL);
+}
+
+function getRunwayAlignment(heading) {
+    if (heading === undefined || heading === null || isNaN(heading)) return null;
+    const h = (parseFloat(heading) % 360 + 360) % 360;
+    if ((h >= 72 && h <= 108) || (h >= 252 && h <= 288)) {
+        return '09/27';
+    }
+    if ((h >= 162 && h <= 198) || (h >= 342 || h <= 18)) {
+        return '18/36';
+    }
+    return null;
+}
 
 // Safe localStorage wrappers to prevent SecurityError crash on iOS/Safari/Edge Private Browsing
 function safeGetItem(key, fallback = null) {
@@ -1524,101 +1542,108 @@ function processAircraft(aircraftList) {
             lastSeen: now
         };
         
-        // Operations State Logic (Check KVPZ-exclusive transitions from cache)
-        
+        // -------------------------------------------------------------
+        // NEW PRECISION OPERATIONS ENGINE & UNIVERSAL HELICOPTER TRACKER
+        // -------------------------------------------------------------
+        const agl = getAGL(alt);
+        const rwy = getRunwayAlignment(heading);
+        const isHeli = getAircraftCategory(currentState) === 'helicopter';
 
         if (prevState) {
-            // Existing aircraft: update logs & stats
             currentState.trail = prevState.trail ? [...prevState.trail, [lat, lon]].slice(-30) : [[lat, lon]];
-            
-            // 1. KVPZ INBOUND TRAJECTORY TRIGGER
-            // Must be within 5 miles, below 2500 ft, descending, and distance to KVPZ is decreasing (heading towards it)
-            const isDescending = vspeed < -100 || alt < prevState.alt;
-            const isHeadingTowardsKVPZ = dist < prevState.dist;
-            
-            if (dist < 5.0 && alt < 2500 && isDescending && isHeadingTowardsKVPZ) {
-                currentState.opType = 'arrival';
-            } else if (prevState.opType) {
-                currentState.opType = prevState.opType; // Keep state
+            currentState.logged = prevState.logged || false;
+            currentState.opType = prevState.opType || null;
+
+            if (isHeli) {
+                // --- HELICOPTER TRACKER (Off-runway / Any Direction / Apron / Helipad) ---
+                if (dist <= 2.0 && agl <= 500) {
+                    // Helicopter Landing Trigger (Hover / Low Speed / Vertical Descent)
+                    if ((speed < 35 || vspeed < -150) && agl <= 300 && !currentState.logged) {
+                        logOperation(hex, callsign, type, 'arrival', `Helicopter Landing KVPZ (${Math.round(dist * 10) / 10} NM, ${speed} KT, ${agl} FT AGL)`, tail);
+                        currentState.logged = true;
+                        currentState.opType = 'arrival';
+                    }
+                    // Helicopter Departure Trigger (Vertical Climb / Ground Transition)
+                    else if (vspeed > 150 && (prevState.speed < 30 || getAGL(prevState.alt) <= 200) && !currentState.logged) {
+                        logOperation(hex, callsign, type, 'departure', `Helicopter Departure KVPZ (${Math.round(dist * 10) / 10} NM, climbing ${agl} FT AGL)`, tail);
+                        currentState.logged = true;
+                        currentState.opType = 'departure';
+                    }
+                }
             } else {
-                currentState.opType = 'transit';
-            }
-            
-            // Check for active landing roll (within 2.5 miles of runway, low altitude, and ground speed/vspeed drop)
-            if (currentState.opType === 'arrival' && dist < 2.5 && alt < 1200 && (speed < 45 || vspeed < -300) && !prevState.logged && !currentState.logged) {
-                logOperation(hex, callsign, type, 'arrival', `Landed KVPZ (Speed: ${speed} KT, Alt: ${alt} FT)`, tail);
-                currentState.logged = true;
-            }
-            
-            // 2. KVPZ DEPARTURE TRIGGER (Ground to Air takeoff transition)
-            if (prevState.dist < 2.5 && prevState.alt < 1500 && vspeed > 200 && !prevState.logged && !currentState.logged) {
-                logOperation(hex, callsign, type, 'departure', `Departed KVPZ, climbing through ${alt} ft`, tail);
-                currentState.logged = true;
-                currentState.opType = 'departure';
-            }
-            
-            if (prevState.logged) {
-                currentState.logged = prevState.logged;
-            }
-            if (prevState.opType === 'departure') {
-                currentState.opType = 'departure';
+                // --- FIXED-WING PRECISION RUNWAY CORRIDOR TRACKER ---
+                // Touch-and-Go Circuit Classifier
+                if (prevState.logged && (prevState.opType === 'arrival' || getAGL(prevState.alt) < 150) && vspeed > 200 && dist <= 2.5) {
+                    if (!currentState.touchAndGoLogged) {
+                        logOperation(hex, callsign, type, 'arrival', `Touch-and-Go / Pattern KVPZ Rwy ${rwy || '09/27'} (${speed} KT, ${agl} FT AGL)`, tail);
+                        currentState.touchAndGoLogged = true;
+                    }
+                }
+                // Precision Landing Roll / Final Corridor Trigger
+                else if (dist <= 3.0 && agl <= 500 && rwy !== null && (vspeed < -100 || speed < 55 || agl < 150) && !currentState.logged) {
+                    logOperation(hex, callsign, type, 'arrival', `Landed KVPZ Rwy ${rwy} (${speed} KT, ${agl} FT AGL)`, tail);
+                    currentState.logged = true;
+                    currentState.opType = 'arrival';
+                }
+                // Precision Departure Climb Trigger
+                else if (dist <= 3.0 && agl <= 600 && (rwy !== null || prevState.dist < 1.5) && vspeed > 150 && !currentState.logged) {
+                    logOperation(hex, callsign, type, 'departure', `Departed KVPZ Rwy ${rwy || '18/36'} (climbing ${agl} FT AGL)`, tail);
+                    currentState.logged = true;
+                    currentState.opType = 'departure';
+                }
             }
         } else {
-            // New aircraft appearing
+            // New aircraft appearing on radar feed
             currentState.trail = [[lat, lon]];
-            
-            // KVPZ DEPARTURE TRIGGER (First appearing from KVPZ)
-            // Option 1 Optimized: First appear close (< 5.0 NM) and at low altitude (< 3000 ft) while climbing (> 100 FPM)
-            if (dist < 5.0 && alt < 3000 && vspeed > 100) {
-                logOperation(hex, callsign, type, 'departure', `Departed KVPZ, climbing through ${alt} ft`, tail);
-                currentState.logged = true;
-                currentState.opType = 'departure';
+            currentState.logged = false;
+
+            if (isHeli) {
+                // First appearance of helicopter low & climbing inside perimeter
+                if (dist <= 2.0 && agl <= 500 && vspeed > 100) {
+                    logOperation(hex, callsign, type, 'departure', `Helicopter Departure KVPZ (${Math.round(dist * 10) / 10} NM, climbing ${agl} FT AGL)`, tail);
+                    currentState.logged = true;
+                    currentState.opType = 'departure';
+                }
             } else {
-                currentState.opType = 'transit';
+                // First appearance of fixed-wing on takeoff climb inside corridor
+                if (dist <= 3.0 && agl <= 600 && vspeed > 150) {
+                    logOperation(hex, callsign, type, 'departure', `Departed KVPZ Rwy ${rwy || '18/36'} (climbing ${agl} FT AGL)`, tail);
+                    currentState.logged = true;
+                    currentState.opType = 'departure';
+                }
             }
         }
-        
-        // 3. KVPZ GEOFENCE TRIGGER (Any aircraft under 1200 ft within 1 mile of KVPZ)
-        if (dist < 1.0 && alt < 1200 && !currentState.logged) {
-            let direction = null;
-            if (prevState) {
-                // Outbound if distance is increasing (moving away from airfield)
-                const isOutbound = dist > prevState.dist;
-                direction = isOutbound ? 'departure' : 'arrival';
-            } else {
-                // First appearance inside the tight 1-mile geofence: classify as departure
-                direction = 'departure';
-            }
-            
+
+        // Inner Geofence Safety Fallback (Any eligible aircraft < 1.0 NM, < 600 ft AGL)
+        if (dist < 1.0 && agl < 600 && !currentState.logged) {
+            const isOutbound = prevState ? dist > prevState.dist : true;
+            const direction = isOutbound ? 'departure' : 'arrival';
             currentState.logged = true;
             currentState.opType = direction;
-            if (direction === 'arrival') {
-                logOperation(hex, callsign, type, 'arrival', `Geofence Landing KVPZ (Alt: ${alt} FT, Dist: ${dist.toFixed(2)} NM)`, tail);
-            } else {
-                logOperation(hex, callsign, type, 'departure', `Geofence Departure KVPZ (Alt: ${alt} FT, Dist: ${dist.toFixed(2)} NM)`, tail);
-            }
+            logOperation(hex, callsign, type, direction, `Geofence ${direction === 'arrival' ? 'Landing' : 'Departure'} KVPZ (${agl} FT AGL, ${dist.toFixed(2)} NM)`, tail);
         }
-        
+
         aircraftCache[hex] = currentState;
     });
-    
-    // Check for landing triggers: aircraft that were previously in 'arrival' state but are now missing
-    // or disappeared from the feed while close to KVPZ (covers low-altitude radar dropoffs)
+
+    // Handle low-altitude radar dropoffs (Extrapolation Engine for Landings / Helicopter Ramp Touchdowns)
     Object.keys(aircraftCache).forEach(hex => {
         if (!activeHexes.has(hex)) {
             const lastState = aircraftCache[hex];
             const timeSinceLastSeen = now - lastState.lastSeen;
-            
-            // Disappeared and met landing criteria (Option 1 / Last-Seen Filter):
-            const isTargetedArrival = lastState.opType === 'arrival' && lastState.dist < 6.0 && lastState.alt < 2500;
-            const isAnyDisappearingClose = lastState.dist < 5.0; // Any aircraft last seen within 5 NM
-            
-            if (timeSinceLastSeen < 45000 && (isTargetedArrival || isAnyDisappearingClose) && !lastState.logged) {
-                logOperation(lastState.hex, lastState.callsign, lastState.type, 'arrival', `Landed KVPZ (Last seen ${lastState.dist.toFixed(1)} NM out, ${lastState.alt} FT)`, lastState.tail);
-                lastState.logged = true;
+            const lastAGL = getAGL(lastState.alt);
+            const isHeli = getAircraftCategory(lastState) === 'helicopter';
+
+            if (timeSinceLastSeen < 45000 && !lastState.logged) {
+                if (isHeli && lastState.dist <= 2.0 && lastAGL <= 500) {
+                    logOperation(lastState.hex, lastState.callsign, lastState.type, 'arrival', `Helicopter Landing KVPZ (Ramp/Helipad Signal Loss ${lastState.dist.toFixed(1)} NM out, ${lastAGL} FT AGL)`, lastState.tail);
+                    lastState.logged = true;
+                } else if (!isHeli && lastState.dist <= 3.5 && lastAGL <= 600 && (getRunwayAlignment(lastState.heading) !== null || lastState.dist <= 1.5)) {
+                    logOperation(lastState.hex, lastState.callsign, lastState.type, 'arrival', `Landed KVPZ (Threshold Signal Loss ${lastState.dist.toFixed(1)} NM out, ${lastAGL} FT AGL)`, lastState.tail);
+                    lastState.logged = true;
+                }
             }
-            
-            // Clean up old cache entries (older than 2 minutes to allow for brief signal drops)
+
             if (timeSinceLastSeen > 120000) {
                 removeAircraftLayers(hex);
                 delete aircraftCache[hex];

@@ -430,6 +430,25 @@ let spidertracksStore = {};
 // Server 24/7 Background Operations Tracking Loop around KVPZ (41.5367 N, -87.0070 W)
 const KVPZ_LAT = 41.5367;
 const KVPZ_LON = -87.0070;
+const KVPZ_ELEVATION_MSL = 770;
+
+function getAGL(altMSL) {
+    if (altMSL === undefined || altMSL === null || isNaN(altMSL)) return 0;
+    return Math.max(0, parseInt(altMSL) - KVPZ_ELEVATION_MSL);
+}
+
+function getRunwayAlignment(heading) {
+    if (heading === undefined || heading === null || isNaN(heading)) return null;
+    const h = (parseFloat(heading) % 360 + 360) % 360;
+    if ((h >= 72 && h <= 108) || (h >= 252 && h <= 288)) {
+        return '09/27';
+    }
+    if ((h >= 162 && h <= 198) || (h >= 342 || h <= 18)) {
+        return '18/36';
+    }
+    return null;
+}
+
 const serverGeofenceState = {};
 
 function getGeodesicDistanceNm(lat1, lon1, lat2, lon2) {
@@ -482,123 +501,126 @@ async function runServerOperationsTracker() {
             const alt = ac.alt_baro !== undefined ? parseInt(ac.alt_baro) : (ac.alt_geom !== undefined ? parseInt(ac.alt_geom) : 0);
             const speed = ac.gs !== undefined ? Math.round(parseFloat(ac.gs)) : 0;
             const vspeed = ac.baro_rate !== undefined ? parseInt(ac.baro_rate) : (ac.geom_rate !== undefined ? parseInt(ac.geom_rate) : 0);
+            const heading = ac.track !== undefined ? parseFloat(ac.track) : null;
             const dist = getGeodesicDistanceNm(lat, lon, KVPZ_LAT, KVPZ_LON);
 
             const tail = ac.r || ac.flight || ac.hex.toUpperCase();
             const callsign = ac.flight ? ac.flight.trim() : tail;
             const type = ac.t || ac.type || 'Unknown';
+            const category = ac.category || '';
+
+            const agl = getAGL(alt);
+            const rwy = getRunwayAlignment(heading);
+            const isHeli = (category === 'A7' || type.startsWith('H') || type.startsWith('R44') || type.startsWith('EC') || type.startsWith('UH') || type.startsWith('CH') || type.startsWith('B06') || type.startsWith('B412') || (ICAO_CATEGORIES && ICAO_CATEGORIES[type] === 'helicopter'));
 
             const prevState = serverGeofenceState[hex];
 
             const currentState = {
-                hex, tail, callsign, type, dist, alt, speed, vspeed, lat, lon,
+                hex, tail, callsign, type, dist, alt, speed, vspeed, heading, lat, lon,
                 lastSeen: now,
                 opType: prevState ? prevState.opType : null,
                 logged: prevState ? prevState.logged : false
             };
 
             if (prevState) {
-                // 1. INBOUND TRAJECTORY TRIGGER
-                const isDescending = vspeed < -100 || alt < prevState.alt;
-                const isHeadingTowardsKVPZ = dist < prevState.dist;
-
-                if (dist < 5.0 && alt < 2500 && isDescending && isHeadingTowardsKVPZ) {
-                    currentState.opType = 'arrival';
-                }
-
-                // Landing roll touchdown trigger
-                if (currentState.opType === 'arrival' && dist < 2.5 && alt < 1200 && (speed < 45 || vspeed < -300) && !currentState.logged) {
-                    appendLog({
-                        id: `op_${now}_${hex}_arr`,
-                        hex, tail, callsign, type,
-                        opType: 'arrival',
-                        timestamp: now,
-                        dist: Math.round(dist * 10) / 10,
-                        alt,
-                        description: `Landed KVPZ (Speed: ${speed} KT, Alt: ${alt} FT)`,
-                        source: '24/7 Server Engine'
-                    });
-                    currentState.logged = true;
-                }
-
-                // 2. GROUND-TO-AIR TAKEOFF TRIGGER
-                if (prevState.dist < 2.5 && prevState.alt < 1500 && vspeed > 200 && !currentState.logged) {
-                    appendLog({
-                        id: `op_${now}_${hex}_dep`,
-                        hex, tail, callsign, type,
-                        opType: 'departure',
-                        timestamp: now,
-                        dist: Math.round(dist * 10) / 10,
-                        alt,
-                        description: `Departed KVPZ, climbing through ${alt} ft`,
-                        source: '24/7 Server Engine'
-                    });
-                    currentState.logged = true;
-                    currentState.opType = 'departure';
+                if (isHeli) {
+                    if (dist <= 2.0 && agl <= 500) {
+                        if ((speed < 35 || vspeed < -150) && agl <= 300 && !currentState.logged) {
+                            appendLog({
+                                id: `op_${now}_${hex}_arr`,
+                                hex, tail, callsign, type, opType: 'arrival', timestamp: now,
+                                dist: Math.round(dist * 10) / 10, alt,
+                                description: `Helicopter Landing KVPZ (${Math.round(dist * 10) / 10} NM, ${speed} KT, ${agl} FT AGL)`,
+                                source: '24/7 Server Engine'
+                            });
+                            currentState.logged = true;
+                            currentState.opType = 'arrival';
+                        } else if (vspeed > 150 && (prevState.speed < 30 || getAGL(prevState.alt) <= 200) && !currentState.logged) {
+                            appendLog({
+                                id: `op_${now}_${hex}_dep`,
+                                hex, tail, callsign, type, opType: 'departure', timestamp: now,
+                                dist: Math.round(dist * 10) / 10, alt,
+                                description: `Helicopter Departure KVPZ (${Math.round(dist * 10) / 10} NM, climbing ${agl} FT AGL)`,
+                                source: '24/7 Server Engine'
+                            });
+                            currentState.logged = true;
+                            currentState.opType = 'departure';
+                        }
+                    }
+                } else {
+                    if (prevState.logged && (prevState.opType === 'arrival' || getAGL(prevState.alt) < 150) && vspeed > 200 && dist <= 2.5) {
+                        if (!currentState.touchAndGoLogged) {
+                            appendLog({
+                                id: `op_${now}_${hex}_tg`,
+                                hex, tail, callsign, type, opType: 'arrival', timestamp: now,
+                                dist: Math.round(dist * 10) / 10, alt,
+                                description: `Touch-and-Go / Pattern KVPZ Rwy ${rwy || '09/27'} (${speed} KT, ${agl} FT AGL)`,
+                                source: '24/7 Server Engine'
+                            });
+                            currentState.touchAndGoLogged = true;
+                        }
+                    } else if (dist <= 3.0 && agl <= 500 && rwy !== null && (vspeed < -100 || speed < 55 || agl < 150) && !currentState.logged) {
+                        appendLog({
+                            id: `op_${now}_${hex}_arr`,
+                            hex, tail, callsign, type, opType: 'arrival', timestamp: now,
+                            dist: Math.round(dist * 10) / 10, alt,
+                            description: `Landed KVPZ Rwy ${rwy} (${speed} KT, ${agl} FT AGL)`,
+                            source: '24/7 Server Engine'
+                        });
+                        currentState.logged = true;
+                        currentState.opType = 'arrival';
+                    } else if (dist <= 3.0 && agl <= 600 && (rwy !== null || prevState.dist < 1.5) && vspeed > 150 && !currentState.logged) {
+                        appendLog({
+                            id: `op_${now}_${hex}_dep`,
+                            hex, tail, callsign, type, opType: 'departure', timestamp: now,
+                            dist: Math.round(dist * 10) / 10, alt,
+                            description: `Departed KVPZ Rwy ${rwy || '18/36'} (climbing ${agl} FT AGL)`,
+                            source: '24/7 Server Engine'
+                        });
+                        currentState.logged = true;
+                        currentState.opType = 'departure';
+                    }
                 }
             } else {
-                // 3. FIRST-APPEARANCE TAKEOFF TRIGGER (Radar pop-up close to airfield)
-                if (dist < 5.0 && alt < 3000 && vspeed > 100) {
-                    appendLog({
-                        id: `op_${now}_${hex}_dep`,
-                        hex, tail, callsign, type,
-                        opType: 'departure',
-                        timestamp: now,
-                        dist: Math.round(dist * 10) / 10,
-                        alt,
-                        description: `Departed KVPZ, climbing through ${alt} ft`,
-                        source: '24/7 Server Engine'
-                    });
-                    currentState.logged = true;
-                    currentState.opType = 'departure';
+                if (isHeli) {
+                    if (dist <= 2.0 && agl <= 500 && vspeed > 100) {
+                        appendLog({
+                            id: `op_${now}_${hex}_dep`,
+                            hex, tail, callsign, type, opType: 'departure', timestamp: now,
+                            dist: Math.round(dist * 10) / 10, alt,
+                            description: `Helicopter Departure KVPZ (${Math.round(dist * 10) / 10} NM, climbing ${agl} FT AGL)`,
+                            source: '24/7 Server Engine'
+                        });
+                        currentState.logged = true;
+                        currentState.opType = 'departure';
+                    }
+                } else {
+                    if (dist <= 3.0 && agl <= 600 && vspeed > 150) {
+                        appendLog({
+                            id: `op_${now}_${hex}_dep`,
+                            hex, tail, callsign, type, opType: 'departure', timestamp: now,
+                            dist: Math.round(dist * 10) / 10, alt,
+                            description: `Departed KVPZ Rwy ${rwy || '18/36'} (climbing ${agl} FT AGL)`,
+                            source: '24/7 Server Engine'
+                        });
+                        currentState.logged = true;
+                        currentState.opType = 'departure';
+                    }
                 }
             }
 
-            // 4. TIGHT 1-MILE AIRFIELD GEOFENCE FALLBACK
-            if (dist < 1.0 && alt < 1200 && !currentState.logged) {
+            if (dist < 1.0 && agl < 600 && !currentState.logged) {
                 const isOutbound = prevState ? dist > prevState.dist : true;
                 const direction = isOutbound ? 'departure' : 'arrival';
                 currentState.logged = true;
                 currentState.opType = direction;
                 appendLog({
                     id: `op_${now}_${hex}_${direction.substring(0, 3)}`,
-                    hex, tail, callsign, type,
-                    opType: direction,
-                    timestamp: now,
-                    dist: Math.round(dist * 10) / 10,
-                    alt,
-                    description: `Geofence ${direction === 'arrival' ? 'Landing' : 'Departure'} KVPZ (Alt: ${alt} FT, Dist: ${dist.toFixed(2)} NM)`,
+                    hex, tail, callsign, type, opType: direction, timestamp: now,
+                    dist: Math.round(dist * 10) / 10, alt,
+                    description: `Geofence ${direction === 'arrival' ? 'Landing' : 'Departure'} KVPZ (${agl} FT AGL, ${dist.toFixed(2)} NM)`,
                     source: '24/7 Server Engine'
                 });
-            }
-
-            // 5. GEOFENCE BOUNDARY TRANSITION FALLBACK
-            if (!currentState.logged) {
-                if (dist <= 5.0 && alt <= 3500 && (!prevState || prevState.dist > 5.0)) {
-                    appendLog({
-                        id: `op_${now}_${hex}_arr`,
-                        hex, tail, callsign, type,
-                        opType: 'arrival',
-                        timestamp: now,
-                        dist: Math.round(dist * 10) / 10,
-                        alt,
-                        description: `Inbound Approach KVPZ (${Math.round(dist * 10) / 10} NM, ${alt} FT)`,
-                        source: '24/7 Server Engine'
-                    });
-                    currentState.logged = true;
-                } else if (prevState && prevState.dist <= 5.0 && dist > 6.0) {
-                    appendLog({
-                        id: `op_${now}_${hex}_dep`,
-                        hex, tail, callsign, type,
-                        opType: 'departure',
-                        timestamp: now,
-                        dist: Math.round(dist * 10) / 10,
-                        alt,
-                        description: `Outbound Departure KVPZ (${Math.round(dist * 10) / 10} NM, ${alt} FT)`,
-                        source: '24/7 Server Engine'
-                    });
-                    currentState.logged = true;
-                }
             }
 
             serverGeofenceState[hex] = currentState;
