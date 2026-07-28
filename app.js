@@ -658,6 +658,8 @@ function isAltitudeVisible(alt) {
 }
 
 function isTypeVisible(ac) {
+    if (!ac) return true;
+    if (ac.source === 'Spidertracks Satellite' || (ac.hex && ac.hex.startsWith('spider_'))) return true;
     const typeClass = ac.categoryClass || 'other';
     if (typeClass === 'commercial-jet') return showCommJet;
     if (typeClass === 'airplane') return showAirplane;
@@ -670,6 +672,15 @@ function isTypeVisible(ac) {
 }
 
 function getAircraftCategory(ac) {
+    if (!ac) return 'other';
+    if (ac.source === 'Spidertracks Satellite' || (ac.hex && String(ac.hex).startsWith('spider_'))) {
+        const type = (ac.t || ac.type || '').toUpperCase();
+        if (type.startsWith('H') || type.includes('HELO') || type.includes('ROTOR') || type.startsWith('EC') || type.startsWith('R44') || type.startsWith('B06') || type.startsWith('B412')) {
+            return 'helicopter';
+        }
+        return 'helicopter'; // Default Spidertracks to helicopter
+    }
+
     // 1. Military (check mil flag from feed)
     if (ac.mil === 1 || ac.mil === true || ac.mil === '1' || String(ac.mil).toLowerCase() === 'true') {
         return 'military';
@@ -1478,6 +1489,16 @@ function processAircraft(aircraftList) {
     const activeHexes = new Set();
     const now = new Date();
     
+    // Retain active Spidertracks satellite aircraft in activeHexes so they are drawn and not purged
+    Object.keys(aircraftCache).forEach(h => {
+        if (h.startsWith('spider_') || (aircraftCache[h] && aircraftCache[h].source === 'Spidertracks Satellite')) {
+            const spiderAc = aircraftCache[h];
+            if (spiderAc && (now - (spiderAc.lastSeen || 0) < 30 * 60 * 1000)) {
+                activeHexes.add(h);
+            }
+        }
+    });
+
     // Sort feed entries by distance
     aircraftList.forEach(ac => {
         const hex = ac.hex;
@@ -1910,21 +1931,24 @@ function getAircraftIconSvg(ac, color) {
 
 // 6. Map Marker Graphics & Rotation
 function updateMapMarker(ac) {
-    const color = getAircraftColor(ac);
+    const isSpider = (ac.source === 'Spidertracks Satellite' || (ac.hex && String(ac.hex).startsWith('spider_')));
+    const color = isSpider ? '#f59e0b' : getAircraftColor(ac);
     const iconHtml = getAircraftIconSvg(ac, color);
     
-    // Check if identified as military (by manual checkbox, type, description, operator, or raw mil flag)
+    // Check if identified as military
     const isMil = (ac.mil === 1 || ac.mil === true || ac.mil === '1' || String(ac.mil).toLowerCase() === 'true' || ac.categoryClass === 'military');
     const milRingHtml = isMil ? `<div class="mil-target-ring-static" style="border-color: ${color}; color: ${color}; box-shadow: 0 0 10px ${color}80, inset 0 0 6px ${color}40;" title="Military Identified Aircraft"></div>` : '';
+    const spiderRingHtml = isSpider ? `<div class="spider-target-ring-static" style="position: absolute; width: 44px; height: 44px; top: -7px; left: 8px; border: 2px dashed #f59e0b; border-radius: 50%; box-shadow: 0 0 12px #f59e0b; animation: pulse 2s infinite;" title="Spidertracks Satellite Aircraft"></div>` : '';
 
-    // Custom DivIcon containing SVG plane icon, military ring, and label
+    // Custom DivIcon containing SVG plane icon, military ring, satellite ring, and label
     const customIcon = L.divIcon({
         className: 'custom-plane-icon',
         html: `
             <div class="plane-marker-container" style="position: relative;">
                 ${milRingHtml}
+                ${spiderRingHtml}
                 ${iconHtml}
-                <div class="plane-label" style="border-color: ${color};">${ac.callsign}</div>
+                <div class="plane-label" style="border-color: ${color};">${ac.callsign}${isSpider ? ' 🛰️' : ''}</div>
             </div>
         `,
         iconSize: [60, 45],
@@ -3707,6 +3731,7 @@ async function fetchSpidertracksFeed() {
         'http://localhost:3001/spidertracks',
         'http://127.0.0.1:3001/spidertracks'
     ];
+    let foundData = false;
     for (const ep of endpoints) {
         try {
             const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -3716,52 +3741,70 @@ async function fetchSpidertracksFeed() {
             
             if (res.ok) {
                 const data = await res.json();
-                if (data && typeof data === 'object') {
-                    for (const ac of Object.values(data)) {
-                        if (ac && ac.lat && ac.lon) {
-                            const cleanTail = (ac.tail || 'SPIDER1').toUpperCase().trim();
-                            const spiderHex = `spider_${cleanTail.replace(/[^A-Z0-9]/g, '')}`.toLowerCase();
-                            
-                            // ANTI-HIJACK CHECK: If a real terrestrial ADS-B flight is already active in the air with this tail, DO NOT OVERWRITE IT!
-                            const isRealADSBActive = Object.values(aircraftCache).some(existing => 
-                                existing.hex !== spiderHex && 
-                                existing.source !== 'Spidertracks Satellite' &&
-                                (existing.tail === cleanTail || existing.callsign === cleanTail)
-                            );
-
-                            if (isRealADSBActive) {
-                                continue; // Skip to protect live ADS-B feed data
-                            }
-
-                            const dist = getDistanceNM(ac.lat, ac.lon, KVPZ_COORDS[0], KVPZ_COORDS[1]);
-                            aircraftCache[spiderHex] = {
-                                hex: spiderHex,
-                                callsign: cleanTail,
-                                tail: cleanTail,
-                                type: ac.type || 'SPDR',
-                                desc: ac.desc || 'Spidertracks Satellite Aircraft',
-                                lat: ac.lat,
-                                lon: ac.lon,
-                                alt: ac.alt || 0,
-                                speed: ac.speed || 0,
-                                vspeed: 0,
-                                heading: ac.heading || 0,
-                                dist: dist,
-                                operator: 'Spidertracks Satellite',
-                                lastSeen: Date.now(),
-                                mil: 0,
-                                categoryClass: 'spidertracks',
-                                source: 'Spidertracks Satellite'
-                            };
-                            updateMapMarker(aircraftCache[spiderHex]);
-                        }
-                    }
-                    updateUI();
+                if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+                    foundData = true;
+                    try { safeSetItem('kvpz_spider_cache', JSON.stringify(data)); } catch(e) {}
+                    processSpiderData(data);
                     return;
                 }
             }
         } catch(e) {}
     }
+
+    // Fallback: Check local storage cache if network feed returned empty
+    if (!foundData) {
+        try {
+            const cached = localStorage.getItem('kvpz_spider_cache');
+            if (cached) {
+                const data = JSON.parse(cached);
+                if (data && typeof data === 'object') {
+                    processSpiderData(data);
+                }
+            }
+        } catch(e) {}
+    }
+}
+
+function processSpiderData(data) {
+    for (const ac of Object.values(data)) {
+        if (ac && ac.lat && ac.lon) {
+            const cleanTail = (ac.tail || 'SPIDER1').toUpperCase().trim();
+            const spiderHex = `spider_${cleanTail.replace(/[^A-Z0-9]/g, '')}`.toLowerCase();
+            
+            const isRealADSBActive = Object.values(aircraftCache).some(existing => 
+                existing.hex !== spiderHex && 
+                existing.source !== 'Spidertracks Satellite' &&
+                (existing.tail === cleanTail || existing.callsign === cleanTail)
+            );
+
+            if (isRealADSBActive) continue;
+
+            const dist = getDistanceNM(parseFloat(ac.lat), parseFloat(ac.lon), KVPZ_COORDS[0], KVPZ_COORDS[1]);
+            const acObj = {
+                hex: spiderHex,
+                callsign: cleanTail,
+                tail: cleanTail,
+                type: ac.type || 'SPDR',
+                desc: ac.desc || 'Spidertracks Satellite Aircraft',
+                lat: parseFloat(ac.lat),
+                lon: parseFloat(ac.lon),
+                alt: parseInt(ac.alt) || 2500,
+                speed: parseInt(ac.speed) || 110,
+                vspeed: 0,
+                heading: parseInt(ac.heading) || 0,
+                dist: dist,
+                operator: 'Spidertracks Satellite',
+                lastSeen: Date.now(),
+                mil: 0,
+                categoryClass: 'helicopter',
+                source: 'Spidertracks Satellite'
+            };
+            acObj.categoryClass = getAircraftCategory(acObj);
+            aircraftCache[spiderHex] = acObj;
+            updateMapMarker(acObj);
+        }
+    }
+    updateUI();
 }
 
 window.openSpidertracksModal = function() {
@@ -3798,8 +3841,10 @@ window.closeSpidertracksModal = function() {
 
 window.sendManualSpiderPos = async function() {
     const tail = (document.getElementById('spider-input-tail').value || 'N12345').toUpperCase().trim();
-    const lat = parseFloat(document.getElementById('spider-input-lat').value || 41.4542);
-    const lon = parseFloat(document.getElementById('spider-input-lon').value || -87.0068);
+    const latInput = document.getElementById('spider-input-lat').value;
+    const lonInput = document.getElementById('spider-input-lon').value;
+    const lat = parseFloat(latInput !== '' ? latInput : 41.4542);
+    const lon = parseFloat(lonInput !== '' ? lonInput : -87.0068);
     
     if (isNaN(lat) || isNaN(lon)) {
         alert("Please enter valid decimal coordinates (e.g. 41.4542, -87.0068)");
@@ -3807,30 +3852,27 @@ window.sendManualSpiderPos = async function() {
     }
 
     const payload = { tail, lat, lon, alt: 2500, speed: 110, heading: 180 };
+    const spiderHex = `spider_${tail.replace(/[^A-Z0-9]/g, '')}`.toLowerCase();
+    const dist = getDistanceNM(lat, lon, KVPZ_COORDS[0], KVPZ_COORDS[1]);
+    const acObj = {
+        hex: spiderHex, callsign: tail, tail: tail, type: 'SPDR', desc: 'Spidertracks Satellite Aircraft',
+        lat: lat, lon: lon, alt: 2500, speed: 110, vspeed: 0, heading: 180, dist: dist,
+        operator: 'Spidertracks Feed', lastSeen: Date.now(), mil: 0, categoryClass: 'helicopter', source: 'Spidertracks Satellite'
+    };
+    acObj.categoryClass = getAircraftCategory(acObj);
+    aircraftCache[spiderHex] = acObj;
+
     const endpoints = [`${window.location.origin}/spidertracks`, 'http://localhost:8080/spidertracks', 'http://127.0.0.1:3001/spidertracks'];
-    
     for (const ep of endpoints) {
         try {
-            const r = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (r.ok) {
-                alert(`✅ Position for ${tail} pushed successfully! Checking map...`);
-                fetchSpidertracksFeed();
-                closeSpidertracksModal();
-                return;
-            }
+            await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         } catch(e) {}
     }
-    alert("Position stored locally on map!");
-    const hex = `SPIDER_${tail.replace(/[^A-Z0-9]/g, '')}`.toLowerCase();
-    const dist = getDistanceNM(lat, lon, KVPZ_COORDS[0], KVPZ_COORDS[1]);
-    aircraftCache[hex] = {
-        hex: hex, callsign: tail, tail: tail, type: 'SPDR', desc: 'Spidertracks Aircraft',
-        lat: lat, lon: lon, alt: 2500, speed: 110, vspeed: 0, heading: 180, dist: dist,
-        operator: 'Spidertracks Feed', lastSeen: Date.now(), mil: 0, categoryClass: 'spidertracks', source: 'Spidertracks Satellite'
-    };
-    updateMapMarker(aircraftCache[hex]);
+
+    updateMapMarker(acObj);
     updateUI();
     closeSpidertracksModal();
+    alert(`✅ Position for ${tail} (${lat}, ${lon}) pushed successfully to map!`);
 };
 
 window.clearSpidertracksFeed = async function() {
@@ -3856,4 +3898,8 @@ window.clearSpidertracksFeed = async function() {
     closeSpidertracksModal();
     alert("🗑️ All SpiderTracks markers have been removed from the map!");
 };
+
+// Launch independent 4-second Spidertracks feed auto-sync loop
+fetchSpidertracksFeed();
+setInterval(fetchSpidertracksFeed, 4000);
 
