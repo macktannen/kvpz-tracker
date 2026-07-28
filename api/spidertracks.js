@@ -1,4 +1,45 @@
-let spidertracksStore = {};
+const fs = require('fs');
+const path = require('path');
+
+let inMemoryStore = global.serverlessSpiderStore || {};
+
+function getStoreFilePath() {
+    const primaryPath = path.join(process.cwd(), 'spidertracks.json');
+    try {
+        fs.accessSync(process.cwd(), fs.constants.W_OK);
+        return primaryPath;
+    } catch (e) {
+        return path.join('/tmp', 'spidertracks.json');
+    }
+}
+
+function loadStore() {
+    try {
+        const filePath = getStoreFilePath();
+        if (fs.existsSync(filePath)) {
+            const raw = fs.readFileSync(filePath, 'utf8');
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+                inMemoryStore = parsed;
+                global.serverlessSpiderStore = parsed;
+                return parsed;
+            }
+        }
+    } catch (e) {}
+    return inMemoryStore;
+}
+
+function saveStore(store) {
+    inMemoryStore = store;
+    global.serverlessSpiderStore = store;
+    try {
+        const filePath = getStoreFilePath();
+        fs.writeFileSync(filePath, JSON.stringify(store, null, 2), 'utf8');
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -9,8 +50,11 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
 
+    let store = loadStore();
+
     if (req.method === 'DELETE') {
-        spidertracksStore = {};
+        store = {};
+        saveStore(store);
         return res.status(200).json({ status: 'ok', cleared: true });
     }
 
@@ -22,7 +66,7 @@ module.exports = async (req, res) => {
             }
             if (body && (body.tail || body.registration || body.id)) {
                 const tail = (body.tail || body.registration || body.id || 'SPIDER1').toUpperCase().trim();
-                spidertracksStore[tail] = {
+                store[tail] = {
                     hex: body.hex || `SPIDER_${tail.replace(/[^A-Z0-9]/g, '')}`,
                     tail: tail,
                     callsign: body.callsign || tail,
@@ -36,18 +80,19 @@ module.exports = async (req, res) => {
                     desc: body.desc || 'Spidertracks Satellite Aircraft',
                     source: 'Spidertracks Satellite'
                 };
-                return res.status(200).json({ status: 'ok', updated: tail, data: spidertracksStore[tail] });
+                saveStore(store);
+                return res.status(200).json({ status: 'ok', updated: tail, data: store[tail] });
             }
         } catch(e) {
             return res.status(400).json({ error: e.message });
         }
     }
 
-    // GET request: Return all active spidertracks positions
+    // GET request: Return all active spidertracks positions (active within last 30 mins)
     const now = Date.now();
     const active = {};
-    for (const [k, v] of Object.entries(spidertracksStore)) {
-        if (now - v.timestamp < 15 * 60 * 1000) {
+    for (const [k, v] of Object.entries(store)) {
+        if (v && v.timestamp && (now - v.timestamp < 30 * 60 * 1000)) {
             active[k] = v;
         }
     }

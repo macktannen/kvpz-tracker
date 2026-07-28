@@ -170,11 +170,20 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-let spidertracksStore = {};
-
     if (reqUrl.pathname === '/spidertracks') {
+        const spiderFile = path.join(__dirname, 'spidertracks.json');
+        const loadSpiderStore = () => {
+            try {
+                if (fs.existsSync(spiderFile)) return JSON.parse(fs.readFileSync(spiderFile, 'utf8'));
+            } catch(e) {}
+            return {};
+        };
+        const saveSpiderStore = (data) => {
+            try { fs.writeFileSync(spiderFile, JSON.stringify(data, null, 2), 'utf8'); } catch(e) {}
+        };
+
         if (req.method === 'DELETE') {
-            spidertracksStore = {};
+            saveSpiderStore({});
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ status: 'ok', cleared: true }));
             return;
@@ -186,7 +195,8 @@ let spidertracksStore = {};
                 try {
                     const data = JSON.parse(body);
                     const tail = (data.tail || data.registration || data.id || 'SPIDER1').toUpperCase().trim();
-                    spidertracksStore[tail] = {
+                    const store = loadSpiderStore();
+                    store[tail] = {
                         hex: data.hex || `SPIDER_${tail.replace(/[^A-Z0-9]/g, '')}`,
                         tail: tail,
                         callsign: data.callsign || tail,
@@ -200,8 +210,9 @@ let spidertracksStore = {};
                         desc: data.desc || 'Spidertracks Satellite Aircraft',
                         source: 'Spidertracks Satellite'
                     };
+                    saveSpiderStore(store);
                     res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ status: 'ok', updated: tail, data: spidertracksStore[tail] }));
+                    res.end(JSON.stringify({ status: 'ok', updated: tail, data: store[tail] }));
                 } catch(e) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: e.message }));
@@ -210,7 +221,7 @@ let spidertracksStore = {};
             return;
         } else {
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify(spidertracksStore));
+            res.end(JSON.stringify(loadSpiderStore()));
             return;
         }
     }
