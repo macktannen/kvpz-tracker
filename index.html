@@ -87,6 +87,13 @@
                     <div id="faa-scraper-badge" style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #10b981; font-size: 0.62rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 700; display: flex; align-items: center; gap: 0.3rem;" title="FAA Registry Scraper Proxy Status">
                         <i class="fa-solid fa-building-shield"></i> <span id="faa-scraper-text">FAA Scraper: Online</span>
                     </div>
+                    <span style="color: var(--border-color);">|</span>
+                    <button id="ext-sync-btn" onclick="openSyncModal()" style="background: rgba(59, 130, 246, 0.15); border: 1px solid #3b82f6; color: #3b82f6; font-size: 0.62rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;" title="Click to setup External Aircraft Sync">
+                        <i class="fa-solid fa-satellite-dish"></i> <span>Sync Aircraft</span>
+                    </button>
+                    <div id="ext-sync-status-badge" style="background: rgba(107, 114, 128, 0.15); border: 1px solid #6b7280; color: #9ca3af; font-size: 0.62rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 700; display: flex; align-items: center; gap: 0.3rem;" title="External Sync Status">
+                        ⚪ <span id="ext-sync-status-text">Off</span>
+                    </div>
                 </div>
             </div>
         </header>
@@ -358,13 +365,43 @@
             </div>
         </footer>
     </div>
+    
+    <!-- External Sync Modal -->
+    <div class="modal-overlay" id="ext-sync-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 9999; justify-content: center; align-items: center;">
+        <div class="card" style="width: 90%; max-width: 520px; background: var(--color-bg-card); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color);">
+                <h3 style="margin: 0; font-size: 0.95rem; color: #3b82f6;"><i class="fa-solid fa-satellite-dish"></i> Sync External Aircraft</h3>
+                <button onclick="closeSyncModal()" style="background: none; border: none; color: #fff; font-size: 1.1rem; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="card-body" style="padding: 1rem; font-size: 0.85rem; line-height: 1.5; color: var(--color-text-main);">
+                <p style="margin-top: 0;">Stream live GPS coordinates from another open browser tab directly onto your KVPZ Radar map.</p>
 
+                <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem;">
+                    <strong style="color: #3b82f6;">1-Click Browser Sync Bookmarklet</strong><br>
+                    <span style="font-size: 0.82rem; color: var(--color-text-muted);">How to setup:</span>
+                    <ol style="margin: 0.4rem 0 0.6rem 1.2rem; padding: 0; font-size: 0.78rem; color: var(--color-text-main);">
+                        <li>Drag the blue button below directly to your browser's <strong>Bookmarks Bar</strong>.</li>
+                        <li>Open your flight tracking portal (e.g. Spidertracks, Garmin, etc.) in another tab.</li>
+                        <li>Click your new <strong>📡 Sync Location</strong> bookmark!</li>
+                    </ol>
+                    <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">
+                        <a id="ext-sync-bookmarklet-link" href="#" style="background: #3b82f6; color: #fff; font-weight: 700; padding: 0.45rem 0.9rem; border-radius: 4px; text-decoration: none; display: inline-block; font-size: 0.82rem; cursor: grab;" title="Drag to Bookmarks Bar">📡 Sync Location</a>
+                        <button onclick="copySyncBookmarklet()" style="background: var(--color-bg-secondary); border: 1px solid var(--border-color); color: #fff; padding: 0.45rem 0.75rem; border-radius: 4px; font-size: 0.78rem; cursor: pointer;"><i class="fa-solid fa-copy"></i> Copy Code</button>
+                    </div>
+                </div>
 
-
+                <div style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 0.75rem; text-align: center;">
+                    <button onclick="clearSyncFeed()" style="background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; font-weight: 700; padding: 0.45rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.82rem;">
+                        <i class="fa-solid fa-trash-can"></i> Remove Synced Marker
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="icao_categories.js?v=92"></script>
     <script src="indiana_powerlines_data.js?v=92"></script>
-    <script src="app.js?v=92"></script>
+    <script src="app.js?v=93"></script>
 </body>
 </html>

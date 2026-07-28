@@ -659,6 +659,7 @@ function isAltitudeVisible(alt) {
 
 function isTypeVisible(ac) {
     if (!ac) return true;
+    if (ac.source === 'External Sync' || (ac.hex && String(ac.hex).startsWith('sync_'))) return true;
     const typeClass = ac.categoryClass || 'other';
     if (typeClass === 'commercial-jet') return showCommJet;
     if (typeClass === 'airplane') return showAirplane;
@@ -672,6 +673,7 @@ function isTypeVisible(ac) {
 
 function getAircraftCategory(ac) {
     if (!ac) return 'other';
+    if (ac.source === 'External Sync' || (ac.hex && String(ac.hex).startsWith('sync_'))) return 'helicopter'; // Default to helicopter for custom marker
 
     // 1. Military (check mil flag from feed)
     if (ac.mil === 1 || ac.mil === true || ac.mil === '1' || String(ac.mil).toLowerCase() === 'true') {
@@ -1481,6 +1483,17 @@ function processAircraft(aircraftList) {
     const activeHexes = new Set();
     const now = new Date();
     
+    // Retain active external sync aircraft in activeHexes so they are drawn and not purged
+    Object.keys(aircraftCache).forEach(h => {
+        if (h.startsWith('sync_') || (aircraftCache[h] && aircraftCache[h].source === 'External Sync')) {
+            const syncAc = aircraftCache[h];
+            // keep for up to 30 mins
+            if (syncAc && (now - (syncAc.lastSeen || 0) < 30 * 60 * 1000)) {
+                activeHexes.add(h);
+            }
+        }
+    });
+
     // Sort feed entries by distance
     aircraftList.forEach(ac => {
         const hex = ac.hex;
@@ -1913,12 +1926,14 @@ function getAircraftIconSvg(ac, color) {
 
 // 6. Map Marker Graphics & Rotation
 function updateMapMarker(ac) {
-    const color = getAircraftColor(ac);
+    const isSync = (ac.source === 'External Sync' || (ac.hex && String(ac.hex).startsWith('sync_')));
+    const color = isSync ? '#3b82f6' : getAircraftColor(ac);
     const iconHtml = getAircraftIconSvg(ac, color);
     
     // Check if identified as military (by manual checkbox, type, description, operator, or raw mil flag)
     const isMil = (ac.mil === 1 || ac.mil === true || ac.mil === '1' || String(ac.mil).toLowerCase() === 'true' || ac.categoryClass === 'military');
     const milRingHtml = isMil ? `<div class="mil-target-ring-static" style="border-color: ${color}; color: ${color}; box-shadow: 0 0 10px ${color}80, inset 0 0 6px ${color}40;" title="Military Identified Aircraft"></div>` : '';
+    const syncRingHtml = isSync ? `<div class="sync-target-ring-static" style="position: absolute; width: 44px; height: 44px; top: -7px; left: 8px; border: 2px dashed #3b82f6; border-radius: 50%; box-shadow: 0 0 12px #3b82f6; animation: pulse 2s infinite;" title="External Synced Aircraft"></div>` : '';
 
     // Custom DivIcon containing SVG plane icon, military ring, and label
     const customIcon = L.divIcon({
@@ -1926,8 +1941,9 @@ function updateMapMarker(ac) {
         html: `
             <div class="plane-marker-container" style="position: relative;">
                 ${milRingHtml}
+                ${syncRingHtml}
                 ${iconHtml}
-                <div class="plane-label" style="border-color: ${color};">${ac.callsign}</div>
+                <div class="plane-label" style="border-color: ${color};">${ac.callsign}${isSync ? ' 📡' : ''}</div>
             </div>
         `,
         iconSize: [60, 45],
@@ -3700,7 +3716,197 @@ async function processAutoSearchQueue() {
 }
 
 // ----------------------------------------------------
-// 13. Spidertracks Satellite Feed & Modal Handlers
+// 13. External Aircraft Sync & Modal Handlers
 // ----------------------------------------------------
+
+let extSyncStatus = 'SYNC_OFF'; // 'SYNC_OFF', 'SYNC_CONNECTED', 'SYNC_FAILED'
+let lastExtSyncTime = 0;
+let extSyncPoller = null;
+
+function getSyncEndpoints() {
+    const list = [`${window.location.origin}/api/sync`, `${window.location.origin}/sync`];
+    if (window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        list.push('http://localhost:3001/api/sync', 'http://127.0.0.1:3001/api/sync');
+    }
+    return list;
+}
+
+function updateExtSyncBadge(status) {
+    extSyncStatus = status;
+    const badge = document.getElementById('ext-sync-status-badge');
+    const text = document.getElementById('ext-sync-status-text');
+    if (!badge || !text) return;
+    
+    if (status === 'SYNC_OFF') {
+        badge.style.background = 'rgba(107, 114, 128, 0.15)';
+        badge.style.borderColor = '#6b7280';
+        badge.style.color = '#9ca3af';
+        badge.innerHTML = `⚪ <span id="ext-sync-status-text">Off</span>`;
+    } else if (status === 'SYNC_CONNECTED') {
+        badge.style.background = 'rgba(16, 185, 129, 0.15)';
+        badge.style.borderColor = '#10b981';
+        badge.style.color = '#10b981';
+        badge.innerHTML = `🟢 <span id="ext-sync-status-text">Connected</span>`;
+    } else if (status === 'SYNC_FAILED') {
+        badge.style.background = 'rgba(239, 68, 68, 0.15)';
+        badge.style.borderColor = '#ef4444';
+        badge.style.color = '#ef4444';
+        badge.innerHTML = `🔴 <span id="ext-sync-status-text">Failed</span>`;
+    }
+}
+
+async function fetchExtSyncFeed() {
+    const endpoints = getSyncEndpoints();
+    let foundData = false;
+    for (const ep of endpoints) {
+        try {
+            const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            const timeoutId = controller ? setTimeout(() => controller.abort(), 3000) : null;
+            const res = await fetch(ep, controller ? { signal: controller.signal } : {});
+            if (timeoutId) clearTimeout(timeoutId);
+            
+            if (res.ok) {
+                const data = await res.json();
+                if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+                    foundData = true;
+                    processExtSyncData(data);
+                    return;
+                }
+            }
+        } catch(e) {}
+    }
+
+    // Check timeout for failure
+    if (!foundData && Date.now() - lastExtSyncTime > 30000 && lastExtSyncTime > 0 && extSyncStatus === 'SYNC_CONNECTED') {
+        updateExtSyncBadge('SYNC_FAILED');
+    }
+}
+
+function processExtSyncData(data) {
+    let freshDataReceived = false;
+    for (const ac of Object.values(data)) {
+        if (ac && ac.lat && ac.lon) {
+            // Check if older than 5 mins
+            if (Date.now() - ac.timestamp > 5 * 60 * 1000) continue;
+            
+            freshDataReceived = true;
+            lastExtSyncTime = Date.now();
+            
+            const cleanTail = (ac.tail || 'SYNC1').toUpperCase().trim();
+            const syncHex = ac.hex || `sync_${cleanTail.replace(/[^A-Z0-9]/g, '')}`.toLowerCase();
+            
+            const dist = getDistanceNM(parseFloat(ac.lat), parseFloat(ac.lon), KVPZ_COORDS[0], KVPZ_COORDS[1]);
+            const acObj = {
+                hex: syncHex,
+                callsign: cleanTail,
+                tail: cleanTail,
+                type: ac.type || 'SYNC',
+                desc: ac.desc || 'External Sync Aircraft',
+                lat: parseFloat(ac.lat),
+                lon: parseFloat(ac.lon),
+                alt: parseInt(ac.alt) || 2500,
+                speed: parseInt(ac.speed) || 110,
+                vspeed: 0,
+                heading: parseInt(ac.heading) || 0,
+                dist: dist,
+                operator: 'External Feed',
+                lastSeen: Date.now(),
+                mil: 0,
+                categoryClass: 'helicopter',
+                source: 'External Sync'
+            };
+            acObj.categoryClass = getAircraftCategory(acObj);
+            aircraftCache[syncHex] = acObj;
+            updateMapMarker(acObj);
+        }
+    }
+    
+    if (freshDataReceived) {
+        updateExtSyncBadge('SYNC_CONNECTED');
+        updateUI();
+    }
+}
+
+window.openSyncModal = function() {
+    const modal = document.getElementById('ext-sync-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        const link = document.getElementById('ext-sync-bookmarklet-link');
+        if (link) {
+            let targetUrl = window.location.origin + '/api/sync';
+            if (window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                targetUrl = 'http://localhost:3001/api/sync';
+            }
+            const code = `javascript:(function(){if(window.extSyncTimer){clearInterval(window.extSyncTimer);window.extSyncTimer=null;var t=document.createElement('div');t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 18px;background:#ef4444;color:#fff;font-weight:bold;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.5);font-size:13px;';t.innerHTML='🛑 Location Sync Stopped';document.body.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3000);return;}var url='${targetUrl}';var t=document.createElement('div');t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 18px;background:#3b82f6;color:#fff;font-weight:bold;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.5);font-size:13px;';t.innerHTML='📡 Location Sync Active!<br><span style="font-weight:normal;font-size:11px;">Click bookmark again anytime to STOP.</span>';document.body.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},4000);function s(){try{var txt=document.body.innerText||'';var tailMatch=txt.match(/(?:tail|reg|registration|callsign)[:\\s=]+([A-Z0-9\\-]+)/i);var tail=tailMatch?tailMatch[1].toUpperCase():'SYNC1';var lat=txt.match(/(?:lat|latitude)[:\\s=]+(-?\\d+\\.\\d+)/i);var lon=txt.match(/(?:lng|lon|longitude)[:\\s=]+(-?\\d+\\.\\d+)/i);var alt=txt.match(/(?:alt|altitude)[:\\s=]+(\\d+)/i)||[null,2500];var spd=txt.match(/(?:speed|gs)[:\\s=]+(\\d+)/i)||[null,110];var hdg=txt.match(/(?:heading|track|hdg)[:\\s=]+(\\d+)/i)||[null,0];if(lat&&lon){fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tail:tail,lat:parseFloat(lat[1]),lon:parseFloat(lon[1]),alt:parseInt(alt[1]),speed:parseInt(spd[1]),heading:parseInt(hdg[1])})}).catch(function(e){console.warn('Sync error:',e);});}}catch(e){}}s();window.extSyncTimer=setInterval(s,5000);})();`;
+            link.href = code;
+        }
+    }
+};
+
+window.copySyncBookmarklet = function() {
+    const link = document.getElementById('ext-sync-bookmarklet-link');
+    if (link && link.href) {
+        navigator.clipboard.writeText(link.href).then(() => {
+            alert("📋 Bookmarklet code copied to clipboard!\nYou can paste this into a new bookmark's URL field.");
+        }).catch(() => {
+            alert("Code: " + link.href);
+        });
+    }
+};
+
+window.closeSyncModal = function() {
+    const modal = document.getElementById('ext-sync-modal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.clearSyncFeed = async function() {
+    Object.keys(aircraftCache).forEach(hex => {
+        if (hex.startsWith('sync_') || (aircraftCache[hex] && aircraftCache[hex].source === 'External Sync')) {
+            removeAircraftLayers(hex);
+            delete aircraftCache[hex];
+        }
+    });
+
+    const endpoints = getSyncEndpoints();
+    for (const ep of endpoints) {
+        try {
+            await fetch(ep, { method: 'DELETE' });
+        } catch(e) {}
+    }
+    
+    updateExtSyncBadge('SYNC_OFF');
+    // Mark tile keys as fetched
+    neededTileKeys.forEach(k => fetchedPowerlineTiles.add(k));
+    
+    if (newCount > 0) {
+        savePowerlineCache();
+    }
+    
+    console.log(`OSM Powerlines: ${newCount} new added to local cache (${Object.keys(powerlineCache).length} total cached), ${skippedCount} skipped (Duke/AEP or outside Indiana)`);
+    renderPowerlinesFromCache();
+}
+
+// Process Auto-Search Queue (500ms fast queue for ADSBdb static DB, 4.2s for Gemini AI fallback)
+async function processAutoSearchQueue() {
+    if (isAutoSearchProcessing || autoSearchQueue.length === 0) return;
+    isAutoSearchProcessing = true;
+    
+    while (autoSearchQueue.length > 0) {
+        if (!autoSearch) {
+            autoSearchQueue.length = 0; // Clear queue if auto-search was toggled off
+            break;
+        }
+        const hex = autoSearchQueue.shift();
+        
+        // Skip if they manually searched it while it was in queue
+        if (!activeSearches.has(hex.toLowerCase())) {
+            await fetchMissingAircraftInfo(hex);
+            // Wait 500ms before next fast ADSBdb request
+            await new Promise(r => setTimeout(r, 500));
+        }
+    }
+    
+    isAutoSearchProcessing = false;
+}
 
 

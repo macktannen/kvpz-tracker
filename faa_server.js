@@ -154,7 +154,7 @@ const PORT = 3001;
 const server = http.createServer(async (req, res) => {
     // Enable CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
@@ -170,7 +170,61 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    if (reqUrl.pathname === '/api/sync' || reqUrl.pathname === '/sync') {
+        const syncFile = path.join(__dirname, 'sync.json');
+        const loadSyncStore = () => {
+            try {
+                if (fs.existsSync(syncFile)) return JSON.parse(fs.readFileSync(syncFile, 'utf8'));
+            } catch(e) {}
+            return {};
+        };
+        const saveSyncStore = (data) => {
+            try { fs.writeFileSync(syncFile, JSON.stringify(data, null, 2), 'utf8'); } catch(e) {}
+        };
 
+        if (req.method === 'DELETE') {
+            saveSyncStore({});
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ status: 'ok', cleared: true }));
+            return;
+        }
+        if (req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => body += chunk);
+            req.on('end', () => {
+                try {
+                    const data = JSON.parse(body);
+                    const tail = (data.tail || data.registration || data.id || data.callsign || 'SYNC1').toUpperCase().trim();
+                    const store = loadSyncStore();
+                    store[tail] = {
+                        hex: data.hex || `SYNC_${tail.replace(/[^A-Z0-9]/g, '')}`,
+                        tail: tail,
+                        callsign: data.callsign || tail,
+                        lat: parseFloat(data.lat || data.latitude || 0),
+                        lon: parseFloat(data.lon || data.longitude || 0),
+                        alt: parseInt(data.alt || data.altitude || 2500),
+                        speed: parseInt(data.speed || data.groundspeed || 0),
+                        heading: parseInt(data.heading || data.track || 0),
+                        timestamp: Date.now(),
+                        type: data.type || 'SYNC',
+                        desc: data.desc || 'External Sync Aircraft',
+                        source: 'External Sync'
+                    };
+                    saveSyncStore(store);
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ status: 'ok', updated: tail, data: store[tail] }));
+                } catch(e) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: e.message }));
+                }
+            });
+            return;
+        } else {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(loadSyncStore()));
+            return;
+        }
+    }
 
     if (reqUrl.pathname === '/icon-override' || reqUrl.pathname === '/api/icon-override') {
         const customIconFile = path.join(__dirname, 'custom_icons.json');
