@@ -64,17 +64,17 @@ module.exports = async (req, res) => {
             if (typeof body === 'string') {
                 body = JSON.parse(body);
             }
-            if (body && (body.tail || body.registration || body.id)) {
-                const tail = (body.tail || body.registration || body.id || 'SPIDER1').toUpperCase().trim();
+            if (body && typeof body === 'object') {
+                const tail = (body.tail || body.registration || body.id || body.callsign || 'SPIDER1').toUpperCase().trim();
                 store[tail] = {
                     hex: body.hex || `SPIDER_${tail.replace(/[^A-Z0-9]/g, '')}`,
                     tail: tail,
                     callsign: body.callsign || tail,
                     lat: parseFloat(body.lat || body.latitude || 0),
                     lon: parseFloat(body.lon || body.longitude || 0),
-                    alt: parseInt(body.alt || body.altitude || 0),
-                    speed: parseInt(body.speed || body.groundspeed || 0),
-                    heading: parseInt(body.heading || body.track || 0),
+                    alt: parseInt(body.alt || body.altitude || 2500),
+                    speed: parseInt(body.speed || body.groundspeed || 110),
+                    heading: parseInt(body.heading || body.track || 180),
                     timestamp: Date.now(),
                     type: body.type || 'SPDR',
                     desc: body.desc || 'Spidertracks Satellite Aircraft',

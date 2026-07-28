@@ -194,7 +194,7 @@ const server = http.createServer(async (req, res) => {
             req.on('end', () => {
                 try {
                     const data = JSON.parse(body);
-                    const tail = (data.tail || data.registration || data.id || 'SPIDER1').toUpperCase().trim();
+                    const tail = (data.tail || data.registration || data.id || data.callsign || 'SPIDER1').toUpperCase().trim();
                     const store = loadSpiderStore();
                     store[tail] = {
                         hex: data.hex || `SPIDER_${tail.replace(/[^A-Z0-9]/g, '')}`,
@@ -202,7 +202,7 @@ const server = http.createServer(async (req, res) => {
                         callsign: data.callsign || tail,
                         lat: parseFloat(data.lat || data.latitude || 0),
                         lon: parseFloat(data.lon || data.longitude || 0),
-                        alt: parseInt(data.alt || data.altitude || 0),
+                        alt: parseInt(data.alt || data.altitude || 2500),
                         speed: parseInt(data.speed || data.groundspeed || 0),
                         heading: parseInt(data.heading || data.track || 0),
                         timestamp: Date.now(),
